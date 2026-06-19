@@ -1,0 +1,61 @@
+# https://taskfile.dev
+version: "3"
+
+tasks:
+  # ---------------------------------------------------------------------------
+  # ENVIRONMENT SETUP
+  # ---------------------------------------------------------------------------
+
+  env:init:
+    desc: "Setup full development environment (Python venv + Platform Tools)"
+    cmds:
+      - python .agents/scripts/env_init.py
+
+  # ---------------------------------------------------------------------------
+  # CORE WORKFLOWS
+  # ---------------------------------------------------------------------------
+  default:
+    desc: "Lists all available tasks from all included files."
+    silent: true
+    cmds:
+      - task --list-all
+
+  verify:
+    desc: "Run project linting and verification checks (stub)"
+    cmds:
+      - echo "No verify command configured. Edit Taskfile.yml to add your project's linting/compilation checks."
+
+  test:
+    desc: "Run project test suite (stub)"
+    cmds:
+      - echo "No test command configured. Edit Taskfile.yml to add your project's test suite execution command."
+
+  update-map:
+    desc: "Update the central agent-map.md by scanning personas and skills."
+    cmds:
+      - python .agents/skills/map-generator/scripts/update_map.py
+
+  handoff:
+    desc: "Update the active handoff status with current workspace state."
+    cmds:
+      - python .agents/skills/collaborative-memory/scripts/compile_handoff.py
+
+  docs:init:
+    desc: "Initialize Workspace Collaborative Memory System (CMS) docs layout."
+    cmds:
+      - python .agents/skills/collaborative-memory/scripts/init_docs.py {{.CLI_ARGS}}
+
+  worktree:create:
+    desc: "Create an isolated Git worktree. Usage: task worktree:create SLUG=<slug> BRANCH=<branch_name>"
+    cmds:
+      - python .agents/skills/git-worktree/scripts/manage_worktree.py create "{{.SLUG}}" "{{.BRANCH}}"
+
+  worktree:clean:
+    desc: "Clean up worktree and delete local branch. Usage: task worktree:clean SLUG=<slug> BRANCH=<branch_name>"
+    cmds:
+      - python .agents/skills/git-worktree/scripts/manage_worktree.py clean "{{.SLUG}}" "{{.BRANCH}}"
+
+  worktree:list:
+    desc: "List active Git worktrees"
+    cmds:
+      - python .agents/skills/git-worktree/scripts/manage_worktree.py list
