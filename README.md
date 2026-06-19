@@ -20,9 +20,26 @@ Instead of relying on ad-hoc prompts, AI Setup gives your agent:
 
 ## Quick Start
 
-### 1. Bootstrap a New Project
+### 1. Install via Vercel Skills CLI (Recommended)
 
-Clone or copy this repository into your project root, then run:
+You can install any of the skills in this repository individually or together using `npx skills`:
+
+```bash
+# Install a single skill
+npx skills add <owner>/<repo> --skill agentic-code-start
+
+# Install multiple specific skills
+npx skills add <owner>/<repo> --skill agent-router,workflow-protocol,task-planner,agentic-code-start
+
+# Install all skills in this repository
+npx skills add <owner>/<repo> --all
+```
+
+*Note: Replace `<owner>/<repo>` with your public GitHub repository path.*
+
+### 2. Manual Clone & Bootstrap
+
+Alternatively, you can clone or copy this repository into your project root, then run:
 
 ```bash
 python .agents/skills/agentic-code-start/scripts/bootstrap.py
