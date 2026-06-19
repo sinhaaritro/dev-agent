@@ -8,6 +8,22 @@
                 "--api-key",
                 "YOUR_API_KEY"
             ]
+        },
+        "git": {
+            "command": "uvx",
+            "args": [
+                "mcp-server-git",
+                "--repository",
+                "."
+            ]
+        },
+        "gitmcp": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "mcp-remote",
+                "https://gitmcp.io/sse"
+            ]
         }
     }
 }

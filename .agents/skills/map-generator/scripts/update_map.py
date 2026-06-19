@@ -1,9 +1,24 @@
 import os
 import re
+import subprocess
 from pathlib import Path
 
+
+def _get_project_root():
+    """Resolve project root via git."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, check=True
+        )
+        return Path(result.stdout.strip())
+    except subprocess.CalledProcessError:
+        # Fallback to relative navigation
+        return Path(__file__).resolve().parents[4]
+
+
 # Config
-PROJECT_ROOT = Path(__file__).resolve().parents[4]  # d:/Projects/ai-setup/
+PROJECT_ROOT = _get_project_root()
 AGENT_DIR = PROJECT_ROOT / ".agents"
 PERSONAS_DIR = AGENT_DIR / "personas"
 SKILLS_DIR = AGENT_DIR / "skills"

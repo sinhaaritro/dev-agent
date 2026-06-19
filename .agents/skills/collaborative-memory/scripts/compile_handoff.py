@@ -23,6 +23,7 @@ def get_git_root():
 def update_handoff():
     git_root = get_git_root()
     handoff_path = os.path.join(git_root, "docs", "handoffs", "active_handoff.md")
+    history_path = os.path.join(git_root, "docs", "handoffs", "handoff_history.log")
     audit_path = os.path.join(git_root, "docs", "audits", "session_audit.log")
     template_path = os.path.join(git_root, ".agents", "skills", "collaborative-memory", "templates", "handoff_template.md")
     
@@ -121,18 +122,7 @@ Define active target task here.
     with open(handoff_path, "w", encoding="utf-8") as f:
         f.write(content)
         
-    # 3. Log to session_audit.log
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_entry = f"[{timestamp}] [ACTOR: CMS System] COMPILED HANDOFF: Updated {handoff_path} (Branch: {branch})\n"
-    with open(audit_path, "a", encoding="utf-8") as f:
-        f.write(log_entry)
-        
-    # 4. Display Terminal Dashboard for human developer (Plain text to avoid Windows encoding issues)
-    print("\n" + "=" * 60)
-    print("CMS HANDOFF STATUS BOARD".center(60))
-    print("=" * 60)
-    
-    # Extract meta fields
+    # 3. Extract meta fields for logging and display
     h_type = re.search(r"- \*\*Type\*\*:\s*([^\n]+)", content)
     h_persona = re.search(r"- \*\*Active Persona\*\*:\s*([^\n]+)", content)
     h_objective = re.search(r"## 🎯 Current Objective\s*\n([^\n]+)", content)
@@ -140,6 +130,22 @@ Define active target task here.
     type_str = h_type.group(1).strip() if h_type else "Unknown"
     persona_str = h_persona.group(1).strip() if h_persona else "Unknown"
     objective_str = h_objective.group(1).strip() if h_objective else "Not set"
+
+    # 4. Log to session_audit.log
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = f"[{timestamp}] [ACTOR: CMS System] COMPILED HANDOFF: Updated {handoff_path} (Branch: {branch})\n"
+    with open(audit_path, "a", encoding="utf-8") as f:
+        f.write(log_entry)
+        
+    # 5. Append to handoff_history.log
+    history_entry = f"[{timestamp}] Type={type_str} Persona={persona_str} Branch={branch}\n"
+    with open(history_path, "a", encoding="utf-8") as f:
+        f.write(history_entry)
+        
+    # 6. Display Terminal Dashboard for human developer (Plain text to avoid Windows encoding issues)
+    print("\n" + "=" * 60)
+    print("CMS HANDOFF STATUS BOARD".center(60))
+    print("=" * 60)
     
     print(f"  Last Updated:   {today}")
     print(f"  Handoff Type:   {type_str}")

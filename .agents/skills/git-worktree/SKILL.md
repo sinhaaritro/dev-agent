@@ -14,67 +14,17 @@ This skill defines the isolation protocol for running parallel agents in dedicat
 
 When running multiple agents concurrently, we isolate their environments under `.worktrees/` in the project root to prevent index locks, dependency conflicts, and uncommitted change overrides.
 
-### The Worktree Setup Function (Python Reference)
+### Worktree Management Script
 
-When setting up a worktree for a subagent, use the following logic (or implement it via a script/helper):
+Worktree operations are handled by the [`manage_worktree.py`](scripts/manage_worktree.py) script with three subcommands:
 
-```python
-import os
-import subprocess
+| Command | Usage | Action |
+| :--- | :--- | :--- |
+| `create` | `python .agents/skills/git-worktree/scripts/manage_worktree.py create <slug> <branch>` | Creates `.worktrees/<slug>` on `<branch>`, ensures `.gitignore` entry |
+| `clean` | `python .agents/skills/git-worktree/scripts/manage_worktree.py clean <slug> <branch>` | Removes worktree and deletes local branch |
+| `list` | `python .agents/skills/git-worktree/scripts/manage_worktree.py list` | Lists all active worktrees |
 
-def setup_worktree(task_slug: str, branch_name: str) -> str:
-    """
-    Sets up a Git worktree for parallel agent execution.
-    1. Ensures .gitignore contains .worktrees/
-    2. Ensures .worktrees/ directory exists.
-    3. Adds the worktree on the specified branch.
-    Returns the absolute path to the created worktree.
-    """
-    workspace_root = os.getcwd()
-    worktree_parent = os.path.join(workspace_root, ".worktrees")
-    worktree_path = os.path.join(worktree_parent, task_slug)
-    
-    # 1. Ensure .worktrees/ is in .gitignore
-    gitignore_path = os.path.join(workspace_root, ".gitignore")
-    gitignore_entry = ".worktrees/\n"
-    
-    if os.path.exists(gitignore_path):
-        with open(gitignore_path, "r") as f:
-            content = f.read()
-        if ".worktrees/" not in content:
-            with open(gitignore_path, "a") as f:
-                f.write("\n# Git worktrees for parallel agents\n" + gitignore_entry)
-    else:
-        with open(gitignore_path, "w") as f:
-            f.write("# Git worktrees for parallel agents\n" + gitignore_entry)
-            
-    # 2. Ensure parent .worktrees/ directory exists
-    os.makedirs(worktree_parent, exist_ok=True)
-    
-    # 3. Create the Git worktree
-    # If the branch already exists, we check out to it; otherwise we create it
-    try:
-        # Check if branch exists
-        subprocess.run(
-            ["git", "show-ref", "--verify", f"refs/heads/{branch_name}"],
-            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
-        # Branch exists, add worktree without '-b'
-        print(f"Branch '{branch_name}' already exists. Adding worktree at '{worktree_path}'...")
-        subprocess.run(
-            ["git", "worktree", "add", worktree_path, branch_name],
-            check=True
-        )
-    except subprocess.CalledProcessError:
-        # Branch doesn't exist, create it with -b
-        print(f"Creating branch '{branch_name}' and worktree at '{worktree_path}'...")
-        subprocess.run(
-            ["git", "worktree", "add", worktree_path, "-b", branch_name],
-            check=True
-        )
-        
-    return os.path.abspath(worktree_path)
-```
+Or via the Taskfile shortcuts: `task worktree:create SLUG=<slug> BRANCH=<branch>`, `task worktree:clean`, `task worktree:list`.
 
 ---
 

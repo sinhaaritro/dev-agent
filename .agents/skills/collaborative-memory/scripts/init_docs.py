@@ -3,9 +3,23 @@ import sys
 import re
 import argparse
 import shutil
+import subprocess
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[4]  # d:/Projects/ai-setup/
+
+def _get_project_root():
+    """Resolve project root via git."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, check=True
+        )
+        return Path(result.stdout.strip())
+    except subprocess.CalledProcessError:
+        return Path(__file__).resolve().parents[4]
+
+
+PROJECT_ROOT = _get_project_root()
 DOCS_DIR = PROJECT_ROOT / "docs"
 PERSONAS_DIR = PROJECT_ROOT / ".agents" / "personas"
 TEMPLATES_DIR = PROJECT_ROOT / ".agents" / "skills" / "collaborative-memory" / "templates"

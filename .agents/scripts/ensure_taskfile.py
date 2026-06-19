@@ -1,10 +1,24 @@
 import sys
 import shutil
+import subprocess
 from pathlib import Path
 
-# Paths relative to this script
+
+def _get_project_root():
+    """Resolve project root via git."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, check=True
+        )
+        return Path(result.stdout.strip())
+    except subprocess.CalledProcessError:
+        return Path(__file__).resolve().parent.parents[1]
+
+
+# Paths
+PROJECT_ROOT = _get_project_root()
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parents[1]
 TASKFILE_PATH = PROJECT_ROOT / "Taskfile.yml"
 TEMPLATE_PATH = SCRIPT_DIR / "Taskfile.template.yml"
 GITIGNORE_PATH = PROJECT_ROOT / ".gitignore"

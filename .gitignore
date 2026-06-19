@@ -1,0 +1,23 @@
+# Agent worktrees (parallel execution)
+.worktrees/
+
+# Python virtual environment
+.venv/
+
+# Local binary tools
+.bin/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Runtime docs (generated per-session / local to developer)
+docs/handoffs/
+docs/plans/
+docs/tests/
+docs/audits/
+docs/changes/
