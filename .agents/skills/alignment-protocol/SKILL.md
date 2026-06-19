@@ -41,6 +41,35 @@ Before beginning code changes on a complex, ambiguous, or new task, you must pau
 
 ---
 
+## 🚦 Phase Transition Gate
+
+For **all human↔AI interactions**, the agent must remain in the pre-coding phase until the human explicitly signals to enter the coding phase.
+
+### What Does NOT Count as Approval
+- Inline comments on a plan or review artifact (even "yes", "do that", "agreed")
+- Answering clarifying questions
+- Providing design feedback or preferences
+- Clicking a "Review" button on a plan artifact
+
+### What DOES Count as Approval
+- Explicit text: "proceed", "implement", "execute", "go ahead", "start coding", "approved", or clear equivalent
+- Clicking a dedicated "Proceed" / "Approve" button (if the IDE supports it)
+
+### Proceed Call-to-Action (Mandatory)
+Every implementation plan or gated artifact MUST:
+1. End with the following footer:
+   > **⏳ Awaiting Approval** — Reply **"proceed"** to begin implementation, or provide feedback to revise the plan.
+2. Be created with the metadata field `ArtifactType: "implementation_plan"` (e.g., `artifactType: "ARTIFACT_TYPE_IMPLEMENTATION_PLAN"` in the generated `.metadata.json`) so that compatible IDE UIs can render the **Review + Proceed** buttons.
+
+This serves several purposes:
+- **Human-facing**: A clear, consistent signal that the agent is waiting and will not auto-execute.
+- **Subagent/IDE-facing**: Allows compatible IDE UIs to automatically render approval UX and helps orchestrator agents detect plan-ready state.
+
+### Subagent Exemption
+Subagent↔subagent transitions (e.g., orchestrator dispatching to engineer) are exempt from this gate. The orchestrator already holds human approval for the delegated scope. The dispatch ticket in `docs/handoffs/subagent_dispatch.md` serves as the authorization.
+
+---
+
 ## 📊 Status Board Reporting
 
 For multi-step or long-running workflows, update the user using the standardized status table:

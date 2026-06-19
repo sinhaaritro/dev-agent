@@ -20,7 +20,7 @@ For complex or multi-file changes, execution is divided into three generic stage
     1.  **Analysis & Discovery**: Inspect the codebase, map dependencies, and check memory (`docs/MEMORY.md`).
     2.  **Socratic Gate**: Formulate trade-offs and options tables for ambiguous requirements using `alignment-protocol`.
     3.  **Plan & Solution Design**: Create `docs/plans/implementation_plan-{slug}.md` and `docs/plans/task-{slug}.md` (derived from templates). Detail affected files without writing code blocks.
-    4.  **Approval Gate**: Seek user approval on the design. **Pause execution** until approved.
+    4.  **Approval Gate**: Seek user approval on the design. **Pause execution** and remain in the pre-coding phase. The agent MUST NOT transition to Stage 2 until the human sends an explicit proceed signal (see `alignment-protocol` → Phase Transition Gate). Design feedback, question answers, and inline review comments do NOT constitute approval — they are continued Stage 1 activity.
 *   *Plug-and-play Specialists*: `@architect` (API/Schema design), `@legacy-analyst` (analyzing old codebases), `@security-reviewer` (threat modeling).
 
 ### Stage 2: Coding Phase (Implementation & Writing)
