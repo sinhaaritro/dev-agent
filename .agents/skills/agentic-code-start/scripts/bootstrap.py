@@ -49,8 +49,8 @@ def main():
         print(f"[ERROR] Template directory not found: {template_dir}")
         sys.exit(1)
 
-    # 2. Sync Agent Directory Templates (personas, workflows, rules)
-    folders = ["personas", "workflows", "rules"]
+    # 2. Sync Agent Directory Templates (personas, workflows, rules, scripts)
+    folders = ["personas", "workflows", "rules", "scripts"]
     for folder in folders:
         src_folder = template_dir / folder
         dest_folder = target_agents_dir / folder
@@ -88,8 +88,8 @@ def main():
     # 3. Handle Root Configuration files (.cursorrules, .windsurfrules)
     print("\n[INFO] Checking IDE Routing Configurations...")
     routing_rules = {
-        ".cursorrules": "# Cursor Rules\n# Please scan and strictly adhere to all agent rules, workflows, and personas defined in the `.agents/` directory of this workspace.\n",
-        ".windsurfrules": "# Windsurf Rules\n# Please scan and strictly adhere to all agent rules, workflows, and personas defined in the `.agents/` directory of this workspace.\n"
+        ".cursorrules": "# Cursor Rules\n# Please read and adhere to the gateway instructions defined in `.agents/rules/system.md`.\n",
+        ".windsurfrules": "# Windsurf Rules\n# Please read and adhere to the gateway instructions defined in `.agents/rules/system.md`.\n"
     }
 
     for filename, rule_content in routing_rules.items():
