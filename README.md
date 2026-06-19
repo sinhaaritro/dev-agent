@@ -26,16 +26,14 @@ You can install any of the skills in this repository individually or together us
 
 ```bash
 # Install a single skill
-npx skills add <owner>/dev-agent --skill agentic-code-start
+npx skills add github/sinhaaritro/dev-agent --skill agentic-code-start
 
 # Install multiple specific skills
-npx skills add <owner>/dev-agent --skill agent-router,workflow-protocol,task-planner,agentic-code-start
+npx skills add github/sinhaaritro/dev-agent --skill agent-router,workflow-protocol,task-planner,agentic-code-start
 
 # Install all skills in this repository
-npx skills add <owner>/dev-agent --all
+npx skills add github/sinhaaritro/dev-agent --all
 ```
-
-*Note: Replace `<owner>/dev-agent` with your public GitHub repository path (e.g., `username/dev-agent`).*
 
 ### 2. Manual Clone & Bootstrap
 
@@ -53,8 +51,7 @@ This will scaffold all necessary directories (`docs/`, `.agents/personas/`, `.ag
 python .agents/skills/collaborative-memory/scripts/init_docs.py all
 ```
 
-Can we created by AI.
-This creates the full `docs/` folder structure (memory index, handoffs, specs, ADRs, test reports, audits, changelogs).
+This creates the full `docs/` folder structure (memory index, handoffs, specs, ADRs, test reports, audits, changelogs). Can be created by AI.
 
 ### 3. Start Coding
 
