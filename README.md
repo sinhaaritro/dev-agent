@@ -1,4 +1,4 @@
-# AI Setup
+# Dev Agent
 
 > A modular, multi-agent workspace template that turns any AI coding assistant into a structured, memory-aware development team.
 
@@ -6,9 +6,9 @@
 
 ## What Is This?
 
-**AI Setup** is a drop-in configuration framework for AI-powered code editors (Antigravity, Pi, Cursor, Windsurf, Claude Code, Gemini Code Assist, and others). It provides a composable set of **skills**, **personas**, **workflows**, and **memory systems** that transform a single-prompt AI assistant into a coordinated, multi-phase software engineering partner.
+**Dev Agent** is a drop-in configuration framework for AI-powered code editors (Antigravity, Pi, Cursor, Windsurf, Claude Code, Gemini Code Assist, and others). It provides a composable set of **skills**, **personas**, **workflows**, and **memory systems** that transform a single-prompt AI assistant into a coordinated, multi-phase software engineering partner.
 
-Instead of relying on ad-hoc prompts, AI Setup gives your agent:
+Instead of relying on ad-hoc prompts, Dev Agent gives your agent:
 
 - **Persistent memory** that survives across sessions
 - **Specialized personas** (Architect, Engineer, Orchestrator, QA) that activate contextually
@@ -26,16 +26,16 @@ You can install any of the skills in this repository individually or together us
 
 ```bash
 # Install a single skill
-npx skills add <owner>/<repo> --skill agentic-code-start
+npx skills add <owner>/dev-agent --skill agentic-code-start
 
 # Install multiple specific skills
-npx skills add <owner>/<repo> --skill agent-router,workflow-protocol,task-planner,agentic-code-start
+npx skills add <owner>/dev-agent --skill agent-router,workflow-protocol,task-planner,agentic-code-start
 
 # Install all skills in this repository
-npx skills add <owner>/<repo> --all
+npx skills add <owner>/dev-agent --all
 ```
 
-*Note: Replace `<owner>/<repo>` with your public GitHub repository path.*
+*Note: Replace `<owner>/dev-agent` with your public GitHub repository path (e.g., `username/dev-agent`).*
 
 ### 2. Manual Clone & Bootstrap
 
@@ -65,7 +65,7 @@ Open the project in your AI-powered editor. The agent reads `.agents/rules/syste
 ## Architecture Overview
 
 ```
-ai-setup/
+dev-agent/
 ├── .agents/                    # Agent configuration root
 │   ├── rules/
 │   │   └── system.md           # Gateway rulebook — loaded on every session

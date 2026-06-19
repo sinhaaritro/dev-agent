@@ -5,7 +5,7 @@
 > AI agents read this file on startup to automatically discover the domain, technology stack, and architectural rules.
 
 ## 📋 General Information
-- **Project Name**: AI Setup
+- **Project Name**: Dev Agent
 - **Domain**: Developer Tooling / AI Agent Template
 - **Tech Stack**: Python, Taskfile
 - **Repository Pattern**: Single Package
