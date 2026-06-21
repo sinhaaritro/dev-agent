@@ -2,7 +2,6 @@ import os
 import sys
 import shutil
 import hashlib
-import subprocess
 from pathlib import Path
 
 def get_file_hash(content):
@@ -10,20 +9,6 @@ def get_file_hash(content):
     normalized = content.replace("\r\n", "\n").encode('utf-8')
     return hashlib.sha256(normalized).hexdigest()
 
-def run_command(command, cwd=None):
-    try:
-        # Run shell command
-        result = subprocess.run(
-            command,
-            shell=True,
-            cwd=cwd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        return result.returncode == 0, result.stdout, result.stderr
-    except Exception as e:
-        return False, "", str(e)
 
 def main():
     print("=" * 60)
@@ -109,8 +94,8 @@ def main():
                 f.write(rule_content)
             print(f"  [CREATED] Created routing file: {filename}")
 
-    # 4. Handle Root Templates (Taskfile.yml, .gitignore, skills-lock.json)
-    root_templates = ["Taskfile.yml", ".gitignore", "skills-lock.json"]
+    # 4. Handle Root Templates (Taskfile.yml, .gitignore)
+    root_templates = ["Taskfile.yml", ".gitignore"]
     for filename in root_templates:
         src_file = template_dir / filename
         dest_file = workspace_root / filename
@@ -132,19 +117,6 @@ def main():
             else:
                 shutil.copy2(src_file, dest_file)
                 print(f"  [CREATED] Installed root file: {filename}")
-
-    # 5. Run Skills Update
-    print("\n[INFO] Updating installed skills...")
-    success, stdout, stderr = run_command("npx skills update", cwd=str(workspace_root))
-    if success:
-        print("  [OK] npx skills update executed successfully.")
-        if stdout:
-            print(stdout.strip())
-    else:
-        # Check if skills lock exists; if so, npx skills might not be in PATH
-        print("  [WARNING] Could not execute 'npx skills update'. Make sure Node.js/NPM are installed.")
-        if stderr:
-            print(f"  Details: {stderr.strip()}")
 
     print("\n" + "=" * 60)
     print("          INITIALIZATION COMPLETE SUCCESSFULLY          ")

@@ -23,9 +23,8 @@ python .agents/skills/agentic-code-start/scripts/bootstrap.py
 ## Setup Guidelines
 
 The bootstrap script will automatically:
-1. Copy standard templates (`personas`, `workflows`, `rules`, `Taskfile.yml`, `.gitignore`, `skills-lock.json`) from the skill's `templates/` folder to your project root.
+1. Copy standard templates (`personas`, `workflows`, `rules`, `Taskfile.yml`, `.gitignore`) from the skill's `templates/` folder to your project root.
 2. Ensure existing files with custom modifications are **never** overwritten, throwing safety warnings if differences exist.
 3. Configure routing files (`.cursorrules` and `.windsurfrules`) to enable dynamic pointer loading for other IDE agents.
-4. Execute `npx skills update` to install and synchronize dependent capabilities.
 
 Once the bootstrap execution finishes, inspect the output to report which files were created and if any safety warnings were issued.
