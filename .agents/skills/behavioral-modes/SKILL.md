@@ -12,78 +12,19 @@ when_to_use: "Used dynamically by personas to adjust their response templates an
 
 ## 🎭 Reply Formats by Mode
 
-### 1. Brainstorm Mode
-*   **Trigger**: Requirements planning or architectural discussions.
-*   **Format**:
-    ```markdown
-    Let's explore some options:
-    
-    *   **Option A**: [Description]
-        *   Pros: ...
-        *   Cons: ...
-    *   **Option B**: [Description]
-        *   Pros: ...
-        *   Cons: ...
-    ```
+Verify any formatted file against its template by running:
+```bash
+python .agents/skills/behavioral-modes/scripts/verify_sections.py --template <template_path> <target_file>
+```
 
-### 2. Implement Mode
-*   **Trigger**: Writing code or configurations.
-*   **Format**:
-    ```markdown
-    [Code block]
-    
-    [Brief 1-2 sentence technical summary]
-    ```
-*   **Behavioral Constraints (CRITICAL)**:
-    *   **No tutorial-style explanations**: Output only the direct technical code or configurations; do not explain fundamentals.
-    *   **No verbose chat commentary**: Keep conversational text around code blocks under 2 sentences max.
-    *   **No unnecessary comments**: Code must be self-documenting. Avoid comments that explain what the code does.
-    *   **Quality > Speed**: Do not rush. Read all reference files before editing.
-
-### 3. Debug Mode
-*   **Trigger**: Error tracing and bug fixing.
-*   **Format**:
-    ```markdown
-    🔍 **Symptom**: [What fails]
-    🎯 **Root Cause**: [Why it fails]
-    ✅ **Fix**: [Resolution steps & code]
-    🛡️ **Prevention**: [Avoidance check]
-    ```
-
-### 4. Review Mode
-*   **Trigger**: Auditing code quality or system specs.
-*   **Format**:
-    ```markdown
-    ### 🔴 Critical Issues
-    *   [Issue with code reference]
-    
-    ### 🟠 Refactoring Suggestions
-    *   [Improvement recommendations]
-    
-    ### 🟢 Positive Observations
-    *   [Good coding patterns or logic well-handled]
-    ```
-
-### 5. Teach Mode
-*   **Trigger**: Explaining design concepts or codebase layouts.
-*   **Format**:
-    ```markdown
-    ### What is [Concept]?
-    [Plain English explanation]
-    
-    ### How it Works
-    [Technical flow and code example]
-    ```
-
-### 6. Ship Mode
-*   **Trigger**: Release checklist and deployment preparation.
-*   **Format**:
-    ```markdown
-    ## Pre-Ship Checklist
-    *   [ ] ESLint/Tests passing
-    *   [ ] Secrets scanned
-    *   [ ] Build verified
-    ```
+| Mode | Trigger Condition | Template File | Constraints & Rules |
+| :--- | :--- | :--- | :--- |
+| **Brainstorm** | Requirements planning or architectural discussions | [templates/brainstorm.md](templates/brainstorm.md) | None |
+| **Implement** | Writing code or configurations | [templates/implement.md](templates/implement.md) | **CRITICAL rules:**<br>- No tutorial-style explanations.<br>- Keep conversational text around code blocks under 2 sentences max.<br>- No unnecessary comments (code must be self-documenting).<br>- Quality > Speed (read references before editing). |
+| **Debug** | Error tracing and bug fixing | [templates/debug.md](templates/debug.md) | None |
+| **Review** | Auditing code quality or system specs | [templates/review.md](templates/review.md) | Structured based on `review.md` containing `🔴 Critical Issues`, `🟠 Refactoring Suggestions`, and `🟢 Positive Observations`. |
+| **Teach** | Explaining design concepts or codebase layouts | [templates/teach.md](templates/teach.md) | Structured based on `teach.md` containing `Hook`, `Prerequisites`, `Technical Explanation`, `Code Implementation`, and `Footer`. |
+| **Ship** | Release checklist and deployment preparation | [templates/ship.md](templates/ship.md) | None |
 
 ---
 

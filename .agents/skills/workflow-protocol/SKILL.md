@@ -8,6 +8,8 @@ when_to_use: "Used by the orchestrator to guide multi-phase workflows (Analysis,
 
 **Purpose**: Manage multi-phase software development tasks. This protocol ensures the agent researches context, aligns on design decisions, and verifies changes safely while maintaining session continuity.
 
+> **Activated By**: This skill is invoked by `agent-router` when the request is classified as **COMPLEX CODE** or **DESIGN/UI**. It is also invoked on session boot via the Session Resume Protocol (before classification). For all other request types (QUESTION, BUG FIX, SIMPLE CODE, etc.), this skill is NOT loaded.
+
 ---
 
 ## 🛠️ The 3-Stage Generic Lifecycle

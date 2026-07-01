@@ -7,3 +7,5 @@ This is a lightweight pointer index mapping categories to specialized topic file
 *   [Active Handoff Ticket](docs/handoffs/active_handoff.md)
 
 ## Decisions & Context
+*   [Specifications Index](specs/index.md) - Register of all context traces and specifications.
+

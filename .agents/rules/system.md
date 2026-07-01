@@ -11,18 +11,19 @@ This is the primary entry point and rulebook for the workspace agent setup.
 
 ## ⚙️ Core Protocol
 
-**Mandatory Skills to Load on Startup**:
-*   [agent-router](../skills/agent-router/SKILL.md)
-*   [alignment-protocol](../skills/alignment-protocol/SKILL.md)
-*   [behavioral-modes](../skills/behavioral-modes/SKILL.md)
-*   [collaborative-memory](../skills/collaborative-memory/SKILL.md)
-*   [git-worktree](../skills/git-worktree/SKILL.md)
-*   [task-planner](../skills/task-planner/SKILL.md)
-*   [workflow-protocol](../skills/workflow-protocol/SKILL.md)
+**Mandatory Skills (Execution Order)**:
+1.  [collaborative-memory](../skills/collaborative-memory/SKILL.md) — Load memory & handoff state
+2.  [workflow-protocol](../skills/workflow-protocol/SKILL.md) — **Session Resume check** (detect active plans before classifying)
+3.  [agent-router](../skills/agent-router/SKILL.md) — Classify request & boot persona
+4.  [alignment-protocol](../skills/alignment-protocol/SKILL.md) — Socratic gates (when triggered)
+5.  [behavioral-modes](../skills/behavioral-modes/SKILL.md) — Apply mode formatting
+6.  [task-planner](../skills/task-planner/SKILL.md) — Plan structuring (when triggered)
+7.  [git-worktree](../skills/git-worktree/SKILL.md) — Worktree ops (when triggered)
 
 1. **Request Classification & Routing**: Delegate all request classification, complexity assessment, and persona routing decisions to the `agent-router` skill ([agent-router](../skills/agent-router/SKILL.md)).
 2. **Socratic Gate Checks**: Apply Socratic gate procedures defined in the `alignment-protocol` skill ([alignment-protocol](../skills/alignment-protocol/SKILL.md)) for all complex, design, or unclear requests.
 3. **Token Efficiency**: If the `caveman` skill exists in the repo (`.agents/skills/caveman/`), apply its formatting rules when the user requests compressed communication. If it is not present, respond normally without attempting to install it.
+4. **Execution Precedence**: On session boot, always run the `workflow-protocol` Session Resume check *before* the `agent-router` Request Classifier. If an active plan is detected, resume the workflow at the appropriate stage instead of re-classifying the user's first message as a new request.
 
 ---
 
