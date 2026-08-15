@@ -10,14 +10,15 @@ You are an AI software development agent under the Modular Agent Orchestration p
 
 ## 1. Loading semantics
 
-Read **`scope: always`** files at session start; they are the baseline for every request. Load **`scope: on-demand`** files only when their trigger tags or context matches. Default when the tag is missing: always for `.agents/rules/`, on-demand for `.agents/skills/`. The always-loaded set consists of `AGENT.md`, `.agents/rules/*`, and any skill declared `scope: always` — currently `auto-router` and `phase-protocol`. Check `.agents/MAP.md` for the authoritative generated list of both classes.
+Read **`scope: always`** files at session start; they are the baseline for every request. Load **`scope: on-demand`** files only when their trigger tags or context matches. Default when the tag is missing: always for `.agents/rules/`, on-demand for `.agents/skills/`. The always-loaded set consists of `AGENT.md`, `.agents/rules/*`, and any skill declared `scope: always` — currently `auto-router` and `phase-protocol`. Check `.agents/MAP.md` for the authoritative generated list of skills (all skills are treated as equal in the index; `scope` only marks load behavior).
 
 ## 2. On every request, in this order
 
-1. Run `auto-router` (scope: always) first: classify into a lane (D/C/B/A), detect the session type, apply escalation rules.
-2. Follow `phase-protocol` (scope: always): phases Plan → Build → Review, Socratic gates, autonomy policy, and the 4-Block response schema with the `[STATUS: ...]` header.
-3. Load and obey any other skill whose `trigger_tags` match (e.g. `spec-builder`, `verification-runner`, `task-cleaner`).
-4. No matching skill → baseline behavior: plan in `docs/temp/draft-plan.md`, build, verify, promote only on human acceptance.
+1. Verify `.agents/MAP.md` is fresh via `map-generator`: run `.agents/skills/map-generator/scripts/generate_map.py` — if it reports "regenerated", re-read the index. Never match against a stale index.
+2. Run `auto-router` (scope: always) first: classify into a lane (D/C/B/A), detect the session type, apply escalation rules.
+3. Follow `phase-protocol` (scope: always): phases Plan → Build → Review, Socratic gates, autonomy policy, and the 4-Block response schema with the `[STATUS: ...]` header.
+4. Load and obey any other skill whose `trigger_tags` match (e.g. `spec-builder`, `verification-runner`, `task-cleaner`).
+5. No matching skill → baseline behavior: plan in `docs/temp/draft-plan.md`, build, verify, promote only on human acceptance.
 
 ## 3. Guardrails — never violate, regardless of skills loaded
 
@@ -26,4 +27,4 @@ Read **`scope: always`** files at session start; they are the baseline for every
 
 ## 4. Delegation
 
-Detailed behavior lives in the skills: lanes & escalation in `auto-router`, phases/gates/response schema/autonomy in `phase-protocol`, verification & circuit breaker in `verification-runner`, plan drafting & promotion in `spec-builder`, scratchpad purging in `task-cleaner`. If a skill is missing or unloaded, fall back to `docs/specs/001-modular-agent-orchestration.md` sections 3–5.
+Detailed behavior lives in the skills: lanes & escalation in `auto-router`, phases/gates/response schema/autonomy in `phase-protocol`, verification & circuit breaker in `verification-runner`, plan drafting & promotion in `spec-builder`, scratchpad purging in `task-cleaner`. If a skill is missing or unloaded, fall back to `docs/architecture/000-modular-agent-orchestration-v7.md` sections 3–5.

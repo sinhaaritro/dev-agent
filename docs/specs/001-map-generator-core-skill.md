@@ -14,19 +14,19 @@ The Modular Agent Orchestration framework requires a Dynamic Map Generator (000 
 
 **D1. Skill-local scripts (structural rule).** The engine lives inside the skill folder: `.agents/skills/map-generator/scripts/generate_map.py`. Each core skill owns its scripts, making skill folders self-contained and portable (drop-in, no shared-scripts coupling). Trade-off: `system.md` §2 step 1's engine path must be repointed — a one-line edit, and the only modification to the accepted behavioral contract; the top-level `.agents/scripts/` is not used for skill engines.
 
-**D2. mtime-based freshness (000 §11).** A no-arg run compares the newest modification time across `AGENT.md`, `.agents/rules/*.md`, and `.agents/skills/*/**` against `.agents/MAP.md`. If the index is up to date, print `MAP.md is fresh` and exit 0; otherwise rebuild and print `regenerated`. `--force` skips the comparison and rebuilds unconditionally. These two strings match system.md §2 step 1's contract verbatim ("if it reports 'regenerated', re-read the index"). Trade-off: mtime comparison is exactly what 000 §11 specifies and is cheap; clock skew is the only edge case, and exit-0 freshness is the safe failure.
+**D2. Snapshot-hash freshness (000 §11, improved).** A no-arg run recomputes the content hash over every SKILL.md and compares it to the `Snapshot:` line stored in `MAP.md`. Match → print `MAP.md is fresh`, exit 0; mismatch → rebuild, print `regenerated`. `--force` skips the check and rebuilds unconditionally. The two output strings match system.md §2 step 1's contract verbatim ("if it reports 'regenerated', re-read the index"). Trade-off: hashing replaces 000 §11's pure mtime comparison because mtimes are unreliable — skills copied in with old timestamps (git restore, worktree checkout, clock skew) would be silently missed; the hash is content-based and immune. Indexes without a `Snapshot:` line fall back to mtime comparison.
 
-**D3. MAP.md format is a contract, defined here.** Since nothing is committed, this spec fixes the output format that auto-router (skill #2) will parse: auto-generated banner (warning + engine path + generated timestamp + snapshot hash), then sections — **Always-loaded** (`scope: always`), **Situational Rules** (`scope: on-demand`), **Core System Skills**, **Optional Extension Skills**, and a loading-semantics footer. The snapshot hash (over scanned front-matter) gives readers a cheap change signal.
+**D3. MAP.md format is a contract, defined here.** Since nothing is committed, this spec fixes the output format: a flat table index where all skills are treated as equal (agent-map.md style) — auto-generated banner with `> [!NOTE]` warning, generated timestamp, and snapshot hash; a `## Skills & Instructions` table (`Skill | Description | Active Condition | Source File`) sorted by skill name; and an optional `## Personas & Roles` table emitted only when a `.agents/personas/` folder exists (per-project extensibility). The output is **ASCII-only by design**: Unicode punctuation (em/en dashes, smart quotes, ellipsis, arrows) maps to ASCII equivalents and emoji is dropped, so the index renders cleanly in viewers that default to Windows-1252. The snapshot hash (over scanned SKILL.md contents) gives readers a cheap change signal.
 
-**D4. Zero-hardcoding classification.** The engine never hardcodes skill names. Core vs. optional comes from each SKILL.md front-matter field (`type: core | optional`); unknown/missing `type` defaults to `optional` (fail-safe — never over-privilege). Trade-off: classification lives in each skill's own metadata instead of one central list; misdeclaration is caught at review. This preserves 000 §6's zero-hardcoding principle inside the index engine itself.
+**D4. Flat model — all skills equal, zero hardcoding.** The engine never hardcodes skill names and makes no core/optional split: every SKILL.md under `.agents/skills/` gets one row. Standard SKILL.md frontmatter (`name`, `description`, `version`, `author`, `tags`, `requires`) is parsed per the Skills Directory format, with `trigger_tags` accepted as a legacy fallback for `tags`. Trade-off: the 000 §5 core/optional catalog is no longer reflected in the index — classification duties move to `scope` (load behavior) and `tags` (routing), keeping the index truthful to disk state.
 
-**D5. Scope field drives load classes.** `scope: always` (front-matter) lands in Always-loaded; `scope: on-demand` (default) lands in the situational/skills sections. Defaults follow system.md §1: always for `.agents/rules/`, on-demand for `.agents/skills/`. Rules and AGENT.md are indexed alongside skills so the index is the authoritative list of both load classes (system.md §1).
+**D5. Scope drives the Active Condition column.** `scope: always` renders `*Always active*`; on-demand renders `*Use when: <tags>*`. Defaults follow system.md §1: always for `.agents/rules/`, on-demand for `.agents/skills/`. AGENT.md and rules are no longer indexed — system.md §1 keeps their textual list, and the index is the authoritative generated list of skills only.
 
 ## 3. Affected Files & Scope
 
 - Created: `.agents/skills/map-generator/scripts/generate_map.py` — engine (scan, front-matter parse, classify, emit MAP.md; freshness + `--force` modes)
 - Created: `.agents/skills/map-generator/SKILL.md` — skill doc (front-matter + run contract)
-- Modified: `.agents/rules/system.md` — §2 step 1 engine path repoint
+- Modified: `.agents/rules/system.md` — §1 wording (skills-only index) + §2 step 1 engine path repoint
 - Generated: `.agents/MAP.md` — engine output; committed as the discovery index
 - Created: `docs/specs/001-map-generator-core-skill.md` — this spec
 - Deleted: `docs/specs/001-core-skill-refinement.md` — superseded by this spec
@@ -34,20 +34,20 @@ The Modular Agent Orchestration framework requires a Dynamic Map Generator (000 
 
 ## 4. Actionable TODO Checklist
 
-- [ ] Step 1: Create `.agents/skills/map-generator/scripts/generate_map.py` — scan `AGENT.md`, `.agents/rules/*.md`, `.agents/skills/*/SKILL.md`; parse YAML front-matter (`name`, `type`, `scope`, `trigger_tags`, `description`); classify core/optional per D4; compute snapshot hash; emit MAP.md per the D3 format (banner, timestamp, hash, sections, footer).
-- [ ] Step 2: Implement freshness mode — no-arg run compares newest scanned mtime against MAP.md (D2); print `MAP.md is fresh` + exit 0, or rebuild + print `regenerated`.
-- [ ] Step 3: Implement `--force` — unconditional rebuild, print `regenerated`.
-- [ ] Step 4: Update `.agents/rules/system.md` §2 step 1 — repoint engine path to `.agents/skills/map-generator/scripts/generate_map.py`.
-- [ ] Step 5: Create `.agents/skills/map-generator/SKILL.md` — front-matter (`name: map-generator`, `type: skill`, `scope: on-demand`, `trigger_tags: [map, index, skill discovery, synchronize]`, description); body: purpose (000 §11), both run modes, freshness strings, "never match against a stale index" rule, engine ownership note.
-- [ ] Step 6: Run the engine twice — first `regenerated`, second `MAP.md is fresh`.
-- [ ] Step 7: Verify MAP.md content — banner + timestamp + hash; Always-loaded lists `AGENT.md` and the system rule; Core System Skills lists map-generator with tags; Optional Extension Skills placeholder present; loading-semantics footer present.
-- [ ] Step 8: Confirm `git status --short` shows only the intended files (§3).
+- [x] Step 1: Create `.agents/skills/map-generator/scripts/generate_map.py` — scan `.agents/skills/*/SKILL.md`; parse standard front-matter (`name`, `description`, `version`, `author`, `tags`, `requires`, legacy `trigger_tags` fallback, custom `scope`); compute snapshot hash; emit MAP.md per the D3 format (banner, `> [!NOTE]`, timestamp, hash, Skills & Instructions table, optional Personas table).
+- [x] Step 2: Implement freshness mode — no-arg run compares the recomputed snapshot hash against the `Snapshot:` line in MAP.md (D2); print `MAP.md is fresh` + exit 0, or rebuild + print `regenerated`; mtime fallback for legacy indexes.
+- [x] Step 3: Implement `--force` — unconditional rebuild, print `regenerated`.
+- [x] Step 4: Update `.agents/rules/system.md` — §1 wording (index is the generated skill list, all skills equal) + §2 step 1 engine path repoint to `.agents/skills/map-generator/scripts/generate_map.py`.
+- [x] Step 5: Create `.agents/skills/map-generator/SKILL.md` — standard front-matter (`name: map-generator`, `description`, `version: 1.0.0`, `author: AI Agent`, `tags`, custom `scope: on-demand`); body per the standard structure (Overview, When to Use, Instructions, Output Format, Notes).
+- [x] Step 6: Run the engine twice — first `regenerated`, second `MAP.md is fresh`.
+- [x] Step 7: Verify MAP.md content — banner + `> [!NOTE]` + timestamp + hash; `## Skills & Instructions` table lists map-generator with description, Active Condition (`*Use when: map, index, ...*`), and source link; all on-disk skills present as equal rows; output is ASCII-only (no emoji, no Unicode dashes).
+- [x] Step 8: Confirm `git status --short` shows only the intended files (§3).
 
 ## 5. Verification Commands
 
-- `python .agents/skills/map-generator/scripts/generate_map.py` — twice: `regenerated`, then `MAP.md is fresh` (idempotency)
-- `python .agents/skills/map-generator/scripts/generate_map.py --force` — rebuilds regardless of freshness
-- Visual: `.agents/MAP.md` sections per D3; `system.md` §2 step 1 path equals engine path
+- `uv run python .agents/skills/map-generator/scripts/generate_map.py` — twice: `regenerated`, then `MAP.md is fresh` (idempotency)
+- `uv run python .agents/skills/map-generator/scripts/generate_map.py --force` — rebuilds regardless of freshness
+- Visual: `.agents/MAP.md` renders the table format per D3 (Skill | Description | Active Condition | Source File); `system.md` §1 wording + §2 step 1 path consistent
 - `git status --short` shows only §3 files; no stale `.agents/scripts/` references remain
 
 ## 6. Rollback Strategy
