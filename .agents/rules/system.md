@@ -15,7 +15,7 @@ Read **`scope: always`** files at session start; they are the baseline for every
 ## 2. On every request, in this order
 
 1. Verify `.agents/MAP.md` is fresh via `map-generator`: run `.agents/skills/map-generator/scripts/generate_map.py` — if it reports "regenerated", re-read the index. Never match against a stale index.
-2. Run `auto-router` (scope: always) first: classify into a lane (D/C/B/A), detect the session type, apply escalation rules.
+2. Run `auto-router` (scope: always) first: classify into a lane (D/C/B/A), detect the session type, apply escalation rules. Run its recall engine with the raw prompt — `uv run python .agents/skills/auto-router/scripts/match_skills.py "<prompt>"` — and treat the output as candidates only, never a filter: re-read `.agents/MAP.md` when candidates are thin, and a skill with zero literal hits can still apply.
 3. Follow `phase-protocol` (scope: always): phases Plan → Build → Review, Socratic gates, autonomy policy, and the 4-Block response schema with the `[STATUS: ...]` header.
 4. Load and obey any other skill whose `trigger_tags` match (e.g. `spec-builder`, `verification-runner`, `task-cleaner`).
 5. No matching skill → baseline behavior: plan in `docs/temp/draft-plan.md`, build, verify, promote only on human acceptance.
