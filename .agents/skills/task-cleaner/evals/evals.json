@@ -1,0 +1,50 @@
+{
+  "skill_name": "task-cleaner",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Task AUTH-010 was accepted by the human after Phase 3 review; the spec was promoted. Run the cleanup for this task. The scratchpad to clean is the directory passed to you.",
+      "expected_output": "Engine clean: scratchpad purged except gate-log.md + .gitignore, report purged/preserved",
+      "files": [],
+      "assertions": [
+        "Scratchpad purged: task files gone (draft-plan.md, active-task.md, verify-state.json, escalation.md, handoff-payload.md, scratch/)",
+        "gate-log.md preserved with content intact",
+        ".gitignore preserved",
+        "Cleanup went through the engine (clean.py) - purged/preserved report recorded"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "A task completed and the human accepted it, but docs/temp/gate-log.md has unreviewed autonomous entries. Clean the scratchpad. The scratchpad to clean is the directory passed to you.",
+      "expected_output": "Engine clean: everything purged except gate-log.md (unreviewed entries intact)",
+      "files": [],
+      "assertions": [
+        "gate-log.md preserved with the unreviewed entries intact",
+        "Everything else in the scratchpad purged",
+        "Cleanup went through the engine - report recorded"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The task looks complete, but I want to see what cleanup would remove before running it. Check first. The scratchpad is the directory passed to you.",
+      "expected_output": "Engine clean --dry-run: would-purge/would-preserve lists, nothing deleted",
+      "files": [],
+      "assertions": [
+        "Dry-run listed the files without deleting anything (all files still present)",
+        "The report distinguishes would-purge from would-preserve",
+        "Cleanup went through the engine (dry-run mode)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The human reviewed docs/temp/gate-log.md and cleared its entries. Nothing in the scratchpad needs preserving anymore. Purge everything. The scratchpad is the directory passed to you.",
+      "expected_output": "Engine clean --preserve \"\": entire scratchpad purged including gate-log.md",
+      "files": [],
+      "assertions": [
+        "Entire scratchpad purged including gate-log.md",
+        "Purge-all used the explicit engine override (--preserve \"\")",
+        "Cleanup went through the engine - report recorded"
+      ]
+    }
+  ]
+}
