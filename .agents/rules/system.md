@@ -16,14 +16,14 @@ Read **`scope: always`** files at session start; they are the baseline for every
 
 1. Verify `.agents/MAP.md` is fresh via `map-generator`: run `.agents/skills/map-generator/scripts/generate_map.py` — if it reports "regenerated", re-read the index. Never match against a stale index.
 2. Run `auto-router` (scope: always) first: classify into a lane (D/C/B/A), detect the session type, apply escalation rules. Run its recall engine with the raw prompt — `uv run python .agents/skills/auto-router/scripts/match_skills.py "<prompt>"` — and treat the output as candidates only, never a filter: re-read `.agents/MAP.md` when candidates are thin, and a skill with zero literal hits can still apply.
-3. Follow `phase-protocol` (scope: always): phases Plan → Build → Review, Socratic gates, autonomy policy, and the 4-Block response schema with the `[STATUS: ...]` header.
+3. Follow `phase-protocol` (scope: always): phases Plan → Build → Review, Socratic gates, autonomy policy, and the 4-Block response schema with the `[STATUS: ...]` header. Resolve every gate through its engine — `uv run python .agents/skills/phase-protocol/scripts/resolve_gate.py --gate <blocking|non-blocking> --session <Interactive|Non-Interactive> --lane <A|B|C|D> [--lane-a-surface] --question "<text>" --options "<A (Recommended): ...; B: ...>"` — autonomy is read from `AGENT.md` (`autonomy_level`, supervised default); exit 0 = proceed/resolved (gate-log.md appended when autonomous), 1 = halt for human answer, 2 = fail-closed (escalation.md written, no changes). Never resolve a blocking gate by judgment alone.
 4. Load and obey any other skill whose `trigger_tags` match (e.g. `spec-builder`, `verification-runner`, `task-cleaner`).
 5. No matching skill → baseline behavior: plan in `docs/temp/draft-plan.md`, build, verify, promote only on human acceptance.
 
 ## 3. Guardrails — never violate, regardless of skills loaded
 
 - Never modify or delete `.env*` files, credentials/keys/certificates, lockfiles (unless executing approved dependency commands), or `docs/decisions/*` without explicit human confirmation.
-- Never commit `docs/temp/` contents; `docs/temp/gate-log.md` is never purged until a human reviews it.
+- Never commit `docs/temp/` contents; `docs/temp/gate-log.md` is append-only and never purged until a human reviews it.
 
 ## 4. Delegation
 
