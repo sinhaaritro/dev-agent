@@ -40,14 +40,17 @@ STATE_FILE_NAMES = ("verify-state.json",)  # documented in 005 D1 for reference
 
 
 def find_root() -> Path:
-    """Walk up from the script location until AGENT.md is found (repo root marker)."""
+    """Walk up from the script location until AGENT.md or AGENTS.md is found (repo root marker)."""
     current = Path(__file__).resolve().parent
     while True:
-        if (current / "AGENT.md").is_file():
+        if (current / "AGENT.md").is_file() or (current / "AGENTS.md").is_file():
             return current
         parent = current.parent
         if parent == current:
-            sys.exit("error: AGENT.md not found above " + str(Path(__file__).resolve()))
+            sys.exit(
+                "error: AGENT.md / AGENTS.md not found above "
+                + str(Path(__file__).resolve())
+            )
         current = parent
 
 
