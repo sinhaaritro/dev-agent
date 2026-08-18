@@ -27,4 +27,29 @@ Load when a task starts (Lanes B and A; Lane C runs a single pass). **Read-only 
 - [ ] Blocking gates resolved or escalated (fail-closed for `supervised` non-interactive)
 - [ ] A blocking gate that cannot resolve -> `docs/temp/escalation.md` and stop
 
-Proceed to `references/build.md` when the plan is approved (human acceptance or compliant autonomous resolution).
+## 5. Approval step (draft -> approved spec + ADRs)
+
+On human approval (or a compliant autonomous resolution), run the promotion
+step through spec-builder - this is Step 1 of the spec-first lifecycle:
+
+1. Promote the draft to a permanent spec:
+   `uv run python .agents/skills/spec-builder/scripts/promote_spec.py promote docs/temp/draft-plan.md --lane <B|A> --status <APPROVED|PROVISIONAL>`
+   The promoted file lands in `docs/specs/` (committed to git). The spec is
+   now the working contract; `docs/temp/draft-plan.md` no longer drives work.
+2. File an ADR for every architectural decision (spec-builder SKILL.md,
+   instruction 5 - the trigger is the decision, not the lane): Lane A always
+   (one per section-2 decision); Lane B only when a decision surfaces. Draft
+   each ADR against `references/adr-template.md` in `docs/temp/` and file via
+   `promote_spec.py adr <draft> --source <promoted-spec>`. ADRs are written
+   only alongside `APPROVED` (human gate); autonomous resolutions stay
+   `PROVISIONAL` and file no ADR until a human clears the tag.
+3. Call `task-cleaner` to purge the scratchpad (preserves `gate-log.md`).
+4. **Hand off - never start implementation in this session.** The approved
+   spec plus its ADRs is Step 1 of the spec-first lifecycle. Load
+   `references/handoff.md` (Phase 1.5) and record the handoff through the
+   engine: `uv run python .agents/skills/spec-builder/scripts/promote_spec.py
+   handoff docs/specs/<NNN>-<slug>.md --lane <B|A>` (writes `docs/temp/handoff.md`
+   and stamps `Handoff: <date>` on the spec header). Then STOP. Implementation
+   is a separate new session that reads the promoted spec (spec 008 D1 - the
+   in-session proceed option is removed; coding after approval is a rule
+   violation).

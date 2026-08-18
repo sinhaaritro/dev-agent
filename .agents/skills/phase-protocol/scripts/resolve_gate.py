@@ -45,20 +45,25 @@ LINES = "-" * 40
 
 
 def find_root() -> Path:
-    """Walk up from the script location until AGENT.md is found (repo root marker)."""
+    """Walk up from the script location until AGENT.md or AGENTS.md is found (repo root marker)."""
     current = Path(__file__).resolve().parent
     while True:
-        if (current / "AGENT.md").is_file():
+        if (current / "AGENT.md").is_file() or (current / "AGENTS.md").is_file():
             return current
         parent = current.parent
         if parent == current:
-            sys.exit("error: AGENT.md not found above " + str(Path(__file__).resolve()))
+            sys.exit(
+                "error: AGENT.md / AGENTS.md not found above "
+                + str(Path(__file__).resolve())
+            )
         current = parent
 
 
 def read_autonomy(root: Path) -> str:
-    """Parse `autonomy_level:` from AGENT.md frontmatter; default supervised."""
+    """Parse `autonomy_level:` from AGENT.md or AGENTS.md frontmatter; default supervised."""
     agent_file = root / "AGENT.md"
+    if not agent_file.is_file():
+        agent_file = root / "AGENTS.md"
     try:
         text = agent_file.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):

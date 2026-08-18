@@ -65,6 +65,7 @@ The repository architecture maintains a strict boundary between **Machine Space*
     │   │   ├── SKILL.md
     │   │   └── references/
     │   │       ├── implementation-plan-template.md
+    │   │       ├── adr-template.md
     │   │       └── todo-checklist-format.md
     │   ├── verification-runner/          <-- Test Execution & Circuit Breakers
     │   │   └── SKILL.md
@@ -164,8 +165,8 @@ The `auto-router` skill classifies every incoming prompt into exactly one of fou
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **D** | **Read-Only / Informational** | No file mutations. Explanations, comparisons, code Q&A. | None | None — informational, non-mutating | None |
 | **C** | **Micro-Edit** | Single file. No schema, public API, auth, or dependency changes. Diff under ~30 lines. | None (inline diff output) | Non-blocking only | Single pass; 3-fail escalates to Lane B |
-| **B** | **Scoped Multi-File Edit** | 2–5 files. No schema/API/auth/security surface touched. No new external dependencies. | Abbreviated `draft-plan.md` (Sections 1, 3, 4 only) | Non-blocking by default; blocking only if scope creeps toward Lane A criteria | Full circuit breaker (3-retry) |
-| **A** | **Full SDLC** | >5 files, OR touches database schema, public API contracts, auth/security, or introduces a new architectural dependency. | Full `implementation-plan-template.md`, promoted to `docs/specs/` on acceptance | Blocking mandatory for every architectural decision point | Full circuit breaker + review phase |
+| **B** | **Scoped Multi-File Edit** | 2–5 files. No schema/API/auth/security surface touched. No new external dependencies. | Abbreviated `draft-plan.md` (Sections 1, 3, 4 only), promoted to `docs/specs/` on approval (no ADRs unless a decision surfaces) | Non-blocking by default; blocking only if scope creeps toward Lane A criteria | Full circuit breaker (3-retry) |
+| **A** | **Full SDLC** | >5 files, OR touches database schema, public API contracts, auth/security, or introduces a new architectural dependency. | Full `implementation-plan-template.md`, promoted to `docs/specs/` on plan approval, with an ADR in `docs/decisions/` for every architectural decision | Blocking mandatory for every architectural decision point | Full circuit breaker + review phase |
 
 ### Escalation Rules
 1. **Upward escalation is automatic and silent-safe:** If execution reveals a criterion for a higher lane (e.g., a Lane C edit turns out to require touching an auth middleware), the router immediately reclassifies the task, halts, and reports the reclassification to the human before continuing—it does not ask permission to escalate, only announces it.
@@ -206,7 +207,7 @@ Skills are strictly divided into **Core System Skills** (required to operate the
 1. **`phase-protocol` (Meta-Skill):** Drives SDLC phases (Plan, Build, Review). Enforces tool permissions (read-only during planning), loads `/references/plan.md`, `build.md`, and `review.md`, and enforces the 4-Block Response Schema.
 2. **`auto-router` (Triage & Lane Engine):** Initial gatekeeper skill. Reads prompts, queries `.agents/MAP.md` for skill tag matches, assigns Execution Lanes (A, B, C, D), and triggers upward escalation if edit scope expands.
 3. **`map-generator` (Index Sync):** Compares skill file timestamps against `.agents/MAP.md`. Regenerates `MAP.md` headers automatically when skills are added or modified.
-4. **`spec-builder` (Spec Lifecycle & Templates):** Manages specification drafting. Uses `references/implementation-plan-template.md` to write `docs/temp/draft-plan.md` and promotes approved specs to `docs/specs/`.
+4. **`spec-builder` (Spec Lifecycle & Templates):** Manages specification drafting. Uses `references/implementation-plan-template.md` to write `docs/temp/draft-plan.md`, promotes approved plans to `docs/specs/` at the approval step (Step 1, spec-first lifecycle), and files ADRs for architectural decisions via `references/adr-template.md`.
 5. **`verification-runner` (Test Runner & Circuit Breaker):** Executes local verification scripts. Tracks the 3-attempt retry counter; if 3 consecutive attempts fail, halts execution and logs `docs/temp/escalation.md`.
 6. **`task-cleaner` (Garbage Collector):** Resets `docs/temp/` upon human task acceptance, purging ephemeral scratchpads to prepare for the next session (preserves unreviewed `gate-log.md`).
 
@@ -335,6 +336,13 @@ Memory is strictly divided into **Ephemeral Working Memory** (gitignored scratch
 
 ### Memory Lifecycle & Promotion Pipeline
 
+The lifecycle is split into two explicit steps (spec-first). **Step 1 - spec
+production** ends at the approval gate, which promotes the draft to a
+permanent spec plus ADRs and records a mandatory **Phase 1.5 - Handoff**;
+**Step 2 - implementation** is a separate session/agent that builds from the
+promoted spec and finalizes it at review. A spec-producing session never
+builds in the same session (spec 008 D1).
+
 ```text
                   Incoming Requirement
                            │
@@ -345,15 +353,33 @@ Memory is strictly divided into **Ephemeral Working Memory** (gitignored scratch
              └─────────────┬─────────────┘
                            │
                            ▼
-             [ Human Acceptance Gate Passed ]
+               [ Approval Gate Passed ]    <-- Step 1 (spec production) ends here
                            │
-                           ├─────────────────────────────────────────┐
-                           ▼                                         ▼
+                           ├───────────────────────────────────────────┐
+                           ▼                                           ▼
              ┌───────────────────────────┐             ┌───────────────────────────┐
-             │     PROMOTED SPEC         │             │      TASK CLEANER         │
-             │   • docs/specs/001.md     │             │ • Purges docs/temp/*      │
-             │   (COMMITTED TO GIT)      │             │   (Preserves gate-log.md) │
-             └───────────────────────────┘             └───────────────────────────┘
+             │  PROMOTED SPEC + ADRs     │             │      TASK CLEANER         │
+             │  • docs/specs/001.md      │             │ • Purges docs/temp/*      │
+             │  • docs/decisions/adr-..  │             │   (Preserves gate-log.md) │
+│  (COMMITTED TO GIT)       │             └─────────────┬─────────────┘
+              └─────────────┬─────────────┘                           │
+                            │                                         │
+                            └──────────────┬──────────────────────────┘
+                                           ▼
+              ┌───────────────────────────────────────────┐
+              │  PHASE 1.5 - HANDOFF (MANDATORY, spec 008)│
+              │  • promote_spec.py handoff <spec> --lane  │
+              │  • docs/temp/handoff.md (ephemeral)       │
+              │  • spec header stamped Handoff: <date>    │
+              │  • SESSION STOPS - no build in this       │
+              │    session (spec 008 D1)                  │
+              └─────────────────────┬─────────────────────┘
+                                    │
+                                    ▼
+                [ STEP 2 - IMPLEMENTATION ]   <-- separate session/agent
+                  builds from the approved spec,
+                  ticks its section-4 checkboxes,
+                  finalizes at Phase 3-Review
 ```
 
 ---
@@ -361,6 +387,13 @@ Memory is strictly divided into **Ephemeral Working Memory** (gitignored scratch
 ## 11. Dynamic Map Generator & Progressive Context Loading
 
 To maintain maximum context window efficiency, the architecture uses the `map-generator` skill.
+
+**Loading is harness-agnostic disk-read.** The framework has no skill-injection
+tool; skills are loaded by the agent opening each `.agents/skills/<name>/SKILL.md`
+(and its `references/`) with its `read` tool, guided by the explicit paths in
+`.agents/rules/system.md` section 2 and the index in `.agents/MAP.md`. This works
+identically across Cursor, Claude Code, Windsurf, Roo Code, Aider, OpenCode, and
+Gemini CLI without any harness-specific skill mechanism.
 
 ### Indexing & Cache Invalidation System
 * **Function:** Scans all skill folders inside `.agents/skills/`.
@@ -373,9 +406,10 @@ To maintain maximum context window efficiency, the architecture uses the `map-ge
 
 | Execution Layer | Preferred Model Tier | Example Harnesses | Key Responsibility |
 | :--- | :--- | :--- | :--- |
-| **Phase 1: Planning (`references/plan.md`)** | SOTA Reasoning Models | Claude Code, Gemini CLI, Cursor, Windsurf | Requirements analysis, functional spec creation, draft plan generation in `docs/temp/`. |
-| **Phase 2: Building (`references/build.md`)** | Local or SOTA Models | Ollama, DeepSeek Local, Roo Code, Aider, OpenCode, Pi.dev, Kilo Code | Fast-path edits, procedural code execution, test execution, micro-refactoring. |
-| **Phase 3: Review (`references/review.md`)** | SOTA / Specialized Models | Claude Code, Gemini CLI, Cursor | Code quality audit, security analysis, spec promotion to `docs/specs/`, ADR generation. |
+| **Phase 1: Planning (`references/plan.md`)** | SOTA Reasoning Models | Claude Code, Gemini CLI, Cursor, Windsurf | Requirements analysis, functional spec creation, draft plan generation in `docs/temp/`, spec promotion + ADR filing on approval (Step 1). |
+| **Phase 1.5: Handoff (`references/handoff.md`)** | SOTA Reasoning Models | Claude Code, Gemini CLI, Cursor, Windsurf | Mandatory stop after approval: record the handoff via `promote_spec.py handoff`, stamp `Handoff:` on the spec header, and end the session (spec 008 D1). Lanes C/D excluded - no approval step. |
+| **Phase 2: Building (`references/build.md`)** | Local or SOTA Models | Ollama, DeepSeek Local, Roo Code, Aider, OpenCode, Pi.dev, Kilo Code | Fast-path edits from the approved spec in a new session (verified by the `Handoff:` marker), procedural code execution, test execution, micro-refactoring (Step 2). |
+| **Phase 3: Review (`references/review.md`)** | SOTA / Specialized Models | Claude Code, Gemini CLI, Cursor | Code quality audit, security analysis, spec finalization (checkboxes synced, `Phase: 3-Review`; promotion and ADRs already done at approval). |
 
 ---
 

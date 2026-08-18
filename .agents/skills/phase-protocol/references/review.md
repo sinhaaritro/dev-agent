@@ -14,11 +14,16 @@ Load when all build steps are green. **Read-only posture - no more edits; review
 2. Record findings in the review reply (block 2 of the response schema).
 3. Any gate that surfaces here (e.g., a discovered auth implication) resolves through the engine like every other gate (phase-protocol SKILL.md, Instructions step 3) - never by judgment, never silently.
 
-## 3. Spec promotion via spec-builder
+## 3. Finalize the spec (spec-builder)
 
-1. On human acceptance: promote `docs/temp/draft-plan.md` -> `docs/specs/<NNN>-<feature-slug>.md`; update Status header to APPROVED.
-2. Autonomous-resolved specs keep `Status: PROVISIONAL - AUTONOMOUS DEFAULT` until a human clears it.
-3. Lane A architectural choices (database, auth, API contracts): write an ADR to `docs/decisions/adr-<NNN>-<topic>.md`.
+The spec was promoted at approval (plan.md section 5); this phase finalizes
+it, it does not birth it.
+
+1. Confirm the implementation matches the spec: no drift from section 3 (affected files), no dead code, no debug leftovers.
+2. Set the spec header to `Phase: 3-Review`; confirm every section-4 checkbox is `- [x]` with green verification recorded (sync any checkbox the build moved).
+3. Re-run the full verification suite once more if the diff changed since the last run, and record the evidence.
+4. Any NEW architectural decision that surfaced during build and was not yet filed gets its ADR now via `promote_spec.py adr` (spec-builder SKILL.md, instruction 5). ADRs already filed at approval are never edited here - protected files.
+5. The spec keeps `Status: APPROVED` (its value does not change on completion; the `Phase:` header and checked boxes carry that).
 
 ## 4. Handoff & cleanup
 

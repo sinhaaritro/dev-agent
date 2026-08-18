@@ -5,8 +5,8 @@
 > (`.agents/skills/map-generator/scripts/generate_map.py`).
 > Do not modify this file manually - update individual SKILL.md frontmatters instead.
 
-- Generated: 2026-08-15T02:24:39Z
-- Snapshot: bb7f211d
+- Generated: 2026-08-18T04:34:44Z
+- Snapshot: aa21279f
 
 ## Skills & Instructions
 
@@ -16,6 +16,6 @@
 | **map-generator** | Index sync - checks timestamp freshness and rebuilds .agents/MAP.md when skills or rules change. Use when starting a session, adding/removing/editing skills, or verifying the skill index. | *Use when: `map`, `index`, `skill discovery`, `synchronize`* | [map-generator/SKILL.md](.agents/skills/map-generator/SKILL.md) |
 | **phase-protocol** | Meta-skill driving SDLC phases Plan -> Build -> Review, Socratic gates, autonomy policy, and the 4-Block response schema | *Always active* | [phase-protocol/SKILL.md](.agents/skills/phase-protocol/SKILL.md) |
 | **skill-creator** | Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy. | *On-demand* | [skill-creator/SKILL.md](.agents/skills/skill-creator/SKILL.md) |
-| **spec-builder** | Spec lifecycle - drafts implementation plans in docs/temp/, enforces templates, promotes approved specs to docs/specs/ | *Use when: `spec`, `plan draft`, `promote`, `implementation plan`, `template`* | [spec-builder/SKILL.md](.agents/skills/spec-builder/SKILL.md) |
-| **task-cleaner** | Garbage collector - purges docs/temp/ scratchpad on human acceptance, preserves unreviewed gate-log.md | *Use when: `cleanup`, `purge`, `acceptance`, `reset`, `garbage collection`* | [task-cleaner/SKILL.md](.agents/skills/task-cleaner/SKILL.md) |
-| **verification-runner** | Test execution & circuit breaker - runs build/test commands, tracks the 3-retry limit, logs escalation reports | *Use when: `test`, `verify`, `build`, `retry`, `circuit breaker`, `escalation`* | [verification-runner/SKILL.md](.agents/skills/verification-runner/SKILL.md) |
+| **spec-builder** | Spec lifecycle - drafts implementation plans in docs/temp/, enforces templates, promotes approved specs to docs/specs/ at approval, files ADRs for architectural decisions | *Use when: `spec`, `plan draft`, `promote`, `implementation plan`, `template`* | [spec-builder/SKILL.md](.agents/skills/spec-builder/SKILL.md) |
+| **task-cleaner** | Garbage collector - purges docs/temp/ scratchpad on human acceptance, preserves unreviewed gate-log.md. Use when a task is accepted or confirmed complete, phase 3 review sign-off happens, a spec is promoted and the scratchpad should reset, or scratchpad cleanup is requested. | *Use when: `cleanup`, `purge`, `acceptance`, `reset`, `garbage collection`* | [task-cleaner/SKILL.md](.agents/skills/task-cleaner/SKILL.md) |
+| **verification-runner** | Test execution & circuit breaker - runs build/test commands, tracks the 3-retry limit, writes escalation reports. Use when verifying build/test results, a verification step fails and needs retry, the circuit breaker threshold (3 consecutive failures) is reached, an escalation report must be written, or a project framework's canonical commands are needed. | *Use when: `test`, `verify`, `build`, `retry`, `circuit breaker`, `escalation`* | [verification-runner/SKILL.md](.agents/skills/verification-runner/SKILL.md) |
