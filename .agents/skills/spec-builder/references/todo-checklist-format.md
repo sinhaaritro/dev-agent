@@ -14,5 +14,5 @@ Rules:
 1. A step is `[x]` only after local verification passed — not merely when code was
    written.
 2. A step that fails verification 3 consecutive times reverts to `[ ]`, and the
-   escalation protocol fires (`AGENT.md` §9).
+   escalation protocol fires (`AGENTS.md` §9).
 3. Never mark a step `[x]` and leave its verification blank.

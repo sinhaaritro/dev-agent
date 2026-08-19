@@ -29,7 +29,7 @@ You reset the ephemeral scratchpad (`docs/temp/`) when a task is accepted or con
 
 1. **Confirm the acceptance gate first.** Run cleanup only when the human has accepted the task or confirmed completion. The engine never decides this — you do. If the task is still open, do not purge.
 2. **Run the engine, never a hand-rolled delete.** The purge goes through the ledger-equivalent report so what happened is reviewable:
-   `uv run python .agents/skills/task-cleaner/scripts/clean.py clean`
+   `python .agents/skills/task-cleaner/scripts/clean.py clean`
    Default behavior: everything inside `docs/temp/` is purged **except** `gate-log.md` and `.gitignore`. The report is the contract: `purged: N, preserved: M` followed by the preserved names.
 3. **Check before you destroy.** If in doubt about what the purge would remove, run `clean --dry-run` first (lists would-purge/would-preserve, deletes nothing) or `status` (classifies the current contents). A dry run costs nothing and makes the purge's blast radius explicit.
 4. **Never touch the gate-log without an explicit human clear.** `gate-log.md` survives every default purge. Only when a human has explicitly reviewed and cleared its entries may you purge it, and only via the explicit override: `clean --preserve ""`. A hand-deleted gate-log is a policy violation with no audit trail; the override leaves a legible record.

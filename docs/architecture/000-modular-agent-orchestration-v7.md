@@ -29,7 +29,7 @@ The repository architecture maintains a strict boundary between **Machine Space*
 
 ```text
 <repository-root>/
-├── AGENT.md                              <-- Primary System Prompt & Autonomy Policy
+├── AGENTS.md                              <-- Primary System Prompt & Autonomy Policy
 │
 ├── docs/                                 <-- HUMAN + AI SHARED SPACE (Committed to Git)
 │   ├── specs/                            <-- Permanent Functional & Technical Specs
@@ -121,7 +121,7 @@ This classification comes from the harness's invocation context. If the harness 
 
 ### 4. Autonomy Policy (Required Config for Non-Interactive Runs)
 
-Every repository using this architecture declares an explicit autonomy level in `AGENT.md` or harness configuration:
+Every repository using this architecture declares an explicit autonomy level in `AGENTS.md` or harness configuration:
 
 ```yaml
 autonomy_level: supervised   # Options: supervised | autonomous

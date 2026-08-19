@@ -21,11 +21,11 @@ Outcomes:
                 docs/temp/gate-log.md (append-only, never truncated or
                 purged - system.md ss3). Exit 0.
 
-Autonomy defaults to the `autonomy_level` frontmatter of AGENT.md
+Autonomy defaults to the `autonomy_level` frontmatter of AGENTS.md
 (supervised if absent); --autonomy overrides for testing.
 
 Usage:
-    uv run python .agents/skills/phase-protocol/scripts/resolve_gate.py \
+    python .agents/skills/phase-protocol/scripts/resolve_gate.py \
         --gate blocking --session non-interactive --lane B \
         --question "which cache?" \
         --options "A (Recommended): redis; B: memcached" \
@@ -45,23 +45,23 @@ LINES = "-" * 40
 
 
 def find_root() -> Path:
-    """Walk up from the script location until AGENT.md or AGENTS.md is found (repo root marker)."""
+    """Walk up from the script location until AGENTS.md or AGENTS.md is found (repo root marker)."""
     current = Path(__file__).resolve().parent
     while True:
-        if (current / "AGENT.md").is_file() or (current / "AGENTS.md").is_file():
+        if (current / "AGENTS.md").is_file() or (current / "AGENTS.md").is_file():
             return current
         parent = current.parent
         if parent == current:
             sys.exit(
-                "error: AGENT.md / AGENTS.md not found above "
+                "error: AGENTS.md / AGENTS.md not found above "
                 + str(Path(__file__).resolve())
             )
         current = parent
 
 
 def read_autonomy(root: Path) -> str:
-    """Parse `autonomy_level:` from AGENT.md or AGENTS.md frontmatter; default supervised."""
-    agent_file = root / "AGENT.md"
+    """Parse `autonomy_level:` from AGENTS.md or AGENTS.md frontmatter; default supervised."""
+    agent_file = root / "AGENTS.md"
     if not agent_file.is_file():
         agent_file = root / "AGENTS.md"
     try:

@@ -24,8 +24,8 @@ Modes:
              classification and the current preserve list. Read-only.
 
 Usage:
-    uv run python .agents/skills/task-cleaner/scripts/clean.py clean
-    uv run python .agents/skills/task-cleaner/scripts/clean.py clean --dry-run
+    python .agents/skills/task-cleaner/scripts/clean.py clean
+    python .agents/skills/task-cleaner/scripts/clean.py clean --dry-run
 
 Exit codes: 0 = clean ran / status listed (even with nothing to purge);
 1 = error (root-or-above target refused, bad arguments).
@@ -40,15 +40,15 @@ STATE_FILE_NAMES = ("verify-state.json",)  # documented in 005 D1 for reference
 
 
 def find_root() -> Path:
-    """Walk up from the script location until AGENT.md or AGENTS.md is found (repo root marker)."""
+    """Walk up from the script location until AGENTS.md or AGENTS.md is found (repo root marker)."""
     current = Path(__file__).resolve().parent
     while True:
-        if (current / "AGENT.md").is_file() or (current / "AGENTS.md").is_file():
+        if (current / "AGENTS.md").is_file() or (current / "AGENTS.md").is_file():
             return current
         parent = current.parent
         if parent == current:
             sys.exit(
-                "error: AGENT.md / AGENTS.md not found above "
+                "error: AGENTS.md / AGENTS.md not found above "
                 + str(Path(__file__).resolve())
             )
         current = parent

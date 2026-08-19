@@ -42,9 +42,9 @@ Modes:
              Exit 0.
 
 Usage:
-    uv run python .agents/skills/verification-runner/scripts/verify.py \
+    python .agents/skills/verification-runner/scripts/verify.py \
         run --command "uv run pytest" --task auth-001
-    uv run python .agents/skills/verification-runner/scripts/verify.py \
+    python .agents/skills/verification-runner/scripts/verify.py \
         status --task auth-001
 
 Exit codes: 0 = green / informational; 1 = failed (retry remaining);
@@ -76,15 +76,15 @@ INTERACTIVE_TOKENS = ("--interactive", "--watch", "--live-reload")
 
 
 def find_root() -> Path:
-    """Walk up from the script location until AGENT.md or AGENTS.md is found (repo root marker)."""
+    """Walk up from the script location until AGENTS.md or AGENTS.md is found (repo root marker)."""
     current = Path(__file__).resolve().parent
     while True:
-        if (current / "AGENT.md").is_file() or (current / "AGENTS.md").is_file():
+        if (current / "AGENTS.md").is_file() or (current / "AGENTS.md").is_file():
             return current
         parent = current.parent
         if parent == current:
             sys.exit(
-                "error: AGENT.md / AGENTS.md not found above "
+                "error: AGENTS.md / AGENTS.md not found above "
                 + str(Path(__file__).resolve())
             )
         current = parent
@@ -312,7 +312,7 @@ def cmd_detect(args: argparse.Namespace) -> int:
                 print("reference: references/frameworks/dotnet.md")
                 return 0
     print("framework: none")
-    print("reference: (no framework page - ask Socratically or use AGENT.md Commands)")
+    print("reference: (no framework page - ask Socratically or use AGENTS.md Commands)")
     return 0
 
 

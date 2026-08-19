@@ -53,14 +53,14 @@ Modes:
              evals use a sandbox; the real docs/ are never touched).
 
 Usage:
-    uv run python .agents/skills/spec-builder/scripts/promote_spec.py \
+    python .agents/skills/spec-builder/scripts/promote_spec.py \
         check docs/temp/draft-plan.md --lane B
-    uv run python .agents/skills/spec-builder/scripts/promote_spec.py \
+    python .agents/skills/spec-builder/scripts/promote_spec.py \
         promote docs/temp/draft-plan.md --lane A --status APPROVED
-    uv run python .agents/skills/spec-builder/scripts/promote_spec.py \
+    python .agents/skills/spec-builder/scripts/promote_spec.py \
         adr docs/temp/adr-draft-in-memory-storage.md \
         --source docs/specs/001-bday-001-birthday-tracker-greenfield.md
-    uv run python .agents/skills/spec-builder/scripts/promote_spec.py \
+    python .agents/skills/spec-builder/scripts/promote_spec.py \
         handoff docs/specs/008-post-approval-handoff-guard.md --lane A
 
 Exit codes: 0 = check passed / promoted / adr filed / handoff recorded;
@@ -78,15 +78,15 @@ PROVISIONAL_STATUS = "PROVISIONAL - AUTONOMOUS DEFAULT"
 
 
 def find_root() -> Path:
-    """Walk up from the script location until AGENT.md or AGENTS.md is found (repo root marker)."""
+    """Walk up from the script location until AGENTS.md or AGENTS.md is found (repo root marker)."""
     current = Path(__file__).resolve().parent
     while True:
-        if (current / "AGENT.md").is_file() or (current / "AGENTS.md").is_file():
+        if (current / "AGENTS.md").is_file() or (current / "AGENTS.md").is_file():
             return current
         parent = current.parent
         if parent == current:
             sys.exit(
-                "error: AGENT.md / AGENTS.md not found above "
+                "error: AGENTS.md / AGENTS.md not found above "
                 + str(Path(__file__).resolve())
             )
         current = parent

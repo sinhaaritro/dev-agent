@@ -42,7 +42,7 @@ plan/approval step, so no guard applies there (noted, not enforced).
 - Modified: .agents/rules/system.md
 - Modified: AGENTS.md
 - Modified: docs/architecture/000-modular-agent-orchestration-v7.md
-- Modified: engine `find_root` markers in all six `.agents/skills/*/scripts/*.py` (accept `AGENTS.md` as the repo-root marker alongside `AGENT.md` - discovered during production when the root file was renamed; `promote_spec.py` already patched)
+- Modified: engine `find_root` markers in all six `.agents/skills/*/scripts/*.py` (accept `AGENTS.md` as the repo-root marker alongside `AGENTS.md` - discovered during production when the root file was renamed; `promote_spec.py` already patched)
 - Deleted: none
 
 ## 4. Actionable TODO Checklist
@@ -59,9 +59,9 @@ plan/approval step, so no guard applies there (noted, not enforced).
 
 ## 5. Verification Commands
 
-- Build Command: uv run python .agents/skills/spec-builder/scripts/promote_spec.py handoff --help
-- Test Command: uv run python .agents/skills/spec-builder/scripts/promote_spec.py handoff <spec> --lane A --handoff-dir <sandbox> (sandbox run)
-- Test Command: uv run python .agents/skills/map-generator/scripts/generate_map.py
+- Build Command: python .agents/skills/spec-builder/scripts/promote_spec.py handoff --help
+- Test Command: python .agents/skills/spec-builder/scripts/promote_spec.py handoff <spec> --lane A --handoff-dir <sandbox> (sandbox run)
+- Test Command: python .agents/skills/map-generator/scripts/generate_map.py
 
 ## 6. Rollback Strategy
 

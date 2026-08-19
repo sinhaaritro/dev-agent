@@ -42,10 +42,10 @@ The framework currently promotes the draft plan to `docs/specs/` only at Phase 3
 
 ## 5. Verification Commands
 
-- Build Command: uv run python .agents/skills/spec-builder/scripts/promote_spec.py check docs/temp/draft-plan.md --lane A
-- Test Command: uv run python .agents/skills/spec-builder/scripts/promote_spec.py adr --help
-- Test Command: uv run python .agents/skills/spec-builder/scripts/promote_spec.py adr <draft-adr> --decisions-dir <sandbox> --source <spec> (sandbox run)
-- Test Command: uv run python .agents/skills/map-generator/scripts/generate_map.py
+- Build Command: python .agents/skills/spec-builder/scripts/promote_spec.py check docs/temp/draft-plan.md --lane A
+- Test Command: python .agents/skills/spec-builder/scripts/promote_spec.py adr --help
+- Test Command: python .agents/skills/spec-builder/scripts/promote_spec.py adr <draft-adr> --decisions-dir <sandbox> --source <spec> (sandbox run)
+- Test Command: python .agents/skills/map-generator/scripts/generate_map.py
 
 ## 6. Rollback Strategy
 

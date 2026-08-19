@@ -17,7 +17,7 @@ its description (stage 2 is judgment, owned by the agent, not this
 script). Zero hits prints an advisory message and exits 0.
 
 Usage:
-    uv run python .agents/skills/auto-router/scripts/match_skills.py "<prompt>"
+    python .agents/skills/auto-router/scripts/match_skills.py "<prompt>"
 
 Exit codes: 0 = success (candidates printed, possibly none); 1 = fatal
 error (MAP.md missing - run map-generator first).
@@ -155,15 +155,15 @@ def sanitize_ascii(text: str) -> str:
 
 
 def find_root() -> Path:
-    """Walk up from the script location until AGENT.md or AGENTS.md is found (repo root marker)."""
+    """Walk up from the script location until AGENTS.md or AGENTS.md is found (repo root marker)."""
     current = Path(__file__).resolve().parent
     while True:
-        if (current / "AGENT.md").is_file() or (current / "AGENTS.md").is_file():
+        if (current / "AGENTS.md").is_file() or (current / "AGENTS.md").is_file():
             return current
         parent = current.parent
         if parent == current:
             sys.exit(
-                "error: AGENT.md / AGENTS.md not found above "
+                "error: AGENTS.md / AGENTS.md not found above "
                 + str(Path(__file__).resolve())
             )
         current = parent

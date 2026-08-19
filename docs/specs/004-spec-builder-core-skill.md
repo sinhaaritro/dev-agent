@@ -2,7 +2,7 @@
 
 Status: APPROVED | Phase: 2-Build | Author: AI Agent | Date: 2026-08-15
 
-> **Derived from:** `docs/architecture/000-modular-agent-orchestration-v7.md` (master reference, approved, verbatim; §§5, 7, 10: templates, promotion pipeline, memory lifecycle), `AGENT.md` (`autonomy_level: supervised`), `.agents/rules/system.md` (behavioral contract, accepted; §2 step 4 is spec-builder's boot position), and `docs/specs/003-phase-protocol-core-skill.md` (D4: references name this skill's template path as a forward contract).
+> **Derived from:** `docs/architecture/000-modular-agent-orchestration-v7.md` (master reference, approved, verbatim; §§5, 7, 10: templates, promotion pipeline, memory lifecycle), `AGENTS.md` (`autonomy_level: supervised`), `.agents/rules/system.md` (behavioral contract, accepted; §2 step 4 is spec-builder's boot position), and `docs/specs/003-phase-protocol-core-skill.md` (D4: references name this skill's template path as a forward contract).
 > **Supersedes:** the untracked scaffold `.agents/skills/spec-builder/` (legacy frontmatter violating the 001 D4 contract; flat numbered sections; no engine). The phase-protocol references (`plan.md`, lane-matrix) already point at `.agents/skills/spec-builder/references/implementation-plan-template.md` — this spec makes that forward contract real.
 > This spec designed the framework's fourth core skill in full - draft validation and promotion engine, SKILL.md doc, reference alignment, and the system.md boot-chain edit. **Implemented and verified on 2026-08-15 (all §5 checks green).**
 
@@ -14,7 +14,7 @@ The current `.agents/skills/spec-builder/` scaffold is untracked and stale: its 
 
 ## 2. Architectural Decisions & Trade-offs
 
-**D1. `promote_spec.py` engine — check and promote modes.** The skill owns an assist engine: `.agents/skills/spec-builder/scripts/promote_spec.py` (skill-local scripts per 001 D1's structural rule; stdlib-only Python, styled after `generate_map.py` / `match_skills.py` / `resolve_gate.py`; `find_root` via the `AGENT.md` marker). Two modes:
+**D1. `promote_spec.py` engine — check and promote modes.** The skill owns an assist engine: `.agents/skills/spec-builder/scripts/promote_spec.py` (skill-local scripts per 001 D1's structural rule; stdlib-only Python, styled after `generate_map.py` / `match_skills.py` / `resolve_gate.py`; `find_root` via the `AGENTS.md` marker). Two modes:
 - **check**: `promote_spec.py check <draft> --lane <B|A>` — parses the `## N.` section headings and validates presence of the lane's required sections (B: 1, 3, 4; A: 1-6); prints missing sections, exit 1 on any absence, exit 0 when complete. This enforces 000 §7's "identical formatting across all sessions" mechanically during Plan.
 - **promote**: `promote_spec.py promote <draft> --lane <B|A> --status <APPROVED|PROVISIONAL> [--dry-run] [--slug <override>] [--specs-dir <dir>]` — validates the draft for its lane, computes the next spec number by scanning the specs directory for the max `\d{3}-` prefix + 1 (zero-padded, sequential per scaffold §4), derives the slug from the draft title (`# [SPEC-ID]: Title` -> `title`; lowercase, non-alphanumerics to hyphens, collapsed), writes the promoted file with the `Status:` line replaced by the requested value (`PROVISIONAL` renders as `PROVISIONAL - AUTONOMOUS DEFAULT`, ASCII), refuses on duplicates — an existing spec whose first `# ` title matches the draft's (the title is the plan's identity; a repeat promotion must be refused even though the sequential number is new) or an exact path collision — and prints `promoted: docs/specs/004-<slug>.md`. Files are read BOM-tolerantly (`utf-8-sig`) so drafts written by Windows editors never degrade the slug. `--specs-dir` overrides the target directory for testing (verification and evals never touch the real `docs/specs/`); `--dry-run` prints the target path without writing. Trade-off: an engine on a judgment-y workflow — justified because numbering is the one silent-corruption risk (a wrong NNN overwrites a committed spec), duplicate promotion is the quiet-clutter risk, and template enforcement is mechanically checkable; the rest of the lifecycle (what the plan says) stays the agent's.
 
@@ -26,7 +26,7 @@ The current `.agents/skills/spec-builder/` scaffold is untracked and stale: its 
 
 **D5. The acceptance gate is the caller's, the engine is mechanics only.** `promote` takes `--status` as an explicit argument: `APPROVED` (human acceptance) or `PROVISIONAL` (compliant autonomous resolution per phase-protocol, rendering `PROVISIONAL - AUTONOMOUS DEFAULT` until a human clears it, 000 §3.4.3). The engine never decides whether the gate passed - the agent asserts it through the status argument, keeping the separation of authority legible (gates/autonomy are phase-protocol's domain per 002 D4; the promotion mechanics are spec-builder's). Trade-off: an agent could pass the wrong status deliberately; that is a policy violation, not an engine failure - the audit trail (gate-log.md) records which status was lawful.
 
-**D6. system.md §2 step 4 edit.** Step 4 gains the engine invocation lines, mirroring steps 2/3's edit pattern: drafts validate via `uv run python .agents/skills/spec-builder/scripts/promote_spec.py check <draft> --lane <B|A>`; promotions run via `promote_spec.py promote <draft> --lane <B|A> --status <APPROVED|PROVISIONAL>`. The step's stale `trigger_tags` wording is corrected to `tags` (the frontmatter contract fixed by 001 D4) with the example skills unchanged. Trade-off: one more explicit path in the behavioral contract - consistent with the step-2/3 precedent.
+**D6. system.md §2 step 4 edit.** Step 4 gains the engine invocation lines, mirroring steps 2/3's edit pattern: drafts validate via `python .agents/skills/spec-builder/scripts/promote_spec.py check <draft> --lane <B|A>`; promotions run via `promote_spec.py promote <draft> --lane <B|A> --status <APPROVED|PROVISIONAL>`. The step's stale `trigger_tags` wording is corrected to `tags` (the frontmatter contract fixed by 001 D4) with the example skills unchanged. Trade-off: one more explicit path in the behavioral contract - consistent with the step-2/3 precedent.
 
 ## 3. Affected Files & Scope
 
@@ -37,11 +37,11 @@ The current `.agents/skills/spec-builder/` scaffold is untracked and stale: its 
 - Modified: `.agents/rules/system.md` — §2 step 4: engine invocation + `tags` wording (D6)
 - Generated: `.agents/MAP.md` — regenerated (row unchanged `*Use when: ...*`; snapshot hash changes; index already committed)
 - Created: `docs/specs/004-spec-builder-core-skill.md` — this spec
-- Untouched: `AGENT.md`, `docs/architecture/000-modular-agent-orchestration-v7.md`, `docs/specs/001/002/003`, `.agents/skills/map-generator|auto-router|phase-protocol/`, `docs/temp/`
+- Untouched: `AGENTS.md`, `docs/architecture/000-modular-agent-orchestration-v7.md`, `docs/specs/001/002/003`, `.agents/skills/map-generator|auto-router|phase-protocol/`, `docs/temp/`
 
 ## 4. Actionable TODO Checklist
 
-- [x] Step 1: Create `.agents/skills/spec-builder/scripts/promote_spec.py` — stdlib-only; `find_root` via the `AGENT.md` marker; `check` mode (parse `## N.` headings, lane-required section sets B:{1,3,4} / A:{1-6}, missing list, exit 1); `promote` mode (check first, next-NNN scan of `--specs-dir` (default `<root>/docs/specs`), slug from title, `--slug` override, Status line replacement with `PROVISIONAL - AUTONOMOUS DEFAULT` expansion, exists-refusal, `--dry-run`, ASCII output); exit codes 0/1.
+- [x] Step 1: Create `.agents/skills/spec-builder/scripts/promote_spec.py` — stdlib-only; `find_root` via the `AGENTS.md` marker; `check` mode (parse `## N.` headings, lane-required section sets B:{1,3,4} / A:{1-6}, missing list, exit 1); `promote` mode (check first, next-NNN scan of `--specs-dir` (default `<root>/docs/specs`), slug from title, `--slug` override, Status line replacement with `PROVISIONAL - AUTONOMOUS DEFAULT` expansion, exists-refusal, `--dry-run`, ASCII output); exit codes 0/1.
 - [x] Step 2: Create `.agents/skills/spec-builder/SKILL.md` — frontmatter per D2 (no `type:`/`trigger_tags`); body per the standard structure (Overview, When to Use, Instructions, Output Contract, Notes) per D3.
 - [x] Step 3: Update `.agents/skills/spec-builder/references/implementation-plan-template.md` and `todo-checklist-format.md` per D1/D3.
 - [x] Step 4: Update `.agents/rules/system.md` §2 step 4 (engine invocation + `tags` wording) per D6.
@@ -52,7 +52,7 @@ The current `.agents/skills/spec-builder/` scaffold is untracked and stale: its 
 
 All promotes target a sandbox directory; the real `docs/specs/` is never touched by verification.
 
-- Lane B check pass: `uv run python .agents/skills/spec-builder/scripts/promote_spec.py check <draft-with-1,3,4> --lane B` -> exit 0, `check passed`
+- Lane B check pass: `python .agents/skills/spec-builder/scripts/promote_spec.py check <draft-with-1,3,4> --lane B` -> exit 0, `check passed`
 - Lane B check fail: same draft missing section 1 -> exit 1, `missing sections: 1`
 - Lane A check fail: full-section draft missing 5 and 6 -> exit 1, `missing sections: 5, 6`; with 5/6 present -> exit 0
 - Dry-run: `promote <draft> --lane A --status APPROVED --specs-dir <sandbox> --dry-run` -> prints `next: 001` and `target: <sandbox>/001-<slug>.md`, writes nothing

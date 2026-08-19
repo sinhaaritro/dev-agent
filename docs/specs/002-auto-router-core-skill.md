@@ -2,7 +2,7 @@
 
 Status: APPROVED | Phase: 2-Build | Author: AI Agent | Date: 2026-08-15
 
-> **Derived from:** `docs/architecture/000-modular-agent-orchestration-v7.md` (master reference, approved, verbatim; §§3-6: lanes, session detection, escalation, dynamic skill discovery), `AGENT.md` (`autonomy_level: supervised`), and `.agents/rules/system.md` (behavioral contract, accepted; §2 step 2 is auto-router's boot position).
+> **Derived from:** `docs/architecture/000-modular-agent-orchestration-v7.md` (master reference, approved, verbatim; §§3-6: lanes, session detection, escalation, dynamic skill discovery), `AGENTS.md` (`autonomy_level: supervised`), and `.agents/rules/system.md` (behavioral contract, accepted; §2 step 2 is auto-router's boot position).
 > **Supersedes:** the untracked scaffold `.agents/skills/auto-router/SKILL.md` (stale frontmatter and engine path; see §1). `docs/specs/001-map-generator-core-skill.md` named auto-router as "the next skill" after map-generator; this spec is that design.
 > This spec designs the framework's second core skill in full — decision matrix, assist engine, SKILL.md doc, and the phase-protocol handoff contract. It is the design record; **no code changes have been made yet.**
 
@@ -34,14 +34,14 @@ The current `.agents/skills/auto-router/SKILL.md` scaffold is untracked and stal
 - Modified: `.agents/rules/system.md` — §2 step 2: add engine invocation path + candidates-only semantics
 - Generated: `.agents/MAP.md` — regenerated and **committed** with this task (D6; fixes 001 §3 leftover)
 - Created: `docs/specs/002-auto-router-core-skill.md` — this spec
-- Untouched: `AGENT.md`, `docs/architecture/000-modular-agent-orchestration-v7.md`, `docs/specs/001-map-generator-core-skill.md`, `.agents/skills/map-generator/`, `docs/temp/`
+- Untouched: `AGENTS.md`, `docs/architecture/000-modular-agent-orchestration-v7.md`, `docs/specs/001-map-generator-core-skill.md`, `.agents/skills/map-generator/`, `docs/temp/`
 
 ## 4. Actionable TODO Checklist
 
 - [ ] Step 1: Create `.agents/skills/auto-router/references/lane-matrix.md` — the four-lane table (Lane | Name | Scope Criteria | Docs Artifact | Socratic Gate | Verification) per 000 §4 verbatim semantics; top-down classification order (non-mutating → D; single-file <30-line diff without schema/API/auth/deps → C; 2-5 files without Lane-A surface → B; else → A); the four escalation rules; session detection with Non-Interactive default; worked examples (000 §4's four + ambiguous cases: a docs-only multi-file edit, "explain, then fix" request split, mid-flight escalation from C to B).
-- [ ] Step 2: Create `.agents/skills/auto-router/scripts/match_skills.py` — stdlib-only; `find_root` via the `AGENT.md` marker (mirror `generate_map.py`); read `.agents/MAP.md`; tokenize the prompt (lowercase, non-alphanumerics stripped, stopword list); per row compute tag hits and description hits (4-char prefix matching); print ranked candidates with a `Match:` column showing hit tokens; `no candidates — review full index manually` when nothing hits; missing `MAP.md` → exit 1 with `run map-generator first`; ASCII-only output (reuse 001's sanitize approach); exit 0 on success.
+- [ ] Step 2: Create `.agents/skills/auto-router/scripts/match_skills.py` — stdlib-only; `find_root` via the `AGENTS.md` marker (mirror `generate_map.py`); read `.agents/MAP.md`; tokenize the prompt (lowercase, non-alphanumerics stripped, stopword list); per row compute tag hits and description hits (4-char prefix matching); print ranked candidates with a `Match:` column showing hit tokens; `no candidates — review full index manually` when nothing hits; missing `MAP.md` → exit 1 with `run map-generator first`; ASCII-only output (reuse 001's sanitize approach); exit 0 on success.
 - [ ] Step 3: Create `.agents/skills/auto-router/SKILL.md` — frontmatter per D3 (`name`, ASCII `description`, `version: 1.0.0`, `author: AI Agent`, `tags`, `scope: always`; no `type:`/`trigger_tags`); body per the standard structure: Overview (initial gatekeeper, runs at system.md §2 step 2), When to Use (every session start, every prompt, mid-flight re-triage), Instructions (1. classify via `references/lane-matrix.md`; 2. detect session; 3. run the engine + Stage-2 judgment — candidates can never exclude; 4. hand off the verdict), Output contract (Lane/Session/candidates/escalation flag → `[STATUS: ...]` header, phase-protocol owns gates and response schema), Notes (no gate authority; re-read `MAP.md` when map-generator reports `regenerated`; never hardcode skill names).
-- [ ] Step 4: Update `.agents/rules/system.md` §2 step 2 — add the engine invocation (`uv run python .agents/skills/auto-router/scripts/match_skills.py "<prompt>"`) with the candidates-only caveat, alongside the existing lane/session/escalation line.
+- [ ] Step 4: Update `.agents/rules/system.md` §2 step 2 — add the engine invocation (`python .agents/skills/auto-router/scripts/match_skills.py "<prompt>"`) with the candidates-only caveat, alongside the existing lane/session/escalation line.
 - [ ] Step 5: Regenerate `.agents/MAP.md` via `map-generator` (first run reports `regenerated`); verify the auto-router row shows Active Condition `*Always active*`; second run reports `MAP.md is fresh`.
 - [ ] Step 6: Commit `.agents/MAP.md` with this task (D6 — 001 §3 declared it committed but it remains untracked).
 - [ ] Step 7: Verify engine behavior per §5 — lane-sensitive prompts surface expected skills; the description-rescue case (e.g. "purge temp scratch files" hits task-cleaner via description, and "phases gate the workflow" hits phase-protocol with no tag hits at all); the no-hardcode test (add a tag to a skill's SKILL.md → regenerate MAP.md → engine output changes, engine source untouched → revert).
@@ -49,11 +49,11 @@ The current `.agents/skills/auto-router/SKILL.md` scaffold is untracked and stal
 
 ## 5. Verification Commands
 
-- `uv run python .agents/skills/auto-router/scripts/match_skills.py "how do I promote a spec to docs/specs"` → spec-builder surfaces via tag hits (`promote`, `spec`).
-- `uv run python .agents/skills/auto-router/scripts/match_skills.py "the build keeps failing, retry three times then escalate"` → verification-runner surfaces (`build`, `retry`; `escalation` tag via 4-char prefix match on `escalate`).
-- `uv run python .agents/skills/auto-router/scripts/match_skills.py "purge the temp scratchpad after acceptance"` → task-cleaner surfaces via tags (`purge`, `acceptance`) and description (`scratchpad`).
-- Description-rescue case: `uv run python .agents/skills/auto-router/scripts/match_skills.py "phases gate the workflow"` → phase-protocol surfaces via description hits only (no tags on the row) — proves the recall path beyond tag matching.
-- No-hardcode test: add a tag (e.g. `cache`) to a skill's SKILL.md → `uv run python .agents/skills/map-generator/scripts/generate_map.py --force` → re-run the engine with a prompt using that word → the skill now surfaces; revert the tag, regenerate, confirm the original output.
+- `python .agents/skills/auto-router/scripts/match_skills.py "how do I promote a spec to docs/specs"` → spec-builder surfaces via tag hits (`promote`, `spec`).
+- `python .agents/skills/auto-router/scripts/match_skills.py "the build keeps failing, retry three times then escalate"` → verification-runner surfaces (`build`, `retry`; `escalation` tag via 4-char prefix match on `escalate`).
+- `python .agents/skills/auto-router/scripts/match_skills.py "purge the temp scratchpad after acceptance"` → task-cleaner surfaces via tags (`purge`, `acceptance`) and description (`scratchpad`).
+- Description-rescue case: `python .agents/skills/auto-router/scripts/match_skills.py "phases gate the workflow"` → phase-protocol surfaces via description hits only (no tags on the row) — proves the recall path beyond tag matching.
+- No-hardcode test: add a tag (e.g. `cache`) to a skill's SKILL.md → `python .agents/skills/map-generator/scripts/generate_map.py --force` → re-run the engine with a prompt using that word → the skill now surfaces; revert the tag, regenerate, confirm the original output.
 - Idempotency: run `map-generator` twice — first `regenerated`, then `MAP.md is fresh`.
 - Visual: `.agents/MAP.md` auto-router row reads `*Always active*`; candidates output is ASCII-only; `system.md` §2 step 2 includes the engine path.
 - `git status --short` shows only §3 files; no stale `.agents/scripts/` references remain.

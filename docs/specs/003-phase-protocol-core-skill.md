@@ -2,7 +2,7 @@
 
 Status: APPROVED | Phase: 2-Build | Author: AI Agent | Date: 2026-08-15
 
-> **Derived from:** `docs/architecture/000-modular-agent-orchestration-v7.md` (master reference, approved, verbatim; §§3, 5, 9: Socratic gate, session detection, autonomy policy, response schema, phase references, circuit breakers), `AGENT.md` (`autonomy_level: supervised`), and `.agents/rules/system.md` (behavioral contract, accepted; §1 always-loaded set, §2 step 3 is phase-protocol's boot position).
+> **Derived from:** `docs/architecture/000-modular-agent-orchestration-v7.md` (master reference, approved, verbatim; §§3, 5, 9: Socratic gate, session detection, autonomy policy, response schema, phase references, circuit breakers), `AGENTS.md` (`autonomy_level: supervised`), and `.agents/rules/system.md` (behavioral contract, accepted; §1 always-loaded set, §2 step 3 is phase-protocol's boot position).
 > **Supersedes:** the untracked scaffold `.agents/skills/phase-protocol/` (legacy frontmatter violating the 001 D4 contract; flat section structure; no engine). `docs/specs/002-auto-router-core-skill.md` D4 defined the handoff verdict phase-protocol consumes; this spec is the receiving-side design.
 > This spec designed the framework's third core skill in full - gate-resolution engine, SKILL.md doc, reference alignment, and the system.md boot-chain edit. **Implemented and verified on 2026-08-15 (all §5 checks green).**
 
@@ -14,7 +14,7 @@ The current `.agents/skills/phase-protocol/` scaffold is untracked and stale: it
 
 ## 2. Architectural Decisions & Trade-offs
 
-**D1. Gate-resolution engine — `resolve_gate.py` (human-approved).** The skill owns an assist engine: `.agents/skills/phase-protocol/scripts/resolve_gate.py` (skill-local scripts per 001 D1's structural rule; stdlib-only Python, styled after `generate_map.py` and `match_skills.py`; `find_root` via the `AGENT.md` marker). It is a deterministic decision machine over the autonomy matrix — (gate: blocking|non-blocking) × (session: interactive|non-interactive) × (lane A/B/C/D) × (autonomy: supervised|autonomous):
+**D1. Gate-resolution engine — `resolve_gate.py` (human-approved).** The skill owns an assist engine: `.agents/skills/phase-protocol/scripts/resolve_gate.py` (skill-local scripts per 001 D1's structural rule; stdlib-only Python, styled after `generate_map.py` and `match_skills.py`; `find_root` via the `AGENTS.md` marker). It is a deterministic decision machine over the autonomy matrix — (gate: blocking|non-blocking) × (session: interactive|non-interactive) × (lane A/B/C/D) × (autonomy: supervised|autonomous):
 
 | Gate | Session | Autonomy | Outcome | Exit |
 | :--- | :--- | :--- | :--- | :--- |
@@ -24,7 +24,7 @@ The current `.agents/skills/phase-protocol/` scaffold is untracked and stale: it
 | blocking | non-interactive | autonomous + `--lane-a-surface` | **Always fail closed** (000 §3.4.3: schema/auth/public-API never autonomous) | 2 |
 | blocking | non-interactive | autonomous, no Lane-A surface | Resolve to the Recommended Option; append verbatim entry to `docs/temp/gate-log.md` | 0 |
 
-Autonomy defaults to the `autonomy_level` frontmatter in `AGENT.md` (no hardcoding); `--autonomy` overrides for testing. Gate-log entries follow the fixed format already declared in `docs/temp/gate-log.md` (question, options, choice made, autonomy mode, provisional-spec tag) and are **append-only — the engine never truncates or purges** (000 §9, system.md §3). Fail-closed writes follow the fixed `docs/temp/escalation.md` format (pending question with guided options, lane, session). Trade-off: a script on a meta-skill 000 describes as checklist-driven — justified because the matrix is the framework's safety-critical core; a mechanical engine makes every outcome testable (mirroring 002's §5 verification style) and fixes the audit-trail format machine-verifiably instead of by LLM judgment. `--autonomy autonomous` resolution on Lane A surfaces is unreachable regardless of flags — the exception is encoded, not advisory.
+Autonomy defaults to the `autonomy_level` frontmatter in `AGENTS.md` (no hardcoding); `--autonomy` overrides for testing. Gate-log entries follow the fixed format already declared in `docs/temp/gate-log.md` (question, options, choice made, autonomy mode, provisional-spec tag) and are **append-only — the engine never truncates or purges** (000 §9, system.md §3). Fail-closed writes follow the fixed `docs/temp/escalation.md` format (pending question with guided options, lane, session). Trade-off: a script on a meta-skill 000 describes as checklist-driven — justified because the matrix is the framework's safety-critical core; a mechanical engine makes every outcome testable (mirroring 002's §5 verification style) and fixes the audit-trail format machine-verifiably instead of by LLM judgment. `--autonomy autonomous` resolution on Lane A surfaces is unreachable regardless of flags — the exception is encoded, not advisory.
 
 **D2. Frontmatter contract compliance.** The new `SKILL.md` follows the standard frontmatter fixed by 001 D4: `name: phase-protocol`, `description` (ASCII-safe, one sentence), `version: 1.0.0`, `author: AI Agent`, `tags` (phase, plan, build, review, gate, autonomy, response, socratic), custom `scope: always`. Legacy `type: core` and `trigger_tags` are dropped. Consequence: `map-generator` renders phase-protocol's Active Condition as `*Always active*` in `MAP.md`, matching system.md §1's always-loaded set — unchanged from today, but now contract-compliant.
 
@@ -34,7 +34,7 @@ Autonomy defaults to the `autonomy_level` frontmatter in `AGENT.md` (no hardcodi
 
 **D5. Consumes the auto-router verdict (002 D4, receiving side).** Phase-protocol consumes auto-router's output — Lane (A/B/C/D) and Session (Interactive/Non-Interactive) into the `[STATUS: ...]` header, candidate skills into step 4's on-demand loading, and the optional escalation flag as an announce-only upward re-route: when execution reveals a higher-lane criterion, phase-protocol continues under the announced lane with the same phase machinery (re-plan under the new lane's artifact requirements) — it never re-triages the lane itself, never asks permission to escalate, and never silently de-escalates (000 §4). Trade-off: strict separation keeps each skill's authority legible (gates/autonomy/response schema are exclusively phase-protocol's domain, per 002 D4); the cost is that every escalation re-emits the verdict through the header.
 
-**D6. system.md §2 step 3 edit.** Step 3 gains the engine invocation line, mirroring step 2's edit pattern: gates resolve via `uv run python .agents/skills/phase-protocol/scripts/resolve_gate.py --gate <blocking|non-blocking> --session <Interactive|Non-Interactive> --lane <A|B|C|D> [--lane-a-surface] --question "<text>" --options "<A: ...; B: ...>"` (autonomy read from AGENT.md; append-only gate-log; fail-closed writes escalation.md). §3's gate-log guardrail wording is aligned with the append-only engine behavior. Trade-off: one more explicit path in the behavioral contract — consistent with the step-2 precedent and keeps the engine invocation discoverable.
+**D6. system.md §2 step 3 edit.** Step 3 gains the engine invocation line, mirroring step 2's edit pattern: gates resolve via `python .agents/skills/phase-protocol/scripts/resolve_gate.py --gate <blocking|non-blocking> --session <Interactive|Non-Interactive> --lane <A|B|C|D> [--lane-a-surface] --question "<text>" --options "<A: ...; B: ...>"` (autonomy read from AGENTS.md; append-only gate-log; fail-closed writes escalation.md). §3's gate-log guardrail wording is aligned with the append-only engine behavior. Trade-off: one more explicit path in the behavioral contract — consistent with the step-2 precedent and keeps the engine invocation discoverable.
 
 ## 3. Affected Files & Scope
 
@@ -47,11 +47,11 @@ Autonomy defaults to the `autonomy_level` frontmatter in `AGENT.md` (no hardcodi
 - Modified: `.agents/rules/system.md` — §2 step 3: engine invocation + §3 gate-log wording (D6)
 - Generated: `.agents/MAP.md` — regenerated (row unchanged `*Always active*`; snapshot hash changes; index already committed)
 - Created: `docs/specs/003-phase-protocol-core-skill.md` — this spec
-- Untouched: `AGENT.md`, `docs/architecture/000-modular-agent-orchestration-v7.md`, `docs/specs/001-map-generator-core-skill.md`, `docs/specs/002-auto-router-core-skill.md`, `.agents/skills/map-generator/`, `.agents/skills/auto-router/`, `docs/temp/`
+- Untouched: `AGENTS.md`, `docs/architecture/000-modular-agent-orchestration-v7.md`, `docs/specs/001-map-generator-core-skill.md`, `docs/specs/002-auto-router-core-skill.md`, `.agents/skills/map-generator/`, `.agents/skills/auto-router/`, `docs/temp/`
 
 ## 4. Actionable TODO Checklist
 
-- [x] Step 1: Create `.agents/skills/phase-protocol/scripts/resolve_gate.py` — stdlib-only; `find_root` via the `AGENT.md` marker; args `--gate`, `--session`, `--lane`, `--autonomy` (default: parse `autonomy_level` from AGENT.md frontmatter), `--lane-a-surface`, `--question`, `--options`; the five-row decision matrix per D1 (Lane-A exception encoded, not advisory); append-only gate-log entry per the fixed `docs/temp/gate-log.md` format; fail-closed escalation per the fixed `docs/temp/escalation.md` format; ASCII-only output; exit codes 0 (proceed/resolved), 1 (halt), 2 (fail-closed).
+- [x] Step 1: Create `.agents/skills/phase-protocol/scripts/resolve_gate.py` — stdlib-only; `find_root` via the `AGENTS.md` marker; args `--gate`, `--session`, `--lane`, `--autonomy` (default: parse `autonomy_level` from AGENTS.md frontmatter), `--lane-a-surface`, `--question`, `--options`; the five-row decision matrix per D1 (Lane-A exception encoded, not advisory); append-only gate-log entry per the fixed `docs/temp/gate-log.md` format; fail-closed escalation per the fixed `docs/temp/escalation.md` format; ASCII-only output; exit codes 0 (proceed/resolved), 1 (halt), 2 (fail-closed).
 - [x] Step 2: Create `.agents/skills/phase-protocol/SKILL.md` — frontmatter per D2 (no `type:`/`trigger_tags`); body per the standard structure (Overview, When to Use, Instructions, Output Contract, Notes) per D3.
 - [x] Step 3: Update `.agents/skills/phase-protocol/references/plan.md`, `build.md`, `review.md`, `harness.md` per D4.
 - [x] Step 4: Update `.agents/rules/system.md` §2 step 3 (engine invocation) and §3 (gate-log append-only wording) per D6.
@@ -60,16 +60,16 @@ Autonomy defaults to the `autonomy_level` frontmatter in `AGENT.md` (no hardcodi
 
 ## 5. Verification Commands
 
-- Interactive blocking: `uv run python .agents/skills/phase-protocol/scripts/resolve_gate.py --gate blocking --session interactive --lane A --question "adopt Postgres? " --options "A (Recommended): Postgres; B: MySQL"` → prints HALT, exit 1, no files written.
-- Non-interactive supervised fail-closed: `uv run python .agents/skills/phase-protocol/scripts/resolve_gate.py --gate blocking --session non-interactive --lane B --question "..." --options "A: x; B: y"` (no `--autonomy`; AGENT.md `supervised`) → exit 2, `docs/temp/escalation.md` written, `gate-log.md` untouched.
+- Interactive blocking: `python .agents/skills/phase-protocol/scripts/resolve_gate.py --gate blocking --session interactive --lane A --question "adopt Postgres? " --options "A (Recommended): Postgres; B: MySQL"` → prints HALT, exit 1, no files written.
+- Non-interactive supervised fail-closed: `python .agents/skills/phase-protocol/scripts/resolve_gate.py --gate blocking --session non-interactive --lane B --question "..." --options "A: x; B: y"` (no `--autonomy`; AGENTS.md `supervised`) → exit 2, `docs/temp/escalation.md` written, `gate-log.md` untouched.
 - Lane-A exception (000 §3.4.3): `... --gate blocking --session non-interactive --lane A --autonomy autonomous --lane-a-surface ...` → exit 2 even under autonomous — the exception is encoded.
 - Autonomous resolution: `... --gate blocking --session non-interactive --lane B --autonomy autonomous --question "which cache?" --options "A (Recommended): redis; B: memcached"` → exit 0, prints RESOLVED, `docs/temp/gate-log.md` appended with the verbatim entry (question, options, choice, autonomy mode, provisional tag).
 - Non-blocking (both sessions): `... --gate non-blocking --session interactive --lane C ...` and `... --gate non-blocking --session non-interactive --lane C ...` → exit 0, no files written.
 - Append-only: run the autonomous case twice → two `## Entry` blocks, previous entries intact (never truncated).
 - Matrix edge: `--lane-a-surface` without `--autonomy autonomous` (supervised) → exit 2, fail-closed as expected.
-- MAP.md idempotency: `uv run python .agents/skills/map-generator/scripts/generate_map.py` twice — `regenerated`, then `MAP.md is fresh`; phase-protocol row reads `*Always active*`.
+- MAP.md idempotency: `python .agents/skills/map-generator/scripts/generate_map.py` twice — `regenerated`, then `MAP.md is fresh`; phase-protocol row reads `*Always active*`.
 - Visual: header format check — every planned response carries the 5-tag `[STATUS: ...]` header; output is ASCII-only; `system.md` §2 step 3 includes the engine path.
-- Cross-check (002 §5 already proven): `uv run python .agents/skills/auto-router/scripts/match_skills.py "phases gate the workflow"` → phase-protocol surfaces via description hits, confirming the boot-chain handoff still resolves.
+- Cross-check (002 §5 already proven): `python .agents/skills/auto-router/scripts/match_skills.py "phases gate the workflow"` → phase-protocol surfaces via description hits, confirming the boot-chain handoff still resolves.
 - `git status --short` shows only §3 files.
 
 ## 6. Rollback Strategy

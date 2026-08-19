@@ -9,7 +9,7 @@ Canonical commands and failure patterns for Python projects managed with uv (thi
 ## Canonical commands
 
 - Install / sync dependencies: `uv sync` (uv reads pyproject.toml + uv.lock; never use bare `pip install` in a uv project - it bypasses the lockfile)
-- Run a script: `uv run python <script>` (or `uv run <tool>` for tools declared in `[dependency-groups]` / `[project.scripts]`)
+- Run a script: `python <script>` (or `uv run <tool>` for tools declared in `[dependency-groups]` / `[project.scripts]`)
 - Test (full suite): `uv run pytest`
 - Test (single file): `uv run pytest tests/path/to/test_module.py`
 - Test (single test): `uv run pytest tests/path/to/test_module.py::test_name`

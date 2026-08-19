@@ -2,7 +2,7 @@
 
 Status: APPROVED | Phase: 2-Build | Author: AI Agent | Date: 2026-08-15
 
-> **Derived from:** `docs/architecture/000-modular-agent-orchestration-v7.md` (master reference, approved, verbatim), `AGENT.md`, and `.agents/rules/system.md` (behavioral contract, accepted).
+> **Derived from:** `docs/architecture/000-modular-agent-orchestration-v7.md` (master reference, approved, verbatim), `AGENTS.md`, and `.agents/rules/system.md` (behavioral contract, accepted).
 > **Supersedes:** `docs/specs/001-core-skill-refinement.md` (multi-skill pass design; replaced by this single-skill spec).
 > This spec designs the framework's first core skill in full — engine, SKILL.md doc, and MAP.md output contract. It is the design record; **no code changes have been made yet.**
 
@@ -20,7 +20,7 @@ The Modular Agent Orchestration framework requires a Dynamic Map Generator (000 
 
 **D4. Flat model — all skills equal, zero hardcoding.** The engine never hardcodes skill names and makes no core/optional split: every SKILL.md under `.agents/skills/` gets one row. Standard SKILL.md frontmatter (`name`, `description`, `version`, `author`, `tags`, `requires`) is parsed per the Skills Directory format, with `trigger_tags` accepted as a legacy fallback for `tags`. Trade-off: the 000 §5 core/optional catalog is no longer reflected in the index — classification duties move to `scope` (load behavior) and `tags` (routing), keeping the index truthful to disk state.
 
-**D5. Scope drives the Active Condition column.** `scope: always` renders `*Always active*`; on-demand renders `*Use when: <tags>*`. Defaults follow system.md §1: always for `.agents/rules/`, on-demand for `.agents/skills/`. AGENT.md and rules are no longer indexed — system.md §1 keeps their textual list, and the index is the authoritative generated list of skills only.
+**D5. Scope drives the Active Condition column.** `scope: always` renders `*Always active*`; on-demand renders `*Use when: <tags>*`. Defaults follow system.md §1: always for `.agents/rules/`, on-demand for `.agents/skills/`. AGENTS.md and rules are no longer indexed — system.md §1 keeps their textual list, and the index is the authoritative generated list of skills only.
 
 ## 3. Affected Files & Scope
 
@@ -30,7 +30,7 @@ The Modular Agent Orchestration framework requires a Dynamic Map Generator (000 
 - Generated: `.agents/MAP.md` — engine output; committed as the discovery index
 - Created: `docs/specs/001-map-generator-core-skill.md` — this spec
 - Deleted: `docs/specs/001-core-skill-refinement.md` — superseded by this spec
-- Untouched: `AGENT.md`, `docs/architecture/000-modular-agent-orchestration-v7.md`, `docs/temp/`
+- Untouched: `AGENTS.md`, `docs/architecture/000-modular-agent-orchestration-v7.md`, `docs/temp/`
 
 ## 4. Actionable TODO Checklist
 
@@ -45,8 +45,8 @@ The Modular Agent Orchestration framework requires a Dynamic Map Generator (000 
 
 ## 5. Verification Commands
 
-- `uv run python .agents/skills/map-generator/scripts/generate_map.py` — twice: `regenerated`, then `MAP.md is fresh` (idempotency)
-- `uv run python .agents/skills/map-generator/scripts/generate_map.py --force` — rebuilds regardless of freshness
+- `python .agents/skills/map-generator/scripts/generate_map.py` — twice: `regenerated`, then `MAP.md is fresh` (idempotency)
+- `python .agents/skills/map-generator/scripts/generate_map.py --force` — rebuilds regardless of freshness
 - Visual: `.agents/MAP.md` renders the table format per D3 (Skill | Description | Active Condition | Source File); `system.md` §1 wording + §2 step 1 path consistent
 - `git status --short` shows only §3 files; no stale `.agents/scripts/` references remain
 

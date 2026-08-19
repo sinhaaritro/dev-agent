@@ -40,7 +40,7 @@
     },
     {
       "id": 3,
-      "prompt": "Task auth-004: the plan has no section 5 verification commands and AGENT.md has no Commands block. Determine the right verification approach for this project and report it. The project manifest is pyproject.toml at D:\\Projects\\dev-agent\\docs\\temp\\verification-runner-workspace\\sandbox-py (a uv-managed Python project).",
+      "prompt": "Task auth-004: the plan has no section 5 verification commands and AGENTS.md has no Commands block. Determine the right verification approach for this project and report it. The project manifest is pyproject.toml at D:\\Projects\\dev-agent\\docs\\temp\\verification-runner-workspace\\sandbox-py (a uv-managed Python project).",
       "expected_output": "detect -> python-uv, framework page consulted, canonical commands (uv sync / uv run pytest) presented",
       "files": [],
       "assertions": [

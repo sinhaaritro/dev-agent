@@ -24,14 +24,14 @@ You execute the plan's verification commands and enforce the framework's circuit
 - Every Build-phase step needs verification: run the plan's verification commands (section 5 of the implementation-plan-template) after each TODO step, per phase-protocol `build.md` section 2.
 - A verification command fails and a fix attempt is made - the retry must go through the engine's ledger so the 3-attempt limit is real, never recalled from memory.
 - The 3rd consecutive failure hits - the engine trips the breaker, writes `docs/temp/escalation.md`, and you halt for human handoff. Never retry past the threshold.
-- A plan has no section 5 and `AGENT.md` has no Commands - detect the framework and suggest canonical commands.
+- A plan has no section 5 and `AGENTS.md` has no Commands - detect the framework and suggest canonical commands.
 - An escalation report needs finalizing (hypothesis + remediation options) after a breaker trip.
 
 ## Instructions
 
-1. **Read the command source, in order.** The plan's section 5 (`- Build Command: ...` / `- Test Command: ...` lines) is the primary source per phase-protocol `build.md`. If absent, read `AGENT.md`'s Commands block. If both absent, run `detect` to identify the framework and read its page in `references/frameworks/` for canonical commands. Only ask Socratically if genuinely ambiguous - a framework page's defaults are usually the answer.
+1. **Read the command source, in order.** The plan's section 5 (`- Build Command: ...` / `- Test Command: ...` lines) is the primary source per phase-protocol `build.md`. If absent, read `AGENTS.md`'s Commands block. If both absent, run `detect` to identify the framework and read its page in `references/frameworks/` for canonical commands. Only ask Socratically if genuinely ambiguous - a framework page's defaults are usually the answer.
 2. **Run through the engine, never bare.** Every verification execution goes through the ledger so the outcome is recorded:
-   `uv run python .agents/skills/verification-runner/scripts/verify.py run --command "<cmd>" --task <task-id>`
+   `python .agents/skills/verification-runner/scripts/verify.py run --command "<cmd>" --task <task-id>`
    Use the task identifier from the status header (e.g. `auth-001`), not a free-form label. The engine executes with a 300s default timeout and refuses interactive commands. Its output is the contract: `PASS (attempt N)` resets the counter; `FAIL (attempt N/3)` increments it; `CIRCUIT BREAKER TRIPPED` at 3 means cease all code modifications, revert uncommitted dirty edits that break build integrity, and halt - exit 2.
 3. **Plan the fix like a doctor, not a gambler.** On each failure: form a hypothesis, apply the next fix attempt, re-run through the engine. The engine's verbatim failure logs accumulate in the ledger, so the escalation report records the truth of all three attempts. If you have a hypothesis and remediation options ready at run time, pass `--hypothesis` and `--options` (guided Socratic format `"A (Recommended): ...; B: ..."`) so the trip report is complete immediately.
 4. **Finalize the escalation on a trip.** If the trip report has pending sections, complete them with the engine's `escalate` mode - it merges the stored attempt logs with your hypothesis and options into `docs/temp/escalation.md`. Then report the handoff to the human in the response's block 3/4. A tripped task is terminal: the engine refuses further runs on it.

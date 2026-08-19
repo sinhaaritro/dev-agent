@@ -23,7 +23,7 @@ birthday-tracker demo did exactly that). Phase 1.5 makes the split mandatory.
 ## 3. Record the handoff
 
 1. Run the engine record:
-   `uv run python .agents/skills/spec-builder/scripts/promote_spec.py handoff docs/specs/<NNN>-<slug>.md --lane <B|A> [--handoff-dir <sandbox>] [--dry-run]`
+   `python .agents/skills/spec-builder/scripts/promote_spec.py handoff docs/specs/<NNN>-<slug>.md --lane <B|A> [--handoff-dir <sandbox>] [--dry-run]`
    The engine validates: the spec exists with `Status: APPROVED`; Lane A
    requires at least one ADR whose `Source:` points at the spec; Lane B allows
    zero (ADRs optional there). Exit 0 writes `docs/temp/handoff.md` (ephemeral)
