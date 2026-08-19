@@ -324,6 +324,38 @@ def adrs_sourced_to(decisions_dir: Path, spec_ref: str) -> list[str]:
     return found
 
 
+def ensure_scratchpad_guard(handoff_dir: Path) -> None:
+    """Scratchpad guard: a root .gitignore entry for the dir and the inner stub.
+
+    The inner stub (``*`` + ``!.gitignore``) is the effective protection - git
+    refuses to descend into a gitignored directory even without a root
+    .gitignore - while the root entry documents the exclusion for viewers that
+    stop at the top level. Idempotent. Runs only on the DEFAULT handoff dir;
+    sandboxed ``--handoff-dir`` test runs never touch the real repo root.
+    """
+    root = handoff_dir
+    for _ in range(4):
+        if (root / "AGENTS.md").is_file() and (root / ".agents").is_dir():
+            break
+        root = root.parent
+    root_ignore = root / ".gitignore"
+    if not root_ignore.is_file():
+        root_ignore.write_text("# DEV Agent framework\n", encoding="utf-8")
+    lines = root_ignore.read_text(encoding="utf-8").splitlines()
+    if not any(
+        ln.strip().strip("/") in ("docs", "docs/temp")
+        for ln in lines
+        if ln.strip() and not ln.strip().startswith("#")
+    ):
+        text = root_ignore.read_text(encoding="utf-8")
+        if text and not text.endswith("\n"):
+            text += "\n"
+        root_ignore.write_text(text + "\ndocs/temp\n", encoding="utf-8")
+    inner = handoff_dir / ".gitignore"
+    if not inner.is_file():
+        inner.write_text("*\n!.gitignore\n", encoding="utf-8")
+
+
 def cmd_handoff(args: argparse.Namespace) -> int:
     """Validate and record the Phase 1.5 handoff (spec 008)."""
     try:
@@ -362,6 +394,7 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         return 1
 
     args.handoff_dir.mkdir(parents=True, exist_ok=True)
+    ensure_scratchpad_guard(args.handoff_dir)
     args.spec.write_text(stamped, encoding="utf-8")
 
     adr_line = ", ".join(adrs) if adrs else "none (Lane B)"

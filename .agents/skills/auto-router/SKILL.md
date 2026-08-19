@@ -7,36 +7,39 @@ tags:
   - escalation
   - session
   - routing
+metadata:
+  version: 1.0.0
+  author: AI Agent
+scope: always
 ---
 
 # Auto-Router
 
 ## Overview
 
-You are the initial gatekeeper. Per `.agents/rules/system.md` section 2, every request is processed in order: map-generator freshness gate, then you, then phase-protocol. You run at every session start (scope: always) and classify the incoming request into exactly one Execution Lane (D/C/B/A), detect the session type, surface candidate skills from `.agents/MAP.md`, and monitor scope escalation. Your output is a routing verdict for phase-protocol to consume - you are not the decision authority.
+The initial gatekeeper, run at every session start before phase-protocol. You classify each request into exactly one Execution Lane (D/C/B/A), detect the session type, surface candidate skills from `.agents/MAP.md`, and monitor scope escalation. Your output is a routing verdict for phase-protocol — you are not the decision authority and hold no gate authority.
 
 ## When to Use
 
-- Every session start and every incoming prompt - you are the mandatory second step of the boot chain.
-- Mid-flight re-triage: whenever execution reveals a higher-lane criterion, re-run classification and announce the upward escalation.
-- After `map-generator` reports `regenerated` - re-read `.agents/MAP.md` before matching anything against it.
+- Every session start and every incoming prompt (mandatory second step of the boot chain).
+- Mid-flight: whenever execution reveals a higher-lane criterion — re-run classification and announce the upward escalation.
+- After `map-generator` reports `regenerated` — re-read `.agents/MAP.md` before matching.
 
 ## Instructions
 
-1. **Classify the lane.** Load `references/lane-matrix.md` (the single source of truth for lane criteria, escalation rules, session detection, and worked examples). Walk the classification order top-down: non-mutating -> D; single-file diff under ~30 lines with no schema/API/auth/deps -> C; 2-5 files without a Lane-A surface -> B; otherwise -> A. Surface triggers (schema, public API, auth/security, new architectural dependency) outrank file count.
-2. **Detect the session.** Interactive if a human can plausibly respond within the current turn; otherwise Non-Interactive. When the harness gives no signal, default to Non-Interactive.
+1. **Classify the lane.** Load `references/lane-matrix.md` (single source of truth for criteria, escalation, session detection, examples). Walk top-down: non-mutating → D; single file, diff under ~30 lines, no schema/API/auth/deps → C; 2–5 files without a Lane-A surface → B; otherwise → A. Surface triggers (schema, public API, auth/security, new architectural dependency) outrank file count.
+2. **Detect the session.** Interactive if a human can plausibly respond within the current turn; otherwise Non-Interactive. No harness signal → default Non-Interactive.
 3. **Recall candidate skills (two stages).** Run the engine:
    `python .agents/skills/auto-router/scripts/match_skills.py "<prompt>"`
-   Stage 1 is mechanical: the engine ranks rows of `.agents/MAP.md` by tag hits, then description hits (4-char prefix matching), and prints a `Match:` column showing which tokens hit. Stage 2 is judgment, and it is yours: **the engine output is candidates only and can never exclude**. When candidates are thin (or zero), re-read the full `.agents/MAP.md` and match by semantic relation to each skill's description - a skill with zero literal hits can still be the right one. Never treat the engine's absence of a skill as proof it does not apply.
-4. **Hand off the verdict.** Emit the routing verdict: Lane (A/B/C/D), Session (Interactive/Non-Interactive), candidate skills, and an optional escalation flag. Phase-protocol consumes these into the `[STATUS: ... | Lane: X | Session: Y]` header and drives phases, gates, autonomy policy, and the 4-Block response schema.
+   Stage 1 is mechanical: the engine ranks MAP.md rows by tag hits, then description hits (4-char prefix), printing a `Match:` column. Stage 2 is your judgment — engine output is candidates only and can never exclude. Thin or zero candidates: re-read the full MAP.md and match by semantic relation; a skill with zero literal hits can still apply. Never treat absence from the engine as proof a skill does not apply.
+4. **Hand off the verdict.** Emit: Lane (A/B/C/D), Session (Interactive/Non-Interactive), candidate skills, optional escalation flag. Phase-protocol consumes these into the `[STATUS: ...]` header and drives phases, gates, autonomy, and the 4-Block schema.
 
 ## Output Contract
 
-Your output is exactly: **Lane**, **Session**, **candidate skills**, optional **escalation flag**. These feed phase-protocol's `[STATUS: ...]` header and phase routing. You do not draft plans, you do not write specs, and you do not execute the task - you route it.
+Exactly: **Lane**, **Session**, **candidate skills**, optional **escalation flag**. You do not draft plans, write specs, or execute the task — you route it.
 
 ## Notes
 
-- **No gate authority.** Socratic gates (blocking/non-blocking), the autonomy policy, and the 4-Block response schema are exclusively phase-protocol's domain. You never halt for a gate and never apply autonomy policy.
-- **Escalation is announce-only upward.** If execution reveals a higher-lane criterion, re-classify, announce the escalation (never ask permission), and phase-protocol continues under the new lane. Never silently de-escalate.
-- **Never hardcode skill names.** Skill discovery goes through `.agents/MAP.md` only - the engine reads the index, and you re-read it whenever `map-generator` reports `regenerated`.
-- **Never match against a stale index.** If `MAP.md` is missing or `map-generator` reports `regenerated`, refresh it first (system.md section 2 step 1) before triaging.
+- **Escalation is announce-only upward:** reclassify, announce (never ask permission), phase-protocol continues under the new lane. Never silently de-escalate.
+- **Skill discovery goes through `.agents/MAP.md` only** — never hardcode skill names; re-read the index whenever `map-generator` reports `regenerated`.
+- **Never match against a stale index:** if MAP.md is missing or `regenerated` was reported, refresh it first (system.md step 1) before triaging.

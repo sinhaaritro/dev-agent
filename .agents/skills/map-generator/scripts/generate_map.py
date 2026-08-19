@@ -77,19 +77,43 @@ def parse_front_matter(text: str) -> dict:
         if not key:
             i += 1
             continue
+        if line[0].isspace() and value == "" and i + 1 < len(lines):
+            continue  # blank nested line: handled by the block case below
+        if value == "":
+            # Block form: dash items -> list, indented "key: value" -> nested dict.
+            j = i + 1
+            items: list[str] = []
+            sub: dict = {}
+            while j < len(lines):
+                nline = lines[j]
+                if nline.strip() == "":
+                    j += 1
+                    continue
+                if not nline[0].isspace():
+                    break
+                body = nline.strip()
+                if body.startswith("-"):
+                    items.append(body[1:].strip().strip("\"'"))
+                    j += 1
+                elif ":" in body:
+                    skey, _, sval = body.partition(":")
+                    if sval.strip() == "":
+                        break  # two-level nesting unsupported; stop the block
+                    sub[skey.strip().lower()] = sval.strip()
+                    j += 1
+                else:
+                    break
+            if sub:
+                fields[key] = sub
+            elif items:
+                fields[key] = items
+            i = j - 1
+            continue
         if value.startswith("[") and value.endswith("]"):
             items = [v.strip().strip("\"'") for v in value[1:-1].split(",")]
             fields[key] = [x for x in items if x]
         elif value.startswith('"') and value.endswith('"'):
             fields[key] = value[1:-1]
-        elif value == "":
-            items = []
-            j = i + 1
-            while j < len(lines) and lines[j].lstrip().startswith("-"):
-                items.append(lines[j].lstrip()[1:].strip().strip("\"'"))
-                j += 1
-            fields[key] = items
-            i = j - 1
         else:
             fields[key] = value
         i += 1

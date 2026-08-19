@@ -134,10 +134,38 @@ def escalation_entry(
     return "\n".join(lines)
 
 
+def ensure_scratchpad_guard(root: Path, temp_dir: Path) -> None:
+    """Scratchpad guard: the dir, a root .gitignore entry for it, and the inner stub.
+
+    The inner stub (``*`` + ``!.gitignore``) is the effective protection - git
+    refuses to descend into a gitignored directory even without a root
+    .gitignore - while the root entry documents the exclusion for viewers that
+    stop at the top level. Idempotent; only touched when acting on the default
+    docs/temp/ location.
+    """
+    root_ignore = root / ".gitignore"
+    if not root_ignore.is_file():
+        root_ignore.write_text("# DEV Agent framework\n", encoding="utf-8")
+    lines = root_ignore.read_text(encoding="utf-8").splitlines()
+    if not any(
+        ln.strip().strip("/") in ("docs", "docs/temp")
+        for ln in lines
+        if ln.strip() and not ln.strip().startswith("#")
+    ):
+        text = root_ignore.read_text(encoding="utf-8")
+        if text and not text.endswith("\n"):
+            text += "\n"
+        root_ignore.write_text(text + "\ndocs/temp\n", encoding="utf-8")
+    inner = temp_dir / ".gitignore"
+    if not inner.is_file():
+        inner.write_text("*\n!.gitignore\n", encoding="utf-8")
+
+
 def append_gate_log(root: Path, entry: str) -> None:
     """Append-only write; creates docs/temp/gate-log.md with its header if missing."""
     temp_dir = root / "docs" / "temp"
     temp_dir.mkdir(parents=True, exist_ok=True)
+    ensure_scratchpad_guard(root, temp_dir)
     gate_log = temp_dir / "gate-log.md"
     if not gate_log.is_file():
         header = (
@@ -170,6 +198,7 @@ def write_escalation(root: Path, report: str) -> None:
     """Write the fail-closed report to docs/temp/escalation.md (ephemeral scratchpad)."""
     temp_dir = root / "docs" / "temp"
     temp_dir.mkdir(parents=True, exist_ok=True)
+    ensure_scratchpad_guard(root, temp_dir)
     (temp_dir / "escalation.md").write_text(report, encoding="utf-8")
 
 

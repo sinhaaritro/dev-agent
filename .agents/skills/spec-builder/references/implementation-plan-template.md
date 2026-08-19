@@ -32,8 +32,4 @@ Key technical choices made, alternative options considered, and trade-offs.
 Instructions on reverting edits if verification fails 3 times.
 
 ---
-Usage: drafted at `docs/temp/draft-plan.md` during Phase 1-Plan; validated with
-`promote_spec.py check <draft> --lane <B|A>`; promoted to
-`docs/specs/<id>-<feature>.md` on acceptance via `promote_spec.py promote <draft>
---lane <B|A> --status <APPROVED|PROVISIONAL>` (spec-builder skill). Lane A mandates
-the full template; Lane B uses sections 1, 3, 4 only.
+Usage: drafted at `docs/temp/draft-plan.md` during Phase 1-Plan; validated with `promote_spec.py check <draft> --lane <B|A>`; on acceptance promoted to `docs/specs/<id>-<feature>.md` via `promote_spec.py promote <draft> --lane <B|A> --status <APPROVED|PROVISIONAL>`. Lane A mandates the full template; Lane B uses sections 1, 3, 4 only.
