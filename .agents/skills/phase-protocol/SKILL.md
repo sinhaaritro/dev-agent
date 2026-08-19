@@ -1,8 +1,6 @@
 ---
 name: phase-protocol
 description: Meta-skill driving SDLC phases Plan -> 1.5-Handoff -> Build -> Review, Socratic gates, autonomy policy, and the 4-Block response schema
-version: 1.0.0
-author: AI Agent
 tags:
   - phase
   - plan
@@ -12,7 +10,6 @@ tags:
   - autonomy
   - response
   - socratic
-scope: always
 ---
 
 # Phase Protocol

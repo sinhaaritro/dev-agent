@@ -1,15 +1,12 @@
 ---
 name: spec-builder
 description: Spec lifecycle - drafts implementation plans in docs/temp/, enforces templates, promotes approved specs to docs/specs/ at approval, files ADRs for architectural decisions, records Phase 1.5 handoffs
-version: 1.0.0
-author: AI Agent
 tags:
   - spec
   - plan draft
   - promote
   - implementation plan
   - template
-scope: on-demand
 ---
 
 # Spec Builder

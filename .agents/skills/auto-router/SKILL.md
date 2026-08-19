@@ -1,15 +1,12 @@
 ---
 name: auto-router
 description: Intent triage & lane taxonomy engine - classifies every request into a lane, detects session type, monitors scope escalation
-version: 1.0.0
-author: AI Agent
 tags:
   - triage
   - lane
   - escalation
   - session
   - routing
-scope: always
 ---
 
 # Auto-Router

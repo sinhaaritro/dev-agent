@@ -1,15 +1,12 @@
 ---
 name: task-cleaner
 description: Garbage collector - purges docs/temp/ scratchpad on human acceptance, preserves unreviewed gate-log.md. Use when a task is accepted or confirmed complete, phase 3 review sign-off happens, a spec is promoted and the scratchpad should reset, or scratchpad cleanup is requested.
-version: 1.0.0
-author: AI Agent
 tags:
   - cleanup
   - purge
   - acceptance
   - reset
   - garbage collection
-scope: on-demand
 ---
 
 # Task Cleaner

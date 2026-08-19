@@ -1,8 +1,6 @@
 ---
 name: verification-runner
 description: Test execution & circuit breaker - runs build/test commands, tracks the 3-retry limit, writes escalation reports. Use when verifying build/test results, a verification step fails and needs retry, the circuit breaker threshold (3 consecutive failures) is reached, an escalation report must be written, or a project framework's canonical commands are needed.
-version: 1.0.0
-author: AI Agent
 tags:
   - test
   - verify
@@ -10,7 +8,6 @@ tags:
   - retry
   - circuit breaker
   - escalation
-scope: on-demand
 ---
 
 # Verification Runner
