@@ -36,10 +36,10 @@ Modes:
              Exit 0.
 
     detect   verify.py detect [--root <dir>]
-             Scan repo manifests and print the framework + its reference page
-             (pyproject.toml -> python-uv, package.json -> node-npm,
-             Cargo.toml -> rust-cargo, go.mod -> go, *.csproj -> dotnet).
-             Exit 0.
+              Scan repo manifests and print the framework + its reference page
+              (pyproject.toml -> python, package.json -> node-npm,
+              Cargo.toml -> rust-cargo, go.mod -> go, *.csproj -> dotnet).
+              Exit 0.
 
 Usage:
     python .agents/skills/verification-runner/scripts/verify.py \
@@ -67,7 +67,7 @@ DEFAULT_TIMEOUT = 300
 STATE_FILE = "verify-state.json"
 ESCALATION_FILE = "escalation.md"
 FRAMEWORK_MANIFESTS = [
-    ("pyproject.toml", "python-uv"),
+    ("pyproject.toml", "python"),
     ("package.json", "node-npm"),
     ("Cargo.toml", "rust-cargo"),
     ("go.mod", "go"),

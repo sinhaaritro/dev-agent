@@ -29,13 +29,13 @@ You execute the plan's verification commands and enforce the framework's circuit
 
 ## Instructions
 
-1. **Read the command source, in order.** The plan's section 5 (`- Build Command: ...` / `- Test Command: ...`) is primary. If absent, `AGENTS.md`'s Commands block. If both absent, run `detect` to identify the framework and read its page in `references/frameworks/` for canonical commands. Ask Socratically only if genuinely ambiguous.
+1. **Read the command source, in order.** The plan's section 5 (`- Build Command: ...` / `- Test Command: ...`) is primary. If absent, `AGENTS.md`'s Commands block. If both absent, run `detect` to identify the framework and read its page in `references/frameworks/` for canonical commands, then confirm Socratically before the first run. When a project uses a non-default environment activator (a venv, conda, nvm use, etc.), the project declares a `Run Prefix` line in `AGENTS.md`; prefix the detected canonical commands with it. No prefix declared and no obvious global toolchain -> ask.
 2. **Run through the engine, never bare:**
    `python .agents/skills/verification-runner/scripts/verify.py run --command "<cmd>" --task <task-id>`
    Use the task identifier from the status header (e.g. `auth-001`), not a free-form label. 300s default timeout; interactive commands refused. Output is the contract: `PASS (attempt N)` resets the counter; `FAIL (attempt N/3)` increments it; `CIRCUIT BREAKER TRIPPED` at 3 (exit 2) means cease all code modifications, revert uncommitted dirty edits that break build integrity, and halt.
 3. **Plan the fix like a doctor, not a gambler.** On each failure: form a hypothesis, apply the next fix attempt, re-run through the engine. The engine's verbatim failure logs accumulate in the ledger, so the escalation report records all three attempts. Hypothesis and options ready at run time? Pass `--hypothesis` and `--options` (guided format `"A (Recommended): ...; B: ..."`) so a trip report is complete immediately.
 4. **Finalize the escalation on a trip.** Pending sections: complete with `escalate` mode — it merges stored attempt logs with your hypothesis and options into `docs/temp/escalation.md`, then report the handoff in blocks 3/4. A tripped task is terminal: the engine refuses further runs on it.
-5. **Load the framework page on demand.** After `detect` names the stack, read `references/frameworks/<stack>.md` for canonical build/test/lint commands, single-test vs full-suite invocation, and common failure patterns. The workflow above is identical on every stack — the pages only add knowledge.
+5. **Load the framework page on demand.** After `detect` names the stack, read `references/frameworks/<stack>.md` for canonical build/test/lint commands, single-test vs full-suite invocation, and common failure patterns. The workflow above is identical on every stack — the pages only add knowledge. `detect` returns a family (`python`, `node-npm`); the page itself distinguishes the style (e.g. uv-managed vs plain venv) by its own detection rules.
 
 ## Output Contract
 
