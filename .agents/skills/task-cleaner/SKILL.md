@@ -45,7 +45,7 @@ You reset the ephemeral scratchpad (`docs/temp/`) when a task is accepted or con
 ## Notes
 
 - **The preserve list is the guardrail:** `gate-log.md` (audit trail) and `.gitignore` (what makes the directory ephemeral) survive by default; `--preserve ""` is the only lawful surrender.
-- **Scope is the scratchpad and nothing else:** `docs/specs/`, `docs/decisions/`, `docs/architecture/` are persistent and never touched; the engine refuses targets at or above the repo root.
+- **Scope is the scratchpad and nothing else:** `docs/specs/`, `docs/decisions/`, `docs/reference/` are persistent and never touched; the engine refuses targets at or above the repo root.
 - **`--temp-dir` is for tests/evals only** — real purges target `docs/temp/`; sandbox runs must never point at the real scratchpad.
 - **Purged on acceptance, by design:** `verify-state.json` (verification-runner's ledger) and per-session workspaces are ephemeral — a closed task's counter and scratch are gone with it.
 - The trigger belongs to Review, but the skill is on-demand: any explicit cleanup request also loads it.

@@ -1,6 +1,6 @@
 # Lane Matrix — Classification, Escalation & Session Detection
 
-Single source of truth for lane criteria, escalation rules, and session detection. Loaded at every triage (auto-router instruction 1). Semantics derive from `docs/architecture/000-modular-agent-orchestration-v7.md` section 4.
+Single source of truth for lane criteria, escalation rules, and session detection. Loaded at every triage (auto-router instruction 1).
 
 ## 1. Lane table
 
@@ -37,7 +37,7 @@ File count is a heuristic, not a rule: surface triggers always win. A request to
 
 ## 5. Worked examples
 
-Canonical (000 section 4):
+Canonical:
 
 - "What's the time complexity of this sort?" -> **D** (read-only, informational).
 - "Rename this variable in `utils.ts`." -> **C** (single file, small diff, no surface).

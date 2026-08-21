@@ -144,7 +144,7 @@ def map_path(root: Path) -> Path:
 
 
 def is_fresh(root: Path, map_file: Path, skills: list[Path]) -> bool:
-    """Freshness = stored snapshot matches the recomputed one (000 section 11).
+    """Freshness = stored snapshot matches the recomputed one.
 
     Content-hash comparison is mtime-independent: it catches skills copied in
     with old timestamps (git restore, worktree checkout, clock skew) that a

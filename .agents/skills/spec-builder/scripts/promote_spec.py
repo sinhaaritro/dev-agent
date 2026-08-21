@@ -41,16 +41,41 @@ Modes:
 
     handoff  promote_spec.py handoff <spec> --lane <B|A>
                  [--dry-run] [--handoff-dir <dir>] [--decisions-dir <dir>]
-             Record the Phase 1.5 handoff for an approved spec (spec 008).
-             Validates the spec exists with Status: APPROVED (Lane A also
-             requires at least one ADR whose Source: points at the spec;
-             Lane B allows zero), writes docs/temp/handoff.md (ephemeral
-             record), and stamps "Handoff: <YYYY-MM-DD>" on the spec's
-             status header (durable marker). Idempotent - re-running against
-             an already-handoffed spec reports the existing record and exits
-             0. --dry-run prints what would be written without writing.
-             --handoff-dir/--decisions-dir override the targets (tests and
-             evals use a sandbox; the real docs/ are never touched).
+              Record the Phase 1.5 handoff for an approved spec (spec 008).
+              Validates the spec exists with Status: APPROVED (Lane A also
+              requires at least one ADR whose Source: points at the spec;
+              Lane B allows zero), writes docs/temp/handoff.md (ephemeral
+              record), and stamps "Handoff: <YYYY-MM-DD>" on the spec's
+              status header (durable marker). Idempotent - re-running against
+              an already-handoffed spec reports the existing record and exits
+              0. --dry-run prints what would be written without writing.
+              --handoff-dir/--decisions-dir override the targets (tests and
+              evals use a sandbox; the real docs/ are never touched).
+
+    toc      promote_spec.py toc [--root <dir>] [--dry-run]
+              Regenerate the deterministic "## Index" marker blocks in the
+              README.md of the three committed docs folders (specs/,
+              decisions/, reference/) and the docs/ landing README.
+              --dry-run prints each computed block without writing. Never
+              touches text outside the <!-- TOC:START -->/END markers.
+
+    tag-list    promote_spec.py tag-list [--root <dir>]
+              Read-only: print a sorted per-folder report of tag -> files
+              with counts. No writes.
+    tag-suggest promote_spec.py tag-suggest [--root <dir>]
+              Read-only: print near-duplicate tag candidates (advisory
+              only; never part of the promotion gate).
+    tag-lint    promote_spec.py tag-lint [--root <dir>]
+              Normative: exit 1 on any violation (lowercase-kebab, 2-30
+              chars, max 7 tags/doc, no empty field). Wired into check, so
+              a malformed tag also fails the promotion gate (spec 010 D7).
+    tag-rename  promote_spec.py tag-rename <old> <new> [--root <dir>]
+              The only tag writer: rewrites the tags frontmatter line of
+              every doc carrying <old>. Prose outside the frontmatter is
+              never touched.
+    tag-index   promote_spec.py tag-index [--root <dir>] [--dry-run]
+              Write the "## Tag Index" marker block into each folder
+              README's docs/README.md.
 
 Usage:
     python .agents/skills/spec-builder/scripts/promote_spec.py \
@@ -58,13 +83,12 @@ Usage:
     python .agents/skills/spec-builder/scripts/promote_spec.py \
         promote docs/temp/draft-plan.md --lane A --status APPROVED
     python .agents/skills/spec-builder/scripts/promote_spec.py \
-        adr docs/temp/adr-draft-in-memory-storage.md \
-        --source docs/specs/001-bday-001-birthday-tracker-greenfield.md
+        adr docs/temp/adr-draft-<topic>.md \
+        --source <promoted-spec>
     python .agents/skills/spec-builder/scripts/promote_spec.py \
-        handoff docs/specs/008-post-approval-handoff-guard.md --lane A
+        handoff docs/specs/<NNN>-<slug>.md --lane A
 
-Exit codes: 0 = check passed / promoted / adr filed / handoff recorded;
-1 = check failed, exists, or error.
+Exit codes: 0 = ok; 1 = check failed, exists, or violation/error.
 """
 
 import argparse
@@ -76,17 +100,26 @@ from pathlib import Path
 LANE_SECTIONS = {"B": {1, 3, 4}, "A": {1, 2, 3, 4, 5, 6}}
 PROVISIONAL_STATUS = "PROVISIONAL - AUTONOMOUS DEFAULT"
 
+COMMIT_FOLDERS = ("specs", "decisions", "reference")
+TOC_START = "<!-- TOC:START -->"
+TOC_END = "<!-- TOC:END -->"
+TAG_START = "<!-- TAG-INDEX:START -->"
+TAG_END = "<!-- TAG-INDEX:END -->"
+TAG_LINE = re.compile(r"(?m)^tags:\s*\[([^\]]*)\]\s*$")
+TAG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+SUB_ID_RE = re.compile(r"^(\d{3})-([A-Z]\d{2})(?:-([A-Z]\d{2}))?$")
+
 
 def find_root() -> Path:
-    """Walk up from the script location until AGENTS.md or AGENTS.md is found (repo root marker)."""
+    """Walk up from the script location until AGENTS.md is found (repo root marker)."""
     current = Path(__file__).resolve().parent
     while True:
-        if (current / "AGENTS.md").is_file() or (current / "AGENTS.md").is_file():
+        if (current / "AGENTS.md").is_file():
             return current
         parent = current.parent
         if parent == current:
             sys.exit(
-                "error: AGENTS.md / AGENTS.md not found above "
+                "error: AGENTS.md not found above "
                 + str(Path(__file__).resolve())
             )
         current = parent
@@ -123,32 +156,58 @@ def check_draft(draft: Path, lane: str) -> tuple[bool, list[int]]:
     return (not missing), missing
 
 
+def parse_sub_id(name: str) -> tuple[int, str] | None:
+    """Decode a sub-ID filename 'NNN-LNN[-LNN].md' to (parent, key).
+
+    Key format: 'A01' for level 1, 'A01-B01' for level 2 (spec 010 D3 -
+    hyphen separator, letter + two digits). Returns None for non sub-IDs.
+    """
+    match = re.match(r"^(\d{3})-([A-Z]\d{2})(?:-([A-Z]\d{2}))?\.md$", name)
+    if not match:
+        return None
+    parent = int(match.group(1))
+    key = match.group(2) if not match.group(3) else match.group(2) + "-" + match.group(3)
+    return (parent, key)
+
+
 def next_number(specs_dir: Path) -> int:
-    """Highest 3-digit prefix in the specs directory + 1 (1 if empty)."""
+    """Highest 3-digit spec number + 1 (1 if empty).
+
+    Reads both the parent files ('NNN-<slug>.md') and the sub-IDs
+    ('NNN-LNN.md' / 'NNN-LNN-MNN.md'): a parent N exists if either its file
+    or at least one child of N is present, so a child promotion under 001
+    never collides with the global max (spec 010 D3).
+    """
     highest = 0
     if specs_dir.is_dir():
         for entry in specs_dir.iterdir():
-            if entry.is_file():
-                match = re.match(r"^(\d{3})-", entry.name)
-                if match:
-                    highest = max(highest, int(match.group(1)))
+            if not entry.is_file():
+                continue
+            match = re.match(r"^(\d{3})-", entry.name)
+            if match:
+                highest = max(highest, int(match.group(1)))
+            else:
+                sub = parse_sub_id(entry.name)
+                if sub:
+                    highest = max(highest, sub[0])
     return highest + 1
 
 
 def slug_from_title(text: str) -> str:
     """Derive a slug from the first '#' title: lowercase, non-alnum to hyphen.
 
-    A leading '[SPEC-ID]:', 'NNN:', or 'ADR-NNN:' token is stripped so a draft
-    titled '# 103: Refresh Token Column' promotes to 'refresh-token-column'
-    and an ADR titled '# ADR-001: In-Memory Storage' files to
-    'in-memory-storage'."
+    Leading ID tokens are stripped so a draft titled '# 103: Refresh Token
+    Column' promotes to 'refresh-token-column', a sub-ID draft titled
+    '# 001-A01: Child Plan' promotes to 'child-plan', and an ADR titled
+    '# ADR-001: In-Memory Storage' files to 'in-memory-storage' (spec 010
+    D3: sub-ID titles carry no numeric prefix in the filename).
     """
     title = ""
     for line in text.splitlines():
         if line.strip().startswith("# "):
             title = line.strip().lstrip("# ").strip()
             break
-    title = re.sub(r"^(\[\S+\]|\d{3}|ADR-\d{3}):\s*", "", title)
+    title = re.sub(r"^(\[\S+\]|\d{3}-[A-Z]\d{2}(?:-[A-Z]\d{2})?|\d{3}|ADR-\d{3}):\s*", "", title)
     slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
     return slug or "spec"
 
@@ -158,6 +217,7 @@ def find_existing_by_title(specs_dir: Path, title: str) -> Path | None:
 
     The SPEC-ID/title is the plan's identity - a repeat promotion of the
     same draft must be refused even though the sequential number is new.
+    Scans parent and sub-ID files alike, so sub-IDs never bypass the check.
     """
     if not specs_dir.is_dir():
         return None
@@ -174,6 +234,27 @@ def find_existing_by_title(specs_dir: Path, title: str) -> Path | None:
                     return entry
                 break
     return None
+
+
+def _extract_tags(text: str) -> list[str] | None:
+    """Parse the 'tags: [a, b]' frontmatter line; None when absent."""
+    match = TAG_LINE.search(text)
+    if not match:
+        return None
+    return [t.strip() for t in match.group(1).strip().split(",") if t.strip()]
+
+
+def _lint_tags(tags: list[str]) -> list[str]:
+    """Normative lint (spec 010 D7): lowercase-kebab, 2-30 chars, max 7/doc."""
+    problems = []
+    if len(tags) > 7:
+        problems.append("more than 7 tags")
+    for tag in tags:
+        if not (2 <= len(tag) <= 30):
+            problems.append(f"tag '{tag}' has length {len(tag)} (allowed 2-30 chars)")
+        elif not TAG_RE.match(tag):
+            problems.append(f"tag '{tag}' is not lowercase-kebab")
+    return problems
 
 
 def adr_required_sections() -> list[str]:
@@ -275,6 +356,7 @@ def cmd_adr(args: argparse.Namespace) -> int:
         text = stamp_source(text, args.source)
     target.write_text(text, encoding="utf-8")
     print(f"adr: {target}")
+    _refresh_toc_for(find_root())
     return 0
 
 
@@ -396,6 +478,7 @@ def cmd_handoff(args: argparse.Namespace) -> int:
     args.handoff_dir.mkdir(parents=True, exist_ok=True)
     ensure_scratchpad_guard(args.handoff_dir)
     args.spec.write_text(stamped, encoding="utf-8")
+    _refresh_toc_for(args.root)
 
     adr_line = ", ".join(adrs) if adrs else "none (Lane B)"
     handoff_file.write_text(
@@ -410,6 +493,252 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         encoding="utf-8",
     )
     print(f"handoff: {handoff_file}")
+    # the TOC refresh is skipped on sandboxed handoff runs (no docs root)
+    if args.handoff_dir == (find_root() / "docs" / "temp"):
+        _refresh_toc_for(find_root() / "docs")
+    return 0
+
+
+def _folder_sort_key(folder: str, name: str) -> tuple:
+    """Deterministic sort key per folder ID scheme (spec 010 D3/D6)."""
+    if folder == "specs":
+        match = re.match(r"^(\d{3})-([A-Z]\d{2})(?:-([A-Z]\d{2}))?\.md$", name)
+        if match:
+            return (int(match.group(1)), match.group(2)
+                    + ("-" + match.group(3) if match.group(3) else ""))
+        match = re.match(r"^(\d{3})-", name)
+        if match:
+            return (int(match.group(1)), "~")
+        return (9999, name)
+    if folder == "decisions":
+        match = re.match(r"^adr-(\d{3})-", name)
+        return (int(match.group(1)), name) if match else (9999, name)
+    return (0, name)
+
+
+def _strip_fenced_code(text: str) -> str:
+    """Blank out fenced code blocks so they cannot fake frontmatter lines."""
+    out: list[str] = []
+    fence = 0
+    for line in text.splitlines():
+        if line.strip().startswith("```"):
+            fence ^= 1
+            out.append("")
+            continue
+        out.append(line if fence == 0 else "")
+    return "\n".join(out)
+
+
+def _doc_title(text: str) -> str:
+    """First '#' heading outside code fences, minus its leading number token."""
+    for line in _strip_fenced_code(text).splitlines():
+        if line.strip().startswith("# "):
+            t = line.strip()[1:].strip()
+            return re.sub(r"^(ADR-\d{3}:|\d{3}:|\[\S+\]:\s*)", "", t).strip() or t
+    return ""
+
+
+def _doc_backlinks(text: str) -> list[str]:
+    """The 'Source:'/'Governed-by:' backlink targets on the status header."""
+    links = []
+    for label in ("Source", "Governed-by"):
+        match = re.search(r"(?m)^" + label + r":\s*(\S.*)$", _strip_fenced_code(text))
+        if match:
+            links.append(match.group(1).strip())
+    return links
+
+
+def _scan_docs(root: Path) -> dict:
+    """Scan the three committed folders into sorted per-folder doc entries.
+
+    Shared by the TOC roll-up, tag-index, and every tag-governance function -
+    one frontmatter parse, no cross-subcommand drift (spec 010 D5/D6).
+    """
+    docs: dict[str, list[dict]] = {}
+    for folder in COMMIT_FOLDERS:
+        fdir = root / folder
+        entries = []
+        if fdir.is_dir():
+            for f in fdir.iterdir():
+                if not f.is_file() or f.name == "README.md":
+                    continue
+                try:
+                    text = read_text(f)
+                except (OSError, UnicodeDecodeError):
+                    continue
+                clean = _strip_fenced_code(text)
+                m1 = re.search(r"(?m)^version_pin:\s*(\S+)", clean)
+                m2 = re.search(r"(?m)^fallback_pin:\s*(\S+)", clean)
+                entries.append({
+                    "name": f.name,
+                    "text": text,
+                    "title": _doc_title(text),
+                    "status": _ref_status(text),
+                    "tags": _extract_tags(text) or [],
+                    "version_pin": m1.group(1) if m1 else "",
+                    "fallback_pin": m2.group(1) if m2 else "",
+                    "backlinks": _doc_backlinks(text),
+                })
+        entries.sort(key=lambda e: _folder_sort_key(folder, e["name"]))
+        docs[folder] = entries
+    return docs
+
+
+def _write_marker_block(text: str, start: str, end: str, block: str) -> str | None:
+    """Replace everything between the start and end markers with block.
+
+    Idempotent: only the marker block is rewritten, surrounding prose is
+    byte-identical before and after (spec 010 D6). Returns None when the
+    markers are missing.
+    """
+    m1 = re.search(re.escape(start) + r"\n", text)
+    m2 = re.search(re.escape(end) + r"\n", text)
+    if not (m1 and m2 and m1.start() < m2.start()):
+        return None
+    return text[:m1.start()] + start + "\n" + block + end + "\n" + text[m2.end():]
+
+
+def _tag_lint(docs: dict, verbose: bool = False) -> list[str]:
+    """Lint every scanned doc's tags (spec 010 D7).
+
+    Returns violation strings; exit code is always 1 on any violation here or
+    in-check (no --warn-only), so the two entry points behave identically.
+    """
+    violations: list[str] = []
+    for folder in COMMIT_FOLDERS:
+        for e in docs[folder]:
+            if re.search(r"(?m)^tags:\s*\[\s*\]\s*$", e["text"]):
+                violations.append(f"{folder}/{e['name']}: empty tags field")
+            for p in _lint_tags(e["tags"]):
+                violations.append(f"{folder}/{e['name']}: {p}")
+    if verbose:
+        for v in violations:
+            print("tag-lint: " + v)
+    return violations
+
+
+def _tag_list(docs: dict) -> int:
+    """Read-only sorted tag -> files report with counts. No writes."""
+    for folder in COMMIT_FOLDERS:
+        tagmap: dict[str, list[str]] = {}
+        for e in docs[folder]:
+            for tag in e["tags"]:
+                tagmap.setdefault(tag, []).append(e["name"])
+        if not tagmap:
+            print(f"{folder}: (no tags)")
+            continue
+        print(f"{folder}:")
+        for tag in sorted(tagmap):
+            print(f"  {tag} ({len(tagmap[tag])}): " + ", ".join(sorted(tagmap[tag])))
+    return 0
+
+
+def _tag_suggest(docs: dict) -> int:
+    """Read-only advisory: near-duplicate candidates across all folders."""
+    all_tags: set[str] = set()
+    for entries in docs.values():
+        for e in entries:
+            all_tags.update(e["tags"])
+    cands = []
+    for t in sorted(all_tags):
+        base = t.replace("-", "")
+        for u in sorted(all_tags):
+            if u != t and u.replace("-", "") == base:
+                pair = " / ".join(sorted({t, u}))
+                if pair not in cands:
+                    cands.append(pair)
+    if cands:
+        print("suggest-merge candidates (advisory):")
+        for c in cands:
+            print("  " + c)
+    else:
+        print("no near-duplicate tags")
+    return 0
+
+
+def _tag_list_cmd(args: argparse.Namespace) -> int:
+    return _tag_list(_scan_docs(args.root))
+
+
+def _tag_suggest_cmd(args: argparse.Namespace) -> int:
+    return _tag_suggest(_scan_docs(args.root))
+
+
+def _tag_lint_cmd(args: argparse.Namespace) -> int:
+    docs = _scan_docs(args.root)
+    violations = _tag_lint(docs, verbose=True)
+    if violations:
+        print(f"tag-lint: {len(violations)} violation(s)")
+        return 1
+    print("tag-lint: ok")
+    return 0
+
+
+def _tag_rename(args: argparse.Namespace) -> int:
+    """The only tag writer: rewrite the frontmatter tags of matched docs."""
+    root = args.root
+    changed = 0
+    for folder in COMMIT_FOLDERS:
+        fdir = root / folder
+        if not fdir.is_dir():
+            continue
+        for f in fdir.iterdir():
+            if not f.is_file() or f.name == "README.md":
+                continue
+            try:
+                text = read_text(f)
+            except (OSError, UnicodeDecodeError):
+                continue
+            match = TAG_LINE.search(text)
+            if not match:
+                continue
+            tags = [t.strip() for t in match.group(1).strip().split(",") if t.strip()]
+            if args.old not in tags:
+                continue
+            new_tags = list(dict.fromkeys(
+                args.new if t == args.old else t for t in tags
+            ))
+            new_line = "tags: [" + ", ".join(new_tags) + "]"
+            new_text = text[:match.start()] + new_line + text[match.end():]
+            f.write_text(new_text, encoding="utf-8")
+            changed += 1
+            print(f"renamed: {folder}/{f.name}: {args.old} -> {args.new}")
+    if not changed:
+        print(f"no docs carry tag '{args.old}'")
+    return 0
+
+
+def _tag_index(args: argparse.Namespace) -> int:
+    """Write the '## Tag Index' marker block into docs/README.md."""
+    root = args.root
+    docs = _scan_docs(root)
+    lines = ["## Tag Index", ""]
+    for folder in COMMIT_FOLDERS:
+        tagmap: dict[str, int] = {}
+        for e in docs[folder]:
+            for tag in e["tags"]:
+                tagmap[tag] = tagmap.get(tag, 0) + 1
+        if tagmap:
+            lines.append(f"- {folder}: " + ", ".join(
+                f"{t} ({n})" for t, n in sorted(tagmap.items())
+            ))
+    block = "\n".join(lines) + "\n"
+    target = root / "README.md"
+    if not target.is_file():
+        target.write_text(
+            "# Docs\n\n" + block + f"\n{TAG_START}\n{TAG_END}\n",
+            encoding="utf-8",
+        )
+        print("tag-index: created " + str(target))
+        return 0
+    text = read_text(target)
+    new_text = _write_marker_block(text, TAG_START, TAG_END, block)
+    if new_text is None:
+        print("error: no " + TAG_START + " marker in " + str(target))
+        return 1
+    if not args.dry_run:
+        target.write_text(new_text, encoding="utf-8")
+    print("tag-index: " + ("would update " if args.dry_run else "updated ") + str(target))
     return 0
 
 
@@ -425,19 +754,146 @@ def replace_status(text: str, status: str) -> str:
     return re.sub(r"(?m)^(Status:\s*).*$", r"\g<1>" + status, text, count=1)
 
 
+def _ref_status(text: str) -> str:
+    """Status value from the header region only (before the first '## ').
+
+    Reference docs carry no lifecycle and may embed template examples in
+    fenced code blocks - only the real header region counts.
+    """
+    body = _strip_fenced_code(text)
+    cut = body.find("\n## ")
+    head = body if cut == -1 else body[:cut]
+    return status_value(head)
+
+
+def _toc_entry_line(e: dict, rel: str) -> str:
+    """One 📄 file row: relative link + optional status/pin/backlink metadata.
+
+    The link label is the filename so the rendered tree reads like a real
+    directory; the path ``rel`` is computed by the caller relative to the
+    README the block lands in. Metadata stays out of the anchor.
+    """
+    line = f"  - 📄 [{e['name']}]({rel})"
+    if e["status"]:
+        line += f" — {e['status']}"
+    if e["version_pin"]:
+        line += f" (pin {e['version_pin']})"
+    if e["fallback_pin"]:
+        line += f" (fallback {e['fallback_pin']})"
+    if e["backlinks"]:
+        line += " — backlinks: " + "; ".join(e["backlinks"])
+    return line
+
+
+def _build_toc_lines(docs: dict, folders: tuple[str, ...] | None = None,
+                     landing: bool = True) -> str:
+    """Render the '## Index' block as a linked, iconed directory tree.
+
+    Folders act as header nodes and files as relative 📄 links - the standard
+    Markdown TOC shape. The block carries its own heading, so callers pass it
+    whole. ``folders`` scopes which folders appear (landing = all, folder =
+    itself); ``landing`` picks the link base: the landing README sits in
+    docs/ and links ``./<folder>/<file>``, while a folder README sits inside
+    the folder and links ``./<file>``.
+    """
+    lines = ["## Index"]
+    for folder in (folders or COMMIT_FOLDERS):
+        entries = docs.get(folder, [])
+        if not entries:
+            continue
+        lines.append(f"- 📁 {folder}/")
+        for e in entries:
+            rel = f"./{folder}/{e['name']}" if landing else f"./{e['name']}"
+            lines.append(_toc_entry_line(e, rel))
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _refresh_toc_for(root: Path) -> None:
+    """Regenerate the TOC blocks in all four READMEs (silent on missing files).
+
+    The landing README shows the whole tree; each folder README shows only its
+    own folder, so ``docs/specs/README.md`` stays a specs-only index.
+    """
+    docs = _scan_docs(root)
+    targets = [
+        (root / "README.md", _build_toc_lines(docs, landing=True)),
+    ] + [
+        (root / folder / "README.md", _build_toc_lines(docs, (folder,), landing=False))
+        for folder in COMMIT_FOLDERS
+    ]
+    for target, block in targets:
+        if not target.is_file():
+            continue
+        new_text = _write_marker_block(read_text(target), TOC_START, TOC_END, block)
+        if new_text is not None:
+            target.write_text(new_text, encoding="utf-8")
+
+
+def cmd_toc(args: argparse.Namespace) -> int:
+    docs = _scan_docs(args.root)
+    targets = [
+        (args.root / "README.md", _build_toc_lines(docs, landing=True)),
+    ] + [
+        (args.root / folder / "README.md", _build_toc_lines(docs, (folder,), landing=False))
+        for folder in COMMIT_FOLDERS
+    ]
+    for target, block in targets:
+        if not target.is_file():
+            continue
+        new_text = _write_marker_block(read_text(target), TOC_START, TOC_END, block)
+        if new_text is None:
+            print(f"warning: no TOC markers in {target} (skipped)")
+            continue
+        if args.dry_run:
+            print(f"would update {target}:")
+            print(new_text)
+        else:
+            target.write_text(new_text, encoding="utf-8")
+            print(f"up to date: {target}")
+    return 0
+
+
+def _draft_tag_violations(draft: Path) -> list[str]:
+    """Normative lint of the draft file's own tags (spec 010 D7, check gate).
+
+    The promotion gate must reject a draft whose frontmatter tags are
+    malformed, independent of the pre-existing tree. Returns [] when the
+    draft is absent or carries no tags field.
+    """
+    try:
+        text = read_text(draft)
+    except (OSError, UnicodeDecodeError):
+        return []
+    tags = _extract_tags(text)
+    if not tags:
+        return []
+    return _lint_tags(tags)
+
+
 def cmd_check(args: argparse.Namespace) -> int:
     passed, missing = check_draft(args.draft, args.lane)
-    if passed:
+    violations = _tag_lint(_scan_docs(args.root))
+    violations += _draft_tag_violations(args.draft)
+    if passed and not violations:
         print("check passed")
         return 0
-    print("missing sections: " + ", ".join(str(n) for n in missing))
+    if not passed:
+        print("missing sections: " + ", ".join(str(n) for n in missing))
+    for v in violations:
+        print("tag-lint: " + v)
     return 1
 
 
 def cmd_promote(args: argparse.Namespace) -> int:
     passed, missing = check_draft(args.draft, args.lane)
-    if not passed:
-        print("check failed - missing sections: " + ", ".join(str(n) for n in missing))
+    violations = _tag_lint(_scan_docs(args.root), verbose=True)
+    violations += _draft_tag_violations(args.draft)
+    if not passed or violations:
+        if not passed:
+            print("check failed - missing sections: " + ", ".join(str(n) for n in missing))
+        if violations:
+            print(f"check failed - {len(violations)} tag violation(s)")
         return 1
 
     try:
@@ -467,18 +923,21 @@ def cmd_promote(args: argparse.Namespace) -> int:
     status = normalize_status(args.status)
     target.write_text(replace_status(text, status), encoding="utf-8")
     print(f"promoted: {target}")
+    _refresh_toc_for(args.root)
     return 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="spec-builder check, promotion & ADR filing"
+        description="spec-builder check, promotion, ADR filing, handoff, TOC & tag governance"
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
     check_p = sub.add_parser("check", help="validate a draft against the lane template")
     check_p.add_argument("draft", type=Path)
     check_p.add_argument("--lane", required=True, choices=["B", "A"])
+    check_p.add_argument("--root", type=Path, default=None,
+                         help="docs root for the tag-lint scan (default <root>/docs)")
     check_p.set_defaults(func=cmd_check)
 
     promote_p = sub.add_parser(
@@ -500,6 +959,8 @@ def main() -> int:
         default=None,
         help="target specs directory (default <root>/docs/specs; sandbox for tests)",
     )
+    promote_p.add_argument("--root", type=Path, default=None,
+                           help="docs root for the tag-lint scan + TOC refresh")
     promote_p.set_defaults(func=cmd_promote)
 
     adr_p = sub.add_parser(
@@ -540,16 +1001,70 @@ def main() -> int:
     )
     handoff_p.set_defaults(func=cmd_handoff)
 
+    toc_p = sub.add_parser(
+        "toc", help="regenerate the deterministic TOC blocks in the docs READMEs"
+    )
+    toc_p.add_argument("--root", type=Path, default=None,
+                       help="docs root (default <root>/docs)")
+    toc_p.add_argument("--dry-run", action="store_true")
+    toc_p.set_defaults(func=cmd_toc)
+
+    tag_ls_p = sub.add_parser(
+        "tag-list", help="read-only sorted tag -> files report"
+    )
+    tag_ls_p.add_argument("--root", type=Path, default=None)
+    tag_ls_p.set_defaults(func=_tag_list_cmd)
+
+    tag_sug_p = sub.add_parser(
+        "tag-suggest", help="read-only advisory near-dup tag candidates"
+    )
+    tag_sug_p.add_argument("--root", type=Path, default=None)
+    tag_sug_p.set_defaults(func=_tag_suggest_cmd)
+
+    tag_lint_p = sub.add_parser(
+        "tag-lint", help="normative tag lint (exit 1 on violation; in check)"
+    )
+    tag_lint_p.add_argument("--root", type=Path, default=None)
+    tag_lint_p.set_defaults(func=_tag_lint_cmd)
+
+    tag_ren_p = sub.add_parser(
+        "tag-rename", help="the only tag writer: rewrite the frontmatter tag"
+    )
+    tag_ren_p.add_argument("old")
+    tag_ren_p.add_argument("new")
+    tag_ren_p.add_argument("--root", type=Path, default=None)
+    tag_ren_p.set_defaults(func=_tag_rename)
+
+    tag_idx_p = sub.add_parser(
+        "tag-index", help="write the Tag Index block into docs/README.md"
+    )
+    tag_idx_p.add_argument("--root", type=Path, default=None)
+    tag_idx_p.add_argument("--dry-run", action="store_true")
+    tag_idx_p.set_defaults(func=_tag_index)
+
     args = parser.parse_args()
-    if args.command == "promote" and args.specs_dir is None:
-        args.specs_dir = find_root() / "docs" / "specs"
+    root_default = find_root() / "docs"
+    if args.command == "check":
+        if args.root is None:
+            args.root = root_default
+    if args.command == "promote":
+        if args.root is None:
+            args.root = root_default
+        if args.specs_dir is None:
+            args.specs_dir = args.root / "specs"
     if args.command == "adr" and args.decisions_dir is None:
-        args.decisions_dir = find_root() / "docs" / "decisions"
+        args.decisions_dir = root_default / "decisions"
     if args.command == "handoff":
         if args.handoff_dir is None:
-            args.handoff_dir = find_root() / "docs" / "temp"
+            args.handoff_dir = root_default / "temp"
         if args.decisions_dir is None:
-            args.decisions_dir = find_root() / "docs" / "decisions"
+            args.decisions_dir = root_default / "decisions"
+        if getattr(args, "root", None) is None:
+            args.root = find_root()
+    if args.command == "toc" and args.root is None:
+        args.root = root_default
+    if args.command in ("tag-list", "tag-suggest", "tag-lint", "tag-rename", "tag-index") and args.root is None:
+        args.root = root_default
     return args.func(args)
 
 

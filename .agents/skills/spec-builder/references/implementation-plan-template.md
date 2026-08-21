@@ -1,6 +1,8 @@
+tags: [lowercase-kebab, ...]
+
 # [SPEC-ID]: Feature Title
 
-Status: DRAFT | Phase: 1-Plan | Author: AI Agent | Date: YYYY-MM-DD
+Status: DRAFT | Phase: 1-Plan | Date: YYYY-MM-DD
 
 ## 1. Goal & Context
 
@@ -32,4 +34,4 @@ Key technical choices made, alternative options considered, and trade-offs.
 Instructions on reverting edits if verification fails 3 times.
 
 ---
-Usage: drafted at `docs/temp/draft-plan.md` during Phase 1-Plan; validated with `promote_spec.py check <draft> --lane <B|A>`; on acceptance promoted to `docs/specs/<id>-<feature>.md` via `promote_spec.py promote <draft> --lane <B|A> --status <APPROVED|PROVISIONAL>`. Lane A mandates the full template; Lane B uses sections 1, 3, 4 only.
+Usage: drafted at `docs/temp/draft-plan.md` during Phase 1-Plan; validated with `promote_spec.py check <draft> --lane <B|A>` (the check also lints the `tags:` field, spec 010 D7); on acceptance promoted to `docs/specs/<id>-<feature>.md` via `promote_spec.py promote <draft> --lane <B|A> --status <APPROVED|PROVISIONAL>`. Lane A mandates the full template; Lane B uses sections 1, 3, 4 only. The `tags:` line is mandatory on committed docs (lowercase-kebab, 2-30 chars, max 7).
