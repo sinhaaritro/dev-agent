@@ -1,4 +1,6 @@
-# ADR: Lane-Scoped Handoff Guard
+tags: [adr, handoff, lane-scope, sdsc]
+
+# ADR-005: Lane-Scoped Handoff Guard
 
 Status: Accepted
 Date: 2026-08-19

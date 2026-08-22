@@ -1,3 +1,5 @@
+tags: [handoff, lifecycle, sdsc, two-step]
+
 # 008: Post-Approval Handoff Guard
 
 Status: APPROVED | Phase: 2-Build

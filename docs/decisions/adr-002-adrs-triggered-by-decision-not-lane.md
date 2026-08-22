@@ -1,3 +1,5 @@
+tags: [adr, promotion, sdcl]
+
 # ADR-002: ADRs Triggered by Decision, Not Lane
 
 Status: Accepted

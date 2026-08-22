@@ -1,3 +1,5 @@
+tags: [architecture, blueprint, framework, orchestration, v7]
+
 # Modular Agent Orchestration Architecture
 ## Master Reference Specification & Architectural Blueprint (Version 7)
 
@@ -36,7 +38,7 @@ The repository architecture maintains a strict boundary between **Machine Space*
 │   │   └── 001-feature-spec.md
 │   ├── decisions/                        <-- Architectural Decision Records (ADR)
 │   │   └── adr-001-database-selection.md
-│   ├── architecture/                     <-- High-level system diagrams & overviews
+│   ├── reference/                        <-- Living reference docs (version-pin optional)
 │   │
 │   └── temp/                             <-- EPHEMERAL WORKING MEMORY (Gitignored)
 │       ├── .gitignore                    <-- Ignores all contents except itself
@@ -253,8 +255,10 @@ Standardized templates are stored inside `.agents/skills/spec-builder/references
 Drafted in `docs/temp/draft-plan.md` during Phase 1 and promoted to `docs/specs/<id>-<feature>.md`:
 
 ```text
+tags: [lowercase-kebab, ...]
+
 # [SPEC-ID]: Feature Title
-Status: DRAFT | Phase: 1-Plan | Author: AI Agent | Date: YYYY-MM-DD
+Status: DRAFT | Phase: 1-Plan | Date: YYYY-MM-DD
 
 ## 1. Goal & Context
 1-2 sentences explaining the business/technical goal.

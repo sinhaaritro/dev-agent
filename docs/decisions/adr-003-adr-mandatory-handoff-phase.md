@@ -1,4 +1,6 @@
-# ADR: Mandatory Handoff Phase
+tags: [adr, handoff, sdsc]
+
+# ADR-003: Mandatory Handoff Phase
 
 Status: Accepted
 Date: 2026-08-19

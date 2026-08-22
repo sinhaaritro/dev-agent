@@ -1,6 +1,10 @@
+tags: [auto-router, core-skill, lane-taxonomy, triage]
+
 # 002: auto-router — Second Core Skill (Intent Triage & Lane Taxonomy Engine)
 
-Status: APPROVED | Phase: 2-Build | Author: AI Agent | Date: 2026-08-15
+Status: APPROVED | Phase: 2-Build | Date: 2026-08-15
+
+Superseded (SKILL.md format): the frontmatter shape prescribed in this spec's unchecked TODOs (flat `version:`/`author:`/`scope:` fields) was replaced by the minimal nested-`metadata` contract in spec 009 (adjudicated 2026-08-19); the current live files under `.agents/skills/` are the implementation truth.
 
 > **Derived from:** `docs/architecture/000-modular-agent-orchestration-v7.md` (master reference, approved, verbatim; §§3-6: lanes, session detection, escalation, dynamic skill discovery), `AGENTS.md` (`autonomy_level: supervised`), and `.agents/rules/system.md` (behavioral contract, accepted; §2 step 2 is auto-router's boot position).
 > **Supersedes:** the untracked scaffold `.agents/skills/auto-router/SKILL.md` (stale frontmatter and engine path; see §1). `docs/specs/001-map-generator-core-skill.md` named auto-router as "the next skill" after map-generator; this spec is that design.

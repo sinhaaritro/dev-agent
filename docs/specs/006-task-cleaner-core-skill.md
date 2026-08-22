@@ -1,6 +1,8 @@
+tags: [core-skill, garbage-collection, scratchpad, task-cleaner]
+
 # 006: task-cleaner — Sixth Core Skill (Scratchpad Garbage Collector)
 
-Status: APPROVED | Phase: 2-Build | Author: AI Agent | Date: 2026-08-15
+Status: APPROVED | Phase: 2-Build | Date: 2026-08-15
 
 > **Derived from:** `docs/architecture/000-modular-agent-orchestration-v7.md` (master reference, approved, verbatim; §5.6: purge `docs/temp/` scratchpad upon human acceptance, preserve unreviewed `gate-log.md`; §10 memory lifecycle: "TASK CLEANER - Purges docs/temp/* (Preserves gate-log.md)"; §13 task garbage collection; §2 directory map: `docs/temp/` holds `active-task.md`, `draft-plan.md`, `escalation.md`, `gate-log.md`, `handoff-payload.md` and its own `.gitignore`), `AGENTS.md` (`autonomy_level: supervised`), `.agents/rules/system.md` (behavioral contract, accepted; §3: `docs/temp/gate-log.md` is append-only and never purged until a human reviews it; §4 names "scratchpad purging in `task-cleaner`"), `docs/specs/005-verification-runner-core-skill.md` (D1: `docs/temp/verify-state.json` is "purged by task-cleaner on acceptance"), and `.agents/skills/phase-protocol/references/review.md` (§4.2: "Call `task-cleaner` when the human accepts the task (purges `docs/temp/` scratchpad; preserves unreviewed `gate-log.md`)"). Together these form the cleanup contract: the scratchpad is ephemeral by design (gitignored), and `gate-log.md` is the one append-only audit file that survives until a human explicitly clears it.
 > **Supersedes:** the untracked scaffold `.agents/skills/task-cleaner/` (legacy frontmatter violating the 001 D4 contract - `type: core`, `trigger_tags`, no `version`/`author`, and a corrupted non-ASCII em-dash `�?` in the description; flat numbered sections; no engine). phase-protocol `review.md` already delegates cleanup to this skill — this spec makes that forward contract real.

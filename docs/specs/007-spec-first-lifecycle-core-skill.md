@@ -1,3 +1,5 @@
+tags: [lifecycle, promotion, spec-first]
+
 # 007: Spec-First Lifecycle — Two-Step Approval/Implementation
 
 Status: APPROVED | Phase: 2-Build

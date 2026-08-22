@@ -1,6 +1,10 @@
+tags: [core-skill, gates, phase-protocol, sdsc]
+
 # 003: phase-protocol — Third Core Skill (Meta-Skill: Phases, Gates & Autonomy Engine)
 
-Status: APPROVED | Phase: 2-Build | Author: AI Agent | Date: 2026-08-15
+Status: APPROVED | Phase: 2-Build | Date: 2026-08-15
+
+Superseded (SKILL.md format): the frontmatter shape prescribed in this spec's unchecked TODOs (flat `version:`/`author:`/`scope:` fields) was replaced by the minimal nested-`metadata` contract in spec 009 (adjudicated 2026-08-19); the current live files under `.agents/skills/` are the implementation truth.
 
 > **Derived from:** `docs/architecture/000-modular-agent-orchestration-v7.md` (master reference, approved, verbatim; §§3, 5, 9: Socratic gate, session detection, autonomy policy, response schema, phase references, circuit breakers), `AGENTS.md` (`autonomy_level: supervised`), and `.agents/rules/system.md` (behavioral contract, accepted; §1 always-loaded set, §2 step 3 is phase-protocol's boot position).
 > **Supersedes:** the untracked scaffold `.agents/skills/phase-protocol/` (legacy frontmatter violating the 001 D4 contract; flat section structure; no engine). `docs/specs/002-auto-router-core-skill.md` D4 defined the handoff verdict phase-protocol consumes; this spec is the receiving-side design.

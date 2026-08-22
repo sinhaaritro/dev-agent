@@ -1,3 +1,5 @@
+tags: [lifecycle, promotion, sdcl, two-step]
+
 # ADR-001: Two-Step Spec Lifecycle (Approval vs. Implementation)
 
 Status: Accepted

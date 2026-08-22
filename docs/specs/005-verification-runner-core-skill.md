@@ -1,6 +1,8 @@
+tags: [circuit-breaker, core-skill, test-execution, verification-runner]
+
 # 005: verification-runner — Fifth Core Skill (Test Execution & Circuit Breaker)
 
-Status: APPROVED | Phase: 2-Build | Author: AI Agent | Date: 2026-08-15
+Status: APPROVED | Phase: 2-Build | Date: 2026-08-15
 
 > **Derived from:** `docs/architecture/000-modular-agent-orchestration-v7.md` (master reference, approved, verbatim; §5.5: test execution & circuit breaker; §9: max 3 consecutive failed attempts, escalation.md, human handoff; §4 lane table: Lane B "Full circuit breaker (3-retry)", Lane A "Full circuit breaker + review phase", Lane C "Single pass; 3-fail escalates to Lane B"), `AGENTS.md` (`autonomy_level: supervised`), `.agents/rules/system.md` (behavioral contract, accepted; §2 step 4 is verification-runner's boot position, §4 already names "verification & circuit breaker in `verification-runner`"), `docs/specs/004-spec-builder-core-skill.md` (D1: plan §5 `- Build Command:` / `- Test Command:` lines are the verification source), and `.agents/skills/phase-protocol/references/build.md` (§2: "On failure, call `verification-runner`: max 3 consecutive failed attempts, then escalation.md + revert broken dirty edits + handoff").
 > **Supersedes:** the untracked scaffold `.agents/skills/verification-runner/` (legacy frontmatter violating the 001 D4 contract - `type: core`, `trigger_tags`, no `version`/`author`, and a corrupted non-ASCII em-dash `�?` in the description; flat numbered sections; no engine). phase-protocol `build.md` already delegates circuit-breaker duty to this skill — this spec makes that forward contract real.

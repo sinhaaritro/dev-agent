@@ -1,4 +1,6 @@
-# ADR: Engine-Recorded Handoff with Durable Marker
+tags: [adr, engine, handoff, sdsc]
+
+# ADR-004: Engine-Recorded Handoff with Durable Marker
 
 Status: Accepted
 Date: 2026-08-19

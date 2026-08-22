@@ -1,6 +1,10 @@
+tags: [core-skill, promotion, spec-builder, spec-lifecycle]
+
 # 004: spec-builder — Fourth Core Skill (Spec Lifecycle & Promotion Engine)
 
-Status: APPROVED | Phase: 2-Build | Author: AI Agent | Date: 2026-08-15
+Status: APPROVED | Phase: 2-Build | Date: 2026-08-15
+
+Superseded (SKILL.md format): the frontmatter shape prescribed in this spec's unchecked TODOs (flat `version:`/`author:`/`scope:` fields) was replaced by the minimal nested-`metadata` contract in spec 009 (adjudicated 2026-08-19); the current live files under `.agents/skills/` are the implementation truth.
 
 > **Derived from:** `docs/architecture/000-modular-agent-orchestration-v7.md` (master reference, approved, verbatim; §§5, 7, 10: templates, promotion pipeline, memory lifecycle), `AGENTS.md` (`autonomy_level: supervised`), `.agents/rules/system.md` (behavioral contract, accepted; §2 step 4 is spec-builder's boot position), and `docs/specs/003-phase-protocol-core-skill.md` (D4: references name this skill's template path as a forward contract).
 > **Supersedes:** the untracked scaffold `.agents/skills/spec-builder/` (legacy frontmatter violating the 001 D4 contract; flat numbered sections; no engine). The phase-protocol references (`plan.md`, lane-matrix) already point at `.agents/skills/spec-builder/references/implementation-plan-template.md` — this spec makes that forward contract real.

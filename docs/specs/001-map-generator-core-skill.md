@@ -1,6 +1,8 @@
+tags: [core-skill, index, map-generator, skill-discovery]
+
 # 001: map-generator — First Core Skill (Skill-Local Index Engine)
 
-Status: APPROVED | Phase: 2-Build | Author: AI Agent | Date: 2026-08-15
+Status: APPROVED | Phase: 2-Build | Date: 2026-08-15
 
 > **Derived from:** `docs/architecture/000-modular-agent-orchestration-v7.md` (master reference, approved, verbatim), `AGENTS.md`, and `.agents/rules/system.md` (behavioral contract, accepted).
 > **Supersedes:** `docs/specs/001-core-skill-refinement.md` (multi-skill pass design; replaced by this single-skill spec).
