@@ -2,3 +2,5 @@
 
 docs/temp
 __pycache__/
+.venv/
+.ruff_cache/
