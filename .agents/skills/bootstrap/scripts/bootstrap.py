@@ -6,6 +6,8 @@ their proper locations in the target repository:
 
     reference/AGENTS.md        -> <target>/AGENTS.md
     reference/rules/system.md  -> <target>/.agents/rules/system.md
+    reference/.cursorrules     -> <target>/.cursorrules
+    reference/.windsurfrules   -> <target>/.windsurfrules
 
 The engine is location-agnostic (finds reference/ relative to itself) and
 stdlib-only. It never guesses the target: --target is required and is
@@ -33,6 +35,8 @@ from pathlib import Path
 SEED_FILES = (
     ("AGENTS.md", "AGENTS.md"),
     ("rules/system.md", ".agents/rules/system.md"),
+    (".cursorrules", ".cursorrules"),
+    (".windsurfrules", ".windsurfrules"),
 )
 
 

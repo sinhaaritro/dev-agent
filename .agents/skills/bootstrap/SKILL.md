@@ -22,6 +22,10 @@ You install the Dev Agent framework into a target repository by copying the cano
 | :--- | :--- |
 | `reference/AGENTS.md` | `AGENTS.md` (repo root) |
 | `reference/rules/system.md` | `.agents/rules/system.md` |
+| `reference/.cursorrules` | `.cursorrules` (repo root) |
+| `reference/.windsurfrules` | `.windsurfrules` (repo root) |
+
+The two dotfiles are IDE pointer files — one line each, telling Cursor and Windsurf to load `.agents/rules/system.md` as the gateway.
 
 Copy mechanics belong to `scripts/bootstrap.py`; you decide WHERE the target repo is and confirm the overwrite policy. The engine never guesses a target: you pass `--target` explicitly, and the engine refuses to run against this framework's own source tree.
 
