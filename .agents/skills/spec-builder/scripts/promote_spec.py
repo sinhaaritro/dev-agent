@@ -107,22 +107,34 @@ TAG_START = "<!-- TAG-INDEX:START -->"
 TAG_END = "<!-- TAG-INDEX:END -->"
 TAG_LINE = re.compile(r"(?m)^tags:\s*\[([^\]]*)\]\s*$")
 TAG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+FM_BLOCK = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
 SUB_ID_RE = re.compile(r"^(\d{3})-([A-Z]\d{2})(?:-([A-Z]\d{2}))?$")
 
 
 def find_root() -> Path:
-    """Walk up from the script location until AGENTS.md is found (repo root marker)."""
-    current = Path(__file__).resolve().parent
-    while True:
-        if (current / "AGENTS.md").is_file():
-            return current
-        parent = current.parent
-        if parent == current:
-            sys.exit(
-                "error: AGENTS.md not found above "
-                + str(Path(__file__).resolve())
-            )
-        current = parent
+    """The repository root: the nearest AGENTS.md marker.
+
+    Walks up from the CWD first so sandboxed runs (``--specs-dir`` /
+    ``--decisions-dir`` / ``--handoff-dir`` under /tmp) resolve their docs
+    root to the sandbox, not the engine's own repo. Falls back to walking up
+    from the script location when the CWD has no marker (e.g. the engine is
+    invoked from an unrelated directory with explicit target dirs).
+    """
+    for start in (Path.cwd(), Path(__file__).resolve().parent):
+        current = start
+        while True:
+            if (current / "AGENTS.md").is_file():
+                return current
+            parent = current.parent
+            if parent == current:
+                break
+            current = parent
+    sys.exit(
+        "error: AGENTS.md not found above "
+        + str(Path.cwd())
+        + " or above "
+        + str(Path(__file__).resolve().parent)
+    )
 
 
 def parse_sections(text: str) -> set[int]:
@@ -237,11 +249,47 @@ def find_existing_by_title(specs_dir: Path, title: str) -> Path | None:
 
 
 def _extract_tags(text: str) -> list[str] | None:
-    """Parse the 'tags: [a, b]' frontmatter line; None when absent."""
-    match = TAG_LINE.search(text)
+    """Parse 'tags: [a, b]' from frontmatter; None when absent.
+
+    Prefers the YAML frontmatter block (the canonical contract); falls back
+    to a bare 'tags:' line anywhere in the document so pre-frontmatter
+    committed docs keep scanning until they are normalized by tag-rename.
+    """
+    fm = FM_BLOCK.match(text)
+    match = TAG_LINE.search(fm.group(1)) if fm else None
+    if not match:
+        match = TAG_LINE.search(text)
     if not match:
         return None
     return [t.strip() for t in match.group(1).strip().split(",") if t.strip()]
+
+
+def ensure_frontmatter_tags(text: str) -> str:
+    """Ensure 'tags: [...]' sits inside a leading YAML frontmatter block.
+
+    Canonical contract: tags are metadata, wrapped in '---' fences at the top
+    of the file. A bare 'tags:' line (pre-frontmatter docs) is moved into a
+    new or existing block; text already carrying frontmatter tags is returned
+    unchanged.
+    """
+    fm = FM_BLOCK.match(text)
+    if fm and TAG_LINE.search(fm.group(1)):
+        return text
+    match = TAG_LINE.search(text)
+    if not match:
+        return text
+    tag_line = match.group(0).rstrip()
+    if fm:
+        body = text[fm.end():]
+        new_body = (body[:match.start() - fm.end()]
+                    + body[match.start() - fm.end():match.end() - fm.end()].replace(tag_line, "", 1)
+                    + body[match.end() - fm.end():])
+        new_body = re.sub(r"^\n+", "\n", new_body)
+        return (text[:fm.start()] + "---\n" + fm.group(1) + "\n" + tag_line + "\n---\n"
+                + new_body)
+    rest = text[:match.start()] + text[match.end():]
+    rest = rest.lstrip("\n")
+    return "---\n" + tag_line + "\n---\n\n" + rest
 
 
 def _lint_tags(tags: list[str]) -> list[str]:
@@ -354,15 +402,24 @@ def cmd_adr(args: argparse.Namespace) -> int:
     args.decisions_dir.mkdir(parents=True, exist_ok=True)
     if args.source:
         text = stamp_source(text, args.source)
-    target.write_text(text, encoding="utf-8")
+    target.write_text(ensure_frontmatter_tags(text), encoding="utf-8")
     print(f"adr: {target}")
     _refresh_toc_for(find_root())
     return 0
 
 
+def _fm_stripped(text: str) -> str:
+    """Drop a leading YAML frontmatter block so scans see body content only."""
+    return FM_BLOCK.sub("", text, count=1)
+
+
 def draft_title(text: str) -> str:
-    """The draft's first '#' heading line (its identity)."""
-    for line in text.splitlines():
+    """The draft's first '#' heading line (its identity).
+
+    Frontmatter (and code fences) are stripped first so a 'tags:' or any
+    other frontmatter line can never be mistaken for the title.
+    """
+    for line in _strip_fenced_code(_fm_stripped(text)).splitlines():
         if line.strip().startswith("# "):
             return line.strip()
     return ""
@@ -802,7 +859,7 @@ def _tag_rename(args: argparse.Namespace) -> int:
             ))
             new_line = "tags: [" + ", ".join(new_tags) + "]"
             new_text = text[:match.start()] + new_line + text[match.end():]
-            f.write_text(new_text, encoding="utf-8")
+            f.write_text(ensure_frontmatter_tags(new_text), encoding="utf-8")
             changed += 1
             print(f"renamed: {folder}/{f.name}: {args.old} -> {args.new}")
     if not changed:
@@ -1027,7 +1084,7 @@ def cmd_promote(args: argparse.Namespace) -> int:
 
     args.specs_dir.mkdir(parents=True, exist_ok=True)
     status = normalize_status(args.status)
-    target.write_text(replace_status(text, status), encoding="utf-8")
+    target.write_text(ensure_frontmatter_tags(replace_status(text, status)), encoding="utf-8")
     print(f"promoted: {target}")
     _refresh_toc_for(args.root)
     return 0
@@ -1166,7 +1223,7 @@ def main() -> int:
         if args.decisions_dir is None:
             args.decisions_dir = root_default / "decisions"
         if getattr(args, "root", None) is None:
-            args.root = find_root()
+            args.root = find_root() / "docs"
     if args.command == "toc" and args.root is None:
         args.root = root_default
     if args.command in ("tag-list", "tag-suggest", "tag-lint", "tag-rename", "tag-index") and args.root is None:

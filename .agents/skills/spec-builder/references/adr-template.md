@@ -4,10 +4,12 @@ The single source of format truth for ADRs. Every ADR filed to `docs/decisions/`
 must match this structure, which is why ADR validation and filing mechanics run
 through the spec-builder engine (`promote_spec.py adr`) instead of judgment.
 
-```text
-tags: [lowercase-kebab, ...]
-
-# ADR-<NNN>: <Topic Title>
+ ```text
+ ---
+ tags: [lowercase-kebab, ...]
+ ---
+ 
+ # ADR-<NNN>: <Topic Title>
 
 Status: Accepted
 Date: YYYY-MM-DD

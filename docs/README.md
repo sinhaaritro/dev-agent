@@ -17,30 +17,14 @@ untouched.
 
 <!-- TOC:START -->
 ## Index
-- 📁 specs/
-  - 📄 [001-map-generator-core-skill.md](./specs/001-map-generator-core-skill.md) — APPROVED | Phase: 2-Build | Date: 2026-08-15
-  - 📄 [002-auto-router-core-skill.md](./specs/002-auto-router-core-skill.md) — APPROVED | Phase: 2-Build | Date: 2026-08-15
-  - 📄 [003-phase-protocol-core-skill.md](./specs/003-phase-protocol-core-skill.md) — APPROVED | Phase: 2-Build | Date: 2026-08-15
-  - 📄 [004-spec-builder-core-skill.md](./specs/004-spec-builder-core-skill.md) — APPROVED | Phase: 2-Build | Date: 2026-08-15
-  - 📄 [005-verification-runner-core-skill.md](./specs/005-verification-runner-core-skill.md) — APPROVED | Phase: 2-Build | Date: 2026-08-15
-  - 📄 [006-task-cleaner-core-skill.md](./specs/006-task-cleaner-core-skill.md) — APPROVED | Phase: 2-Build | Date: 2026-08-15
-  - 📄 [007-spec-first-lifecycle-core-skill.md](./specs/007-spec-first-lifecycle-core-skill.md) — APPROVED | Phase: 2-Build
-  - 📄 [008-post-approval-handoff-guard.md](./specs/008-post-approval-handoff-guard.md) — APPROVED | Phase: 2-Build
-  - 📄 [009-frontmatter-migration-framework-compaction.md](./specs/009-frontmatter-migration-framework-compaction.md) — APPROVED
-  - 📄 [010-docs-architecture-rebuild-reference-rename-id-conventions-tag-governance-toc-roll-up.md](./specs/010-docs-architecture-rebuild-reference-rename-id-conventions-tag-governance-toc-roll-up.md) — APPROVED | Phase: 2-Build
-
-- 📁 decisions/
-  - 📄 [adr-001-two-step-spec-lifecycle-approval-vs-implementation.md](./decisions/adr-001-two-step-spec-lifecycle-approval-vs-implementation.md) — Accepted — backlinks: docs/specs/007-spec-first-lifecycle-core-skill.md
-  - 📄 [adr-002-adrs-triggered-by-decision-not-lane.md](./decisions/adr-002-adrs-triggered-by-decision-not-lane.md) — Accepted — backlinks: docs/specs/007-spec-first-lifecycle-core-skill.md
-  - 📄 [adr-003-adr-mandatory-handoff-phase.md](./decisions/adr-003-adr-mandatory-handoff-phase.md) — Accepted — backlinks: docs/specs/008-post-approval-handoff-guard.md
-  - 📄 [adr-004-adr-engine-recorded-handoff-with-durable-marker.md](./decisions/adr-004-adr-engine-recorded-handoff-with-durable-marker.md) — Accepted — backlinks: docs/specs/008-post-approval-handoff-guard.md
-  - 📄 [adr-005-adr-lane-scoped-handoff-guard.md](./decisions/adr-005-adr-lane-scoped-handoff-guard.md) — Accepted — backlinks: docs/specs/008-post-approval-handoff-guard.md
-  - 📄 [adr-006-adr-nnn-minimal-skill-md-frontmatter-contract-with-nested-metadata.md](./decisions/adr-006-adr-nnn-minimal-skill-md-frontmatter-contract-with-nested-metadata.md) — Accepted — backlinks: docs/specs/009-frontmatter-migration-framework-compaction.md
-  - 📄 [adr-007-docs-reference-rename-id-conventions.md](./decisions/adr-007-docs-reference-rename-id-conventions.md) — Accepted — backlinks: docs/specs/010-docs-architecture-rebuild-reference-rename-id-conventions-tag-governance-toc-roll-up.md
-  - 📄 [adr-008-universal-tags-deterministic-toc-rollup.md](./decisions/adr-008-universal-tags-deterministic-toc-rollup.md) — Accepted — backlinks: docs/specs/010-docs-architecture-rebuild-reference-rename-id-conventions-tag-governance-toc-roll-up.md
-
 - 📁 reference/
-  - 📄 [000-modular-agent-orchestration-v7.md](./reference/000-modular-agent-orchestration-v7.md)
+  - 📄 [001-framework-overview.md](./reference/001-framework-overview.md)
+  - 📄 [002-skill-discovery-and-indexing.md](./reference/002-skill-discovery-and-indexing.md)
+  - 📄 [003-triage-lane-taxonomy-and-escalation.md](./reference/003-triage-lane-taxonomy-and-escalation.md)
+  - 📄 [004-phases-gates-and-autonomy.md](./reference/004-phases-gates-and-autonomy.md)
+  - 📄 [005-docs-architecture-and-spec-lifecycle.md](./reference/005-docs-architecture-and-spec-lifecycle.md)
+  - 📄 [006-verification-and-circuit-breakers.md](./reference/006-verification-and-circuit-breakers.md)
+  - 📄 [007-parallel-execution-and-worktrees.md](./reference/007-parallel-execution-and-worktrees.md)
 <!-- TOC:END -->
 
 ## Status board
