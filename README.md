@@ -28,13 +28,16 @@ Skills are installable with `npx skills`. Browse the grouped catalog at https://
 
 ```bash
 # Install a single skill
-npx skills add github/sinhaaritro/dev-agent --skill auto-router
+npx skills add git@github.com:sinhaaritro/dev-agent.git --skill auto-router
 
 # Install the 7 core skills
-npx skills add github/sinhaaritro/dev-agent --skill bootstrap,auto-router,map-generator,phase-protocol,spec-builder,task-cleaner,verification-runner
+npx skills add git@github.com:sinhaaritro/dev-agent.git \
+  -s bootstrap -s auto-router -s map-generator \
+  -s phase-protocol -s spec-builder \
+  -s task-cleaner -s verification-runner
 
 # Install all skills
-npx skills add github/sinhaaritro/dev-agent --all
+npx skills add git@github.com:sinhaaritro/dev-agent.git -s '*'
 ```
 
 Useful flags: `-g` (install globally to `~/.config/opencode/skills/`), `-a <agent>` (target a specific agent), `-y` (skip prompts), `--copy` (copy files instead of symlinks).
@@ -69,7 +72,7 @@ cp <dev-agent>/.windsurfrules            /path/to/your/repo/.windsurfrules
 **Option B — the bootstrap skill** (from a clone of this repo, or a globally installed copy):
 
 ```bash
-python .agents/skills/bootstrap/scripts/bootstrap.py --target /path/to/your/repo
+python .agents/skills/bootstrap/scripts/bootstrap.py --target .
 ```
 
 Preview first with `--dry-run`; the engine reports each file as `new:` / `ok:` / `overwrite:`, is idempotent, and refuses to run against this framework's own source tree.

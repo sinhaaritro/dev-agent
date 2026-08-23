@@ -52,11 +52,16 @@ def find_skill_root() -> Path:
         current = parent
 
 
-def find_source_repo_root(skill_root: Path) -> Path:
+def find_source_repo_root(skill_root: Path) -> Path | None:
     """Walk up from just above the skill root to the framework's own repo root.
 
     The marker is an AGENTS.md file, and the search starts at skill_root.parent so a
     stray AGENTS.md inside the skill itself can never be mistaken for the repo root.
+
+    Returns None when no AGENTS.md is found above the skill. That means the skill was
+    relocated outside the framework tree (e.g. copied into a standalone project), in
+    which case there is no source tree to protect against and the self-bootstrap guard
+    is skipped rather than treated as an error.
     """
     current = skill_root.parent
     while True:
@@ -64,7 +69,7 @@ def find_source_repo_root(skill_root: Path) -> Path:
             return current
         parent = current.parent
         if parent == current:
-            sys.exit("error: AGENTS.md not found above the skill - is the skill installed correctly?")
+            return None
         current = parent
 
 
@@ -108,12 +113,14 @@ def main() -> int:
     if not target.is_dir():
         sys.exit("error: target is not a directory: " + str(target))
 
-    if target == source_root or target.is_relative_to(source_root):
+    if source_root is not None and (target == source_root or target.is_relative_to(source_root)):
         sys.exit(
             "error: refusing to bootstrap the framework's own source tree ("
             + str(source_root)
             + ") - this repo is the source of truth, not a target"
         )
+    if source_root is None:
+        print("note: no framework source tree found above the skill; self-bootstrap guard skipped")
 
     results = []  # (seed_rel, dest_rel, status)
     for seed_rel, dest_rel in SEED_FILES:
