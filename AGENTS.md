@@ -12,8 +12,8 @@
 
 - `src/` - application source code
 - `tests/` - test suite
-- `docs/` - shared space: `specs/`, `decisions/`, `reference/`, and `temp/` (gitignored scratchpad); human landing page at `docs/README.md`
-- `.agents/` - machine space: `MAP.md` (generated skill index), `rules/`, `skills/`, `scripts/`
+- `docs/` - shared space: `docs/specs/`, `docs/decisions/`, `docs/reference/`, and `docs/temp/` (gitignored scratchpad); human landing page at `docs/README.md`
+- `.agents/` - machine space: `MAP.md` (generated skill index), `.agents/rules/`, `.agents/skills/`, `.agents/scripts/`
 
 ## Commands
 
