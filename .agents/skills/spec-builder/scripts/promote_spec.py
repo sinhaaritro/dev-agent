@@ -901,6 +901,32 @@ def _tag_index(args: argparse.Namespace) -> int:
     return 0
 
 
+def substitute_spec_id(text: str, num: int) -> str:
+    """Replace the title's leading ID placeholder with the computed NNN.
+
+    The template title is '# [SPEC-ID]: Feature Title'; promotion must stamp the
+    engine-derived number onto it so the committed title matches the filename
+    ('001-feature-title.md' -> '# 001: Feature Title'). Accepts the bracket
+    placeholder, a bare 3-digit number, or a sub-ID prefix, and rewrites only the
+    leading token of the first '#' heading. Text with no such token is returned
+    unchanged.
+    """
+    id_token = re.compile(r"^(\[\S+\]|\d{3}-[A-Z]\d{2}(?:-[A-Z]\d{2})?|\d{3})(?=:|\s)")
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("# "):
+            body = stripped[1:].strip()
+            m = id_token.match(body)
+            if not m:
+                return text
+            new_title = "# " + f"{num:03d}" + body[m.end():]
+            indent = line[: len(line) - len(line.lstrip())]
+            lines[i] = indent + new_title
+            return "\n".join(lines)
+    return text
+
+
 def normalize_status(status: str) -> str:
     """Expand shorthand: PROVISIONAL -> 'PROVISIONAL - AUTONOMOUS DEFAULT'."""
     if status.upper() == "PROVISIONAL":
@@ -1084,6 +1110,7 @@ def cmd_promote(args: argparse.Namespace) -> int:
 
     args.specs_dir.mkdir(parents=True, exist_ok=True)
     status = normalize_status(args.status)
+    text = substitute_spec_id(text, num)
     target.write_text(ensure_frontmatter_tags(replace_status(text, status)), encoding="utf-8")
     print(f"promoted: {target}")
     _refresh_toc_for(args.root)
