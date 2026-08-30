@@ -78,7 +78,7 @@ Governance subcommands of `promote_spec.py`:
 Incoming requirement
         │
         ▼
- docs/temp/draft-plan.md          (Lane B: sections 1,3,4 / Lane A: all 6)
+ docs/temp/draft-plan.md          (Lane B: sections 1,4,5 / Lane A: all 7)
         │  validated: promote_spec.py check <draft> --lane <B|A>
         ▼
  [ Approval gate — human acceptance or compliant autonomous resolution ]
@@ -95,9 +95,10 @@ Incoming requirement
  SESSION STOPS — no build in the spec-producing session
         ▼
  STEP 2: a NEW session reads the promoted spec (verified via the Handoff:
- marker), builds, ticks section-4 checkboxes, finalizes at Phase 3-Review
- (Phase: 3-Review, checkboxes synced to - [x] with green verification
- evidence), then task-cleaner purges the scratchpad on acceptance.
+ marker), executes the section-5 Task DAG in order, ticks subtasks (Verify +
+ Expect, evidence recorded), finalizes at Phase 3-Review (Phase: 3-Review,
+ section-5 subtasks synced to - [x] with re-measured evidence), then
+ task-cleaner purges the scratchpad on acceptance.
 ```
 
 Rules that make the split real:
@@ -125,15 +126,23 @@ Rules that make the split real:
 
 In `.agents/skills/spec-builder/references/`:
 
-- **`implementation-plan-template.md`** — the 6-section plan: 1 Goal &
-  Context, 2 Architectural Decisions & Trade-offs, 3 Affected Files & Scope,
-  4 Actionable TODO Checklist, 5 Verification Commands, 6 Rollback Strategy.
-  Lane B uses sections 1, 3, 4 only.
+- **`implementation-plan-template.md`** — the 7-section plan: 1 Goal &
+  Context, 2 Architectural Decisions & Trade-offs, 3 Risks & Open Questions,
+  4 Affected Files & Contracts, 5 Task DAG (Task→Subtask, each subtask
+  `Input`/`Output`/`Verify`/`Expect` + the completion-rules block),
+  6 Verification Commands, 7 Rollback Strategy. Lane B uses sections 1, 4, 5
+  only (single task, `Depends On: None`, no Phase Gate). `promote_spec.py
+  check` validates the section-5 structure and statically lints the oracles
+  (rejects no-op `Verify`, empty `Expect`, and `Expect` that is a substring of
+  the `Verify` command).
 - **`adr-template.md`** — Context / Decision / Consequences, with `Status:`,
   `Date:`, `Source:` headers.
-- **`todo-checklist-format.md`** — real-time markers: `- [ ]` pending →
-  `- [/]` in progress → `- [x]` completed (only after that step's local
-  verification passed; revert to `[ ]` when a step fails 3 consecutive times).
+- **`todo-checklist-format.md`** — state lives on subtasks: `- [ ]` pending →
+  `- [/]` in progress → `- [x]` done. A subtask is `[x]` only when its
+  `Verify` exits 0 AND its `Expect` matches, with evidence recorded in
+  `verify-state.json` (a checkbox without evidence is unmet), after the four
+  passes; `ABANDON: <non-empty reason>` is terminal non-completion (never
+  deleted); revert to `[ ]` when a subtask fails 3 consecutive times.
 
 ## 6. Deterministic TOC rollup
 

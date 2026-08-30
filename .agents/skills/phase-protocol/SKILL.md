@@ -30,7 +30,7 @@ The process-governance meta-skill, run after auto-router's verdict. You drive ev
 
 ## Instructions
 
-1. **Route the phase from the verdict.** Lanes B and A start in 1-Plan and MUST end it at 1.5-Handoff (references/handoff.md) — the approval step promotes the spec and records the handoff, and the session stops there; **build never follows approval in the same session** (spec 008 D1). Lane C is a single pass; Lane D is informational (header only, no phases); C/D have no approval step, so no handoff (spec 008 D3). At each phase start, load ONLY `references/<phase>.md` — never preload all references — and follow its checklist exactly; a phase completes only when its checklist is green. On an escalation flag, continue under the announced lane: re-plan under the new lane's artifact requirements, never ask permission, never silently de-escalate.
+1. **Route the phase from the verdict.** Lanes B and A start in 1-Plan and MUST end it at 1.5-Handoff (references/handoff.md) — the approval step promotes the spec and records the handoff, and the session stops there; **build never follows approval in the same session**. Lane C is a single pass; Lane D is informational (header only, no phases); C/D have no approval step, so no handoff. At each phase start, load ONLY `references/<phase>.md` — never preload all references — and follow its checklist exactly; a phase completes only when its checklist is green. On an escalation flag, continue under the announced lane: re-plan under the new lane's artifact requirements, never ask permission, never silently de-escalate.
 2. **Enforce tool posture.** Plan, Handoff, and Review are read-only — no file edits. Build allows edits within lane scope only (per auto-router's `references/lane-matrix.md`). Scope creep toward a higher lane stops the build: the router re-classifies and announces the escalation before you continue.
 3. **Resolve every gate through the engine.** Classify first: **blocking** (security, database schemas, public APIs, Lane A criteria) vs **non-blocking** (minor internal scope). Then run:
    `python .agents/skills/phase-protocol/scripts/resolve_gate.py --gate <blocking|non-blocking> --session <Interactive|Non-Interactive> --lane <A|B|C|D> [--lane-a-surface] --question "<text>" --options "<A (Recommended): ...; B: ...>"`
@@ -47,11 +47,11 @@ Every response uses exactly this schema, inherited by every other skill:
 1. SUMMARY OF UNDERSTANDING
    One-sentence recap of the user input or processed state.
 2. ACTIONS TAKEN / DISCOVERY
-   Files inspected, searches run, draft plans written to docs/temp/.
+   Files inspected, searches run, draft plans written to docs/temp/. Verification claims carry re-measured evidence: each Phase Gate command, the matched Expect marker, and attempt count — from a fresh re-run, never memory of what ran.
 3. SOCRATIC GATE / DECISION PROPOSAL
    Guided multiple-choice options with recommended defaults (only if ambiguity exists).
 4. NEXT STEP
-   The exact execution step that happens on human reply or autonomous resolution.
+   The exact execution step that happens on human reply or autonomous resolution. When a subtask is ABANDONed or any work is unmet, this block states the halt/handoff (escalation.md) — never a silent "done".
 ```
 
 Set `Worktree:` to `main` unless a worktree is active. Lane D answers carry the header without phases or gates.

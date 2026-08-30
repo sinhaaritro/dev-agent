@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """spec-builder engine - draft validation, spec promotion, ADR filing, and handoff.
 
-Owns the mechanical parts of the spec lifecycle (000 ss7, ss10): template
+Owns the mechanical parts of the spec lifecycle: template
 enforcement, sequential numbering, promotion mechanics, Architectural
-Decision Record filing, and the Phase 1.5 handoff record (spec 008). The
+Decision Record filing, and the Phase 1.5 handoff record. The
 acceptance gate itself is the caller's - the agent asserts it via --status
 (APPROVED for human acceptance, PROVISIONAL for a compliant autonomous
 resolution); this script never decides whether the gate passed. ADRs are
@@ -12,8 +12,18 @@ filed only alongside APPROVED promotion (human acceptance).
 Modes:
     check    promote_spec.py check <draft> --lane <B|A>
              Parse the draft's "## N." section headings and verify the
-             lane's required sections are present (B: 1, 3, 4; A: 1-6).
-             Exit 0 when complete, 1 with a missing-sections list when not.
+             lane's required sections are present (B: 1, 4, 5; A: 1-7).
+             Also validate the section-5 Task DAG structure:
+             every "### Task N:" block carries Target Files:, Depends On:
+             (may be None), >=1 subtask, and Phase Gate: (Lane A; optional
+             for B, where the value must be None or a "Task N" reference);
+             every subtask line ("- [ ] N.M ...") carries non-empty
+             Input:/Output:/Verify:/Expect:; the plan has >=1 task. A static
+             oracle lint rejects no-op Verify commands (true, :, exit, echo)
+             and Expect markers that are a substring of the Verify command
+             line (unconditionally-present oracle). Exit 0 when complete,
+             1 with the missing-sections list and/or structural violations
+             when not.
 
     promote  promote_spec.py promote <draft> --lane <B|A>
                  --status <APPROVED|PROVISIONAL> [--dry-run]
@@ -41,7 +51,7 @@ Modes:
 
     handoff  promote_spec.py handoff <spec> --lane <B|A>
                  [--dry-run] [--handoff-dir <dir>] [--decisions-dir <dir>]
-              Record the Phase 1.5 handoff for an approved spec (spec 008).
+              Record the Phase 1.5 handoff for an approved spec.
               Validates the spec exists with Status: APPROVED (Lane A also
               requires at least one ADR whose Source: points at the spec;
               Lane B allows zero), writes docs/temp/handoff.md (ephemeral
@@ -68,7 +78,7 @@ Modes:
     tag-lint    promote_spec.py tag-lint [--root <dir>]
               Normative: exit 1 on any violation (lowercase-kebab, 2-30
               chars, max 7 tags/doc, no empty field). Wired into check, so
-              a malformed tag also fails the promotion gate (spec 010 D7).
+              a malformed tag also fails the promotion gate.
     tag-rename  promote_spec.py tag-rename <old> <new> [--root <dir>]
               The only tag writer: rewrites the tags frontmatter line of
               every doc carrying <old>. Prose outside the frontmatter is
@@ -97,7 +107,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-LANE_SECTIONS = {"B": {1, 3, 4}, "A": {1, 2, 3, 4, 5, 6}}
+LANE_SECTIONS = {"B": {1, 4, 5}, "A": {1, 2, 3, 4, 5, 6, 7}}
 PROVISIONAL_STATUS = "PROVISIONAL - AUTONOMOUS DEFAULT"
 
 COMMIT_FOLDERS = ("specs", "decisions", "reference")
@@ -157,22 +167,176 @@ def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8-sig")
 
 
-def check_draft(draft: Path, lane: str) -> tuple[bool, list[int]]:
-    """Return (passed, missing_sections) for the lane's required set."""
+def _section_body(text: str, number: int) -> str:
+    """Return the body of the '## <number>.' section (up to the next '## ' heading).
+
+    Level-2 headings terminate the section; '### ' sub-headings are part of the
+    body (the Task DAG's task blocks and completion-rules list live inside
+    section 5). Returns '' when the section is absent.
+    """
+    lines = text.splitlines()
+    start = None
+    for i, line in enumerate(lines):
+        if re.match(r"^##\s+" + str(number) + r"\.", line.strip()):
+            start = i + 1
+            break
+    if start is None:
+        return ""
+    end = len(lines)
+    for j in range(start, len(lines)):
+        if re.match(r"^##\s", lines[j].strip()):
+            end = j
+            break
+    return "\n".join(lines[start:end])
+
+
+NOOP_VERIFY_RE = re.compile(r"^(true|:|exit(\s+0*)?)$")
+
+
+def _is_noop_verify(cmd: str) -> bool:
+    """True when a Verify command cannot fail (tautological oracle).
+
+    Rejects empty commands, 'true', ':', 'exit'/'exit 0', and any command whose
+    first token is 'echo' (echo always exits 0, so it proves nothing).
+    """
+    c = cmd.strip()
+    if not c:
+        return True
+    if NOOP_VERIFY_RE.match(c):
+        return True
+    return c.split()[0] == "echo"
+
+
+def _parse_task_dag(body: str) -> list[dict]:
+    """Parse '### Task N:' blocks of a section-5 body into structured task dicts.
+
+    Each task carries its Target Files / Depends On / Phase Gate values and a
+    list of subtasks; each subtask carries its (possibly empty) Input/Output/
+    Verify/Expect field values. Field lines are indented; task-level lines sit
+    at column 0, which is how the two are told apart.
+    """
+    tasks: list[dict] = []
+    current: dict | None = None
+    current_sub: dict | None = None
+    for raw in body.splitlines():
+        stripped = raw.strip()
+        if not stripped:
+            continue
+        task_m = re.match(r"^###\s+Task\s+(\d+)\s*:\s*(.*)$", stripped)
+        if task_m:
+            current = {
+                "num": int(task_m.group(1)),
+                "title": task_m.group(2).strip(),
+                "target_files": "",
+                "depends_on": "",
+                "phase_gate": "",
+                "subtasks": [],
+            }
+            tasks.append(current)
+            current_sub = None
+            continue
+        if current is None:
+            continue
+        # any other '###' heading (e.g. '### Completion rules') ends the block
+        if stripped.startswith("###"):
+            current = None
+            current_sub = None
+            continue
+        tf_m = re.match(r"^-\s*Target Files\s*:\s*(.*)$", stripped)
+        if tf_m:
+            current["target_files"] = tf_m.group(1).strip()
+            current_sub = None
+            continue
+        dep_m = re.match(r"^-\s*Depends On\s*:\s*(.*)$", stripped)
+        if dep_m:
+            current["depends_on"] = dep_m.group(1).strip()
+            current_sub = None
+            continue
+        pg_m = re.match(r"^-\s*Phase Gate\s*:\s*(.*)$", stripped)
+        if pg_m:
+            current["phase_gate"] = pg_m.group(1).strip()
+            current_sub = None
+            continue
+        sub_m = re.match(r"^\s+-\s*\[[ xX/]\]\s*(\d+)\.(\d+)\b\s*(.*)$", raw)
+        if sub_m:
+            current_sub = {
+                "id": sub_m.group(1) + "." + sub_m.group(2),
+                "input": "",
+                "output": "",
+                "verify": "",
+                "expect": "",
+            }
+            current["subtasks"].append(current_sub)
+            continue
+        fld_m = re.match(r"^\s+-\s*(Input|Output|Verify|Expect)\s*:\s*(.*)$", raw)
+        if fld_m and current_sub is not None:
+            current_sub[fld_m.group(1).lower()] = fld_m.group(2).strip()
+    return tasks
+
+
+def _validate_task_dag(tasks: list[dict], lane: str) -> list[str]:
+    """Structural + static-oracle violations for the section-5 Task DAG (D6)."""
+    if not tasks:
+        return ["section 5: no '### Task N:' blocks found (zero-gate plan rejected)"]
+    violations: list[str] = []
+    for task in tasks:
+        tlabel = "Task %d" % task["num"]
+        if not task["target_files"]:
+            violations.append(tlabel + ": missing 'Target Files:'")
+        if not task["depends_on"]:
+            violations.append(tlabel + ": missing 'Depends On:'")
+        elif lane == "B" and task["depends_on"] != "None" and not re.match(
+            r"^Task\s+\d+(\s*,\s*Task\s+\d+)*$", task["depends_on"]
+        ):
+            violations.append(
+                tlabel + ": 'Depends On:' must be 'None' or a 'Task N' reference (got '%s')"
+                % task["depends_on"]
+            )
+        if lane == "A" and not task["phase_gate"]:
+            violations.append(tlabel + ": missing 'Phase Gate:'")
+        if not task["subtasks"]:
+            violations.append(tlabel + ": has no subtasks (need >= 1)")
+        for sub in task["subtasks"]:
+            slabel = "%s subtask %s" % (tlabel, sub["id"])
+            for field in ("Input", "Output", "Verify", "Expect"):
+                if not sub[field.lower()]:
+                    violations.append(slabel + ": missing/empty '%s:'" % field)
+            verify = sub["verify"]
+            expect = sub["expect"]
+            if verify and _is_noop_verify(verify):
+                violations.append(slabel + ": 'Verify:' is a no-op command ('%s')" % verify)
+            if expect and verify and expect in verify:
+                violations.append(
+                    slabel + ": 'Expect:' is a substring of the 'Verify:' command (oracle can never fail)"
+                )
+    return violations
+
+
+def check_draft(draft: Path, lane: str) -> tuple[bool, list[int], list[str]]:
+    """Return (passed, missing_sections, violations) for the lane's contract.
+
+    'missing' is the lane's required '## N.' sections absent from the draft;
+    'violations' are section-5 Task DAG structure problems and static-oracle
+    lint findings. Both fail the gate.
+    """
     try:
         text = read_text(draft)
     except (OSError, UnicodeDecodeError):
-        return False, []
+        return False, [], ["cannot read draft"]
     found = parse_sections(text)
     missing = sorted(LANE_SECTIONS[lane] - found)
-    return (not missing), missing
+    violations = []
+    if 5 in found:
+        violations = _validate_task_dag(_parse_task_dag(_section_body(text, 5)), lane)
+    passed = not missing and not violations
+    return passed, missing, violations
 
 
 def parse_sub_id(name: str) -> tuple[int, str] | None:
     """Decode a sub-ID filename 'NNN-LNN[-LNN].md' to (parent, key).
 
-    Key format: 'A01' for level 1, 'A01-B01' for level 2 (spec 010 D3 -
-    hyphen separator, letter + two digits). Returns None for non sub-IDs.
+    Key format: 'A01' for level 1, 'A01-B01' for level 2 (hyphen
+    separator, letter + two digits). Returns None for non sub-IDs.
     """
     match = re.match(r"^(\d{3})-([A-Z]\d{2})(?:-([A-Z]\d{2}))?\.md$", name)
     if not match:
@@ -188,7 +352,7 @@ def next_number(specs_dir: Path) -> int:
     Reads both the parent files ('NNN-<slug>.md') and the sub-IDs
     ('NNN-LNN.md' / 'NNN-LNN-MNN.md'): a parent N exists if either its file
     or at least one child of N is present, so a child promotion under 001
-    never collides with the global max (spec 010 D3).
+    never collides with the global max.
     """
     highest = 0
     if specs_dir.is_dir():
@@ -211,8 +375,8 @@ def slug_from_title(text: str) -> str:
     Leading ID tokens are stripped so a draft titled '# 103: Refresh Token
     Column' promotes to 'refresh-token-column', a sub-ID draft titled
     '# 001-A01: Child Plan' promotes to 'child-plan', and an ADR titled
-    '# ADR-001: In-Memory Storage' files to 'in-memory-storage' (spec 010
-    D3: sub-ID titles carry no numeric prefix in the filename).
+    '# ADR-001: In-Memory Storage' files to 'in-memory-storage'
+    (sub-ID titles carry no numeric prefix in the filename).
     """
     title = ""
     for line in text.splitlines():
@@ -293,7 +457,7 @@ def ensure_frontmatter_tags(text: str) -> str:
 
 
 def _lint_tags(tags: list[str]) -> list[str]:
-    """Normative lint (spec 010 D7): lowercase-kebab, 2-30 chars, max 7/doc."""
+    """Normative lint: lowercase-kebab, 2-30 chars, max 7/doc."""
     problems = []
     if len(tags) > 7:
         problems.append("more than 7 tags")
@@ -496,7 +660,7 @@ def ensure_scratchpad_guard(handoff_dir: Path) -> None:
 
 
 def cmd_handoff(args: argparse.Namespace) -> int:
-    """Validate and record the Phase 1.5 handoff (spec 008)."""
+    """Validate and record the Phase 1.5 handoff."""
     try:
         text = read_text(args.spec)
     except (OSError, UnicodeDecodeError):
@@ -544,8 +708,8 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         f"Spec: {spec_ref}\n"
         f"Lane: {args.lane}\n"
         f"ADRs: {adr_line}\n\n"
-        "Implementation runs in a new session that reads the promoted spec "
-        "(spec 008 D1). The session that recorded this handoff must not open "
+        "Implementation runs in a new session that reads the promoted spec. "
+        "The session that recorded this handoff must not open "
         "references/build.md.\n",
         encoding="utf-8",
     )
@@ -557,7 +721,7 @@ def cmd_handoff(args: argparse.Namespace) -> int:
 
 
 def _folder_sort_key(folder: str, name: str) -> tuple:
-    """Deterministic sort key per folder ID scheme (spec 010 D3/D6)."""
+    """Deterministic sort key per folder ID scheme."""
     if folder == "specs":
         match = re.match(r"^(\d{3})-([A-Z]\d{2})(?:-([A-Z]\d{2}))?\.md$", name)
         if match:
@@ -609,7 +773,7 @@ def _scan_docs(root: Path) -> dict:
     """Scan the three committed folders into sorted per-folder doc entries.
 
     Shared by the TOC roll-up, tag-index, and every tag-governance function -
-    one frontmatter parse, no cross-subcommand drift (spec 010 D5/D6).
+    one frontmatter parse, no cross-subcommand drift.
     """
     docs: dict[str, list[dict]] = {}
     for folder in COMMIT_FOLDERS:
@@ -645,7 +809,7 @@ def _write_marker_block(text: str, start: str, end: str, block: str) -> str | No
     """Replace everything between the start and end markers with block.
 
     Idempotent: only the marker block is rewritten, surrounding prose is
-    byte-identical before and after (spec 010 D6). Returns None when the
+    byte-identical before and after. Returns None when the
     markers are missing.
     """
     m1 = re.search(re.escape(start) + r"\n", text)
@@ -738,7 +902,7 @@ def _landing_readme_stub() -> str:
 
 
 def _ensure_docs_readmes(root: Path) -> None:
-    """Bootstrap the four docs READMEs if missing (spec 010 D6, creator half).
+    """Bootstrap the four docs READMEs if missing (creator half).
 
     The engine previously only *regenerated* marker blocks and silently skipped
     files that did not exist, so a fresh repo never got its docs/README.md or
@@ -758,7 +922,7 @@ def _ensure_docs_readmes(root: Path) -> None:
 
 
 def _tag_lint(docs: dict, verbose: bool = False) -> list[str]:
-    """Lint every scanned doc's tags (spec 010 D7).
+    """Lint every scanned doc's tags.
 
     Returns violation strings; exit code is always 1 on any violation here or
     in-check (no --warn-only), so the two entry points behave identically.
@@ -999,8 +1163,8 @@ def _refresh_toc_for(root: Path) -> None:
 
     The landing README shows the whole tree; each folder README shows only its
     own folder, so ``docs/specs/README.md`` stays a specs-only index. Missing
-    READMEs are bootstrapped with marker scaffolding first (creator half of
-    spec 010 D6), so a fresh repo gets its index on the first lifecycle event.
+    READMEs are bootstrapped with marker scaffolding first, so a fresh repo
+    gets its index on the first lifecycle event.
     """
     _ensure_docs_readmes(root)
     docs = _scan_docs(root)
@@ -1044,7 +1208,7 @@ def cmd_toc(args: argparse.Namespace) -> int:
 
 
 def _draft_tag_violations(draft: Path) -> list[str]:
-    """Normative lint of the draft file's own tags (spec 010 D7, check gate).
+    """Normative lint of the draft file's own tags (check gate).
 
     The promotion gate must reject a draft whose frontmatter tags are
     malformed, independent of the pre-existing tree. Returns [] when the
@@ -1061,28 +1225,33 @@ def _draft_tag_violations(draft: Path) -> list[str]:
 
 
 def cmd_check(args: argparse.Namespace) -> int:
-    passed, missing = check_draft(args.draft, args.lane)
-    violations = _tag_lint(_scan_docs(args.root))
-    violations += _draft_tag_violations(args.draft)
-    if passed and not violations:
+    passed, missing, struct_violations = check_draft(args.draft, args.lane)
+    tag_violations = _tag_lint(_scan_docs(args.root))
+    tag_violations += _draft_tag_violations(args.draft)
+    if passed and not tag_violations:
         print("check passed")
         return 0
-    if not passed:
+    if missing:
         print("missing sections: " + ", ".join(str(n) for n in missing))
-    for v in violations:
+    for v in struct_violations:
+        print("structure: " + v)
+    for v in tag_violations:
         print("tag-lint: " + v)
     return 1
 
 
 def cmd_promote(args: argparse.Namespace) -> int:
-    passed, missing = check_draft(args.draft, args.lane)
-    violations = _tag_lint(_scan_docs(args.root), verbose=True)
-    violations += _draft_tag_violations(args.draft)
-    if not passed or violations:
-        if not passed:
+    passed, missing, struct_violations = check_draft(args.draft, args.lane)
+    tag_violations = _tag_lint(_scan_docs(args.root), verbose=True)
+    tag_violations += _draft_tag_violations(args.draft)
+    if not passed or tag_violations:
+        if missing:
             print("check failed - missing sections: " + ", ".join(str(n) for n in missing))
-        if violations:
-            print(f"check failed - {len(violations)} tag violation(s)")
+        if struct_violations:
+            for v in struct_violations:
+                print("check failed - structure: " + v)
+        if tag_violations:
+            print(f"check failed - {len(tag_violations)} tag violation(s)")
         return 1
 
     try:

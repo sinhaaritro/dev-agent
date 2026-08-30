@@ -7,8 +7,8 @@ Single source of truth for lane criteria, escalation rules, and session detectio
 | Lane | Name | Scope Criteria | Docs Artifact | Socratic Gate | Verification |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **D** | Read-Only / Informational | No file mutations. Explanations, comparisons, code Q&A. | None | None - informational, non-mutating | None |
-| **C** | Micro-Edit | Single file. No schema, public API, auth, or dependency changes. Diff under ~30 lines. | None (inline diff output) | Non-blocking only | Single pass; 3-fail escalates to Lane B |
-| **B** | Scoped Multi-File Edit | 2-5 files. No schema/API/auth/security surface touched. No new external dependencies. | Abbreviated `docs/temp/draft-plan.md` (Sections 1, 3, 4 only) via `spec-builder`, promoted to `docs/specs/` on approval (no ADRs unless a decision surfaces) | Non-blocking by default; blocking only if scope creeps toward Lane A criteria | Full circuit breaker (3-retry) via `verification-runner` |
+| **C** | Micro-Edit | Single file. No schema, public API, auth, or dependency changes. Diff under ~30 lines. | None (inline diff output) | Non-blocking only | Single pass with `Verify` + `Expect` via `verify.py` (PASS = exit 0 + marker); 3-fail escalates to Lane B |
+| **B** | Scoped Multi-File Edit | 2-5 files. No schema/API/auth/security surface touched. No new external dependencies. | Abbreviated `docs/temp/draft-plan.md` (Sections 1, 4, 5 only) via `spec-builder`, promoted to `docs/specs/` on approval (no ADRs unless a decision surfaces) | Non-blocking by default; blocking only if scope creeps toward Lane A criteria | Full circuit breaker (3-retry) via `verification-runner` |
 | **A** | Full SDLC | >5 files, OR touches database schema, public API contracts, auth/security, or introduces a new architectural dependency. | Full implementation plan (`.agents/skills/spec-builder/references/implementation-plan-template.md`), promoted to `docs/specs/` on plan approval, with an ADR in `docs/decisions/` for every architectural decision | Blocking mandatory for every architectural decision point | Full circuit breaker + review phase |
 
 ## 2. Classification order (top-down)

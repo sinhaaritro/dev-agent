@@ -20,8 +20,8 @@ auto-router's lane verdict:
 | :--- | :--- | :--- | :--- |
 | **1-Plan** | B, A (C runs a single pass; D is header-only, no phases) | Read-only — no file edits | Validated `draft-plan.md` in `docs/temp/` |
 | **1.5-Handoff** | B, A — mandatory after approval | Read-only | `docs/temp/handoff.md` written, spec stamped `Handoff: <date>`, **session stops** |
-| **2-Build** | B, A — always a *new* session, starting from the promoted spec | Edits within lane scope only | All TODO steps verified green via `verify.py` |
-| **3-Review** | B, A | Read-only | Spec finalized (`Phase: 3-Review`, checkboxes synced), scratchpad purged on acceptance |
+| **2-Build** | B, A — always a *new* session, starting from the promoted spec | Edits within lane scope only | All section-5 subtasks verified green (`Verify` + `Expect`, evidence recorded) via `verify.py`; commands pre-approved on lanes A/B |
+| **3-Review** | B, A | Read-only | Spec finalized (`Phase: 3-Review`, section-5 subtasks synced with re-measured evidence), scratchpad purged on acceptance |
 
 Key invariants:
 
@@ -35,9 +35,15 @@ Key invariants:
   `review.md`) — never all references. `references/harness.md` (model tiering
   per phase) is situational, loaded only when a harness/model choice is in
   play.
-- **Lane C** is a single pass: edit, verify once; 3 consecutive failures
-  escalate to Lane B. **Lane D** is informational: the 5-tag header is
-  emitted, but no phases, no gates.
+- **Lane C** is a single pass: edit, verify once (`Verify` + `Expect` via
+  `verify.py`); 3 consecutive failures escalate to Lane B. **Lane D** is
+  informational: the 5-tag header is emitted, but no phases, no gates.
+- **Passes are evidence-gated and commands are pre-approved** (spec 001
+  D4/D5): a subtask is done only when its `Verify` exits 0 AND its `Expect`
+  marker matches, with evidence recorded in `docs/temp/verify-state.json`; on
+  lanes A/B a first-ever command is approved (`verify.py approve`) before it
+  runs, or the engine refuses with exit 4 before execution (no state change,
+  not an attempt).
 
 ## 2. The Socratic gate
 
@@ -131,11 +137,11 @@ Every response — including Lane D answers and Lane C micro-edits — carries:
 1. SUMMARY OF UNDERSTANDING
    One-sentence recap of the user input or processed state.
 2. ACTIONS TAKEN / DISCOVERY
-   Files inspected, searches run, draft plans written to docs/temp/.
+   Files inspected, searches run, draft plans written to docs/temp/. Verification claims carry re-measured evidence: each Phase Gate command, the matched Expect marker, and attempt count — from a fresh re-run, never memory of what ran.
 3. SOCRATIC GATE / DECISION PROPOSAL
    Guided multiple-choice options with recommended defaults (only if ambiguity exists).
 4. NEXT STEP
-   The exact execution step that happens on human reply or autonomous resolution.
+   The exact execution step that happens on human reply or autonomous resolution. When a subtask is ABANDONed or any work is unmet, this block states the halt/handoff — never a silent "done".
 ```
 
 The five header tags are Phase, Task, Lane, Worktree (`main` unless a

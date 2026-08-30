@@ -17,6 +17,13 @@ untouched.
 
 <!-- TOC:START -->
 ## Index
+- 📁 specs/
+  - 📄 [001-task-dag-plan-template-for-all-lanes-dump-10-decided-set.md](./specs/001-task-dag-plan-template-for-all-lanes-dump-10-decided-set.md) — APPROVED | Phase: 2-Build
+
+- 📁 decisions/
+  - 📄 [adr-001-task-dag-plan-contract-7-section-layout-and-per-subtask-verify-expect.md](./decisions/adr-001-task-dag-plan-contract-7-section-layout-and-per-subtask-verify-expect.md) — Accepted — backlinks: docs/specs/001-task-dag-plan-template-for-all-lanes-dump-10-decided-set.md
+  - 📄 [adr-002-command-approval-separate-from-plan-approval-fingerprint-cached.md](./decisions/adr-002-command-approval-separate-from-plan-approval-fingerprint-cached.md) — Accepted — backlinks: docs/specs/001-task-dag-plan-template-for-all-lanes-dump-10-decided-set.md
+
 - 📁 reference/
   - 📄 [001-framework-overview.md](./reference/001-framework-overview.md)
   - 📄 [002-skill-discovery-and-indexing.md](./reference/002-skill-discovery-and-indexing.md)

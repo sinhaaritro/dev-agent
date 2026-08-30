@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """phase-protocol engine - deterministic gate resolution & autonomy policy.
 
-Decides the outcome of a Socratic gate from the autonomy matrix
-(000 ss3-4): (gate: blocking|non-blocking) x (session: interactive|
+Decides the outcome of a Socratic gate from the autonomy matrix:
+(gate: blocking|non-blocking) x (session: interactive|
 non-interactive) x (lane A/B/C/D) x (autonomy: supervised|autonomous).
 
 Outcomes:
@@ -13,7 +13,7 @@ Outcomes:
     FAIL-CLOSED blocking gate in a non-interactive session under
                 `supervised`, OR any Lane-A surface gate under
                 `autonomous` (schema/auth/public-API never resolve
-                autonomously, 000 ss3.4.3). Writes docs/temp/escalation.md.
+                 autonomously). Writes docs/temp/escalation.md.
                 Exit 2.
     RESOLVED    blocking gate in a non-interactive session under
                 `autonomous` with no Lane-A surface: apply the
@@ -215,7 +215,7 @@ def main() -> int:
     parser.add_argument(
         "--lane-a-surface",
         action="store_true",
-        help="gate touches database schema, auth, or a public API (000 ss3.4.3)",
+        help="gate touches database schema, auth, or a public API",
     )
     parser.add_argument("--question", default="")
     parser.add_argument("--options", default="")

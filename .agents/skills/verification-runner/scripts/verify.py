@@ -1,39 +1,64 @@
 #!/usr/bin/env python3
 """verification-runner engine - retry counter, circuit breaker, escalation reports.
 
-Owns the mechanical parts of the framework's verification contract (000 ss9):
-the 3-consecutive-failure circuit breaker and the escalation report. The
-counter lives on disk so the limit survives across agent turns and cannot be
+Owns the mechanical parts of the framework's verification contract:
+the 3-consecutive-failure circuit breaker, the escalation report, the
+Expect-marker pass criterion with recorded evidence, and
+command approval separate from plan approval. The counter
+lives on disk so the limit survives across agent turns and cannot be
 silently reset by forgetting. The engine is a ledger, never a judge: it
 records what the command actually returned and trips at the threshold.
 
 State: docs/temp/verify-state.json (gitignored scratchpad, per-task keys,
 purged by task-cleaner on acceptance). Escalation: docs/temp/escalation.md.
+Approvals: docs/temp/approvals.json (gitignored scratch, per-task lifetime;
+a new session re-approves - the safe default).
 
 Modes:
     run      verify.py run --command "<cmd>" --task <id>
-                 [--timeout <s>] [--hypothesis "<text>"]
-                 [--options "A (Recommended): ...; B: ..."]
-                 [--state-dir <dir>]
-             Execute the command (300s default timeout, interactive commands
-             refused). Exit 0 = PASS, counter reset to 0. Non-zero = FAIL,
-             counter incremented. At the 3rd consecutive failure the circuit
-             breaker trips: escalation.md is written and exit 2 - halt, human
-             handoff; further runs on the same task are refused. With no
-             --command and no --suggest: exit 3 (command source unresolved).
+                  [--expect <marker>] [--lane <A|B|C|D>]
+                  [--timeout <s>] [--hypothesis "<text>"]
+                  [--options "A (Recommended): ...; B: ..."]
+                  [--state-dir <dir>]
+              Execute the command (300s default timeout, interactive commands
+              refused). With --expect: PASS only when the command exits 0 AND
+              the combined stdout+stderr contains the marker; on PASS the task
+              entry records evidence {command, exit, expect, matched, at,
+              output_sha256}. Without --expect: today's exit-0-only behavior
+              (Lane C ad-hoc runs, legacy invocations). Exit 0 = PASS, counter
+              reset to 0. Non-zero exit or marker mismatch = FAIL, counter
+              incremented. At the 3rd consecutive failure the circuit breaker
+              trips: escalation.md is written and exit 2 - halt, human
+              handoff; further runs on the same task are refused. With no
+              --command and no --suggest: exit 3 (command source unresolved).
 
-             --suggest prints the detected framework's canonical commands
-             without running anything (exit 0) - the agent confirms Socratically
-             before a real run.
+              --lane <A|B|C|D> makes command approval mandatory for lanes A
+              and B: before executing, the engine checks the
+              fingerprint sha256(command|expect|cwd|executor) against the
+              approvals store; a miss is exit 4 BEFORE execution - no state
+              change, not a retry attempt. Lanes C/D (or no --lane) are
+              exempt. Any change to the command, Expect, or CWD changes the
+              fingerprint and re-arms approval; cached re-runs are free.
+
+              --suggest prints the detected framework's canonical commands
+              without running anything (exit 0) - the agent confirms Socratically
+              before a real run.
+
+    approve  verify.py approve --command "<cmd>" [--expect <marker>]
+                  [--state-dir <dir>]
+              Record the command's fingerprint in the approvals store
+              (idempotent). Approving the plan does not approve its commands:
+              a human inspects the exact command before its first execution.
+              Exit 0.
 
     status   verify.py status --task <id> [--state-dir <dir>]
-             Print the ledger: attempts and state (green | escalated). Exit 0.
+              Print the ledger: attempts and state (green | escalated). Exit 0.
 
     escalate verify.py escalate --task <id> --hypothesis "<text>"
-                 --options "A (Recommended): ...; B: ..." [--state-dir <dir>]
-             Finalize the escalation report: merge the stored attempt logs
-             with the agent-supplied hypothesis and remediation options.
-             Exit 0.
+                  --options "A (Recommended): ...; B: ..." [--state-dir <dir>]
+              Finalize the escalation report: merge the stored attempt logs
+              with the agent-supplied hypothesis and remediation options.
+              Exit 0.
 
     detect   verify.py detect [--root <dir>]
               Scan repo manifests and print the framework + its reference page
@@ -43,16 +68,20 @@ Modes:
 
 Usage:
     python .agents/skills/verification-runner/scripts/verify.py \
-        run --command "uv run pytest" --task auth-001
+        run --command "uv run pytest" --expect "3 passing" --task auth-001 --lane A
+    python .agents/skills/verification-runner/scripts/verify.py \
+        approve --command "uv run pytest" --expect "3 passing"
     python .agents/skills/verification-runner/scripts/verify.py \
         status --task auth-001
 
 Exit codes: 0 = green / informational; 1 = failed (retry remaining);
 2 = circuit breaker tripped (escalation.md written, halt); 3 = command source
-unresolved. Mirrors resolve_gate.py's 0/1/2 contract.
+unresolved; 4 = approval required (refused before execution, no state change,
+not a retry attempt).
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -66,6 +95,9 @@ MAX_ATTEMPTS = 3
 DEFAULT_TIMEOUT = 300
 STATE_FILE = "verify-state.json"
 ESCALATION_FILE = "escalation.md"
+APPROVALS_FILE = "approvals.json"
+APPROVAL_REQUIRED_LANES = {"A", "B"}
+EXECUTOR = "verify.py"
 FRAMEWORK_MANIFESTS = [
     ("pyproject.toml", "python"),
     ("package.json", "node-npm"),
@@ -106,14 +138,26 @@ def ensure_scratchpad_guard(state_dir: Path) -> None:
     The inner stub (``*`` + ``!.gitignore``) is the effective protection - git
     refuses to descend into a gitignored directory even without a root
     .gitignore - while the root entry documents the exclusion for viewers that
-    stop at the top level. Idempotent. Runs only on the DEFAULT state dir;
-    sandboxed ``--state-dir`` test runs never touch the real repo root.
+    stop at the top level. Idempotent.
+
+    The repo-root ``.gitignore`` is only written when the state dir resolves
+    to a real repo (``AGENTS.md`` + ``.agents`` within 4 levels up). A
+    sandboxed ``--state-dir`` test run (e.g. ``/tmp/...``) is outside any repo,
+    so only the inner stub is written and no foreign ``.gitignore`` is touched.
     """
+    inner = state_dir / ".gitignore"
+    if not inner.is_file():
+        inner.write_text("*\n!.gitignore\n", encoding="utf-8")
+
     root = state_dir
+    found = False
     for _ in range(4):
         if (root / "AGENTS.md").is_file() and (root / ".agents").is_dir():
+            found = True
             break
         root = root.parent
+    if not found:
+        return  # sandbox/external state dir - never write a foreign .gitignore
     root_ignore = root / ".gitignore"
     if not root_ignore.is_file():
         root_ignore.write_text("# DEV Agent framework\n", encoding="utf-8")
@@ -127,9 +171,6 @@ def ensure_scratchpad_guard(state_dir: Path) -> None:
         if text and not text.endswith("\n"):
             text += "\n"
         root_ignore.write_text(text + "\ndocs/temp\n", encoding="utf-8")
-    inner = state_dir / ".gitignore"
-    if not inner.is_file():
-        inner.write_text("*\n!.gitignore\n", encoding="utf-8")
 
 
 def write_state(state_dir: Path, state: dict) -> None:
@@ -143,6 +184,39 @@ def task_state(state: dict, task_id: str) -> dict:
         task_id, {"attempts": 0, "failures": [], "tripped": False}
     )
     return task
+
+
+def command_fingerprint(command: str, expect: str, cwd: str,
+                        executor: str = EXECUTOR) -> str:
+    """sha256(command | expect | cwd | executor) - the approval key.
+
+    Any change to the command, the Expect marker, or the working directory
+    yields a new fingerprint and re-arms approval; identical re-runs match the
+    cached fingerprint and are free.
+    """
+    payload = "|".join((command, expect or "", cwd, executor))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def read_approvals(state_dir: Path) -> dict:
+    path = state_dir / APPROVALS_FILE
+    if not path.is_file():
+        return {"version": 1, "approvals": {}}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return {"version": 1, "approvals": {}}
+    if not isinstance(data, dict) or not isinstance(data.get("approvals"), dict):
+        return {"version": 1, "approvals": {}}
+    return data
+
+
+def write_approvals(state_dir: Path, data: dict) -> None:
+    state_dir.mkdir(parents=True, exist_ok=True)
+    ensure_scratchpad_guard(state_dir)
+    (state_dir / APPROVALS_FILE).write_text(
+        json.dumps(data, indent=2), encoding="utf-8"
+    )
 
 
 def split_command(command: str) -> list[str]:
@@ -243,6 +317,23 @@ def cmd_run(args: argparse.Namespace) -> int:
         print("refused: interactive command (no TTY allowed) - " + args.command)
         return 1
 
+    # Command approval: mandatory for lanes A and B. Approving
+    # the plan does not approve its commands - refuse BEFORE executing, with
+    # no state change and no attempt counted.
+    lane = getattr(args, "lane", None)
+    if lane in APPROVAL_REQUIRED_LANES:
+        fingerprint = command_fingerprint(args.command, args.expect or "", os.getcwd())
+        if fingerprint not in read_approvals(args.state_dir)["approvals"]:
+            print(
+                "approval required (lane " + lane + "): command not approved - "
+                + "refused before execution, no state change, not an attempt"
+            )
+            hint = "approve: verify.py approve --command " + shlex.quote(args.command)
+            if args.expect:
+                hint += " --expect " + shlex.quote(args.expect)
+            print(hint)
+            return 4
+
     state = read_state(args.state_dir)
     task = task_state(state, args.task_id)
     if task["tripped"]:
@@ -254,6 +345,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         return 2
 
     attempt = task["attempts"] + 1
+    exit_code = 1
     try:
         proc = subprocess.run(
             split_command(args.command),
@@ -263,7 +355,13 @@ def cmd_run(args: argparse.Namespace) -> int:
             errors="replace",
         )
         log = (proc.stdout or "") + ("\n" + proc.stderr if proc.stderr else "")
-        ok = proc.returncode == 0
+        exit_code = proc.returncode
+        # PASS = exit 0 AND Expect marker present. Without
+        # --expect the engine keeps the exit-0-only behavior.
+        if args.expect:
+            ok = exit_code == 0 and args.expect in log
+        else:
+            ok = exit_code == 0
     except subprocess.TimeoutExpired:
         log = "TIMEOUT after %ds" % args.timeout
         ok = False
@@ -274,6 +372,15 @@ def cmd_run(args: argparse.Namespace) -> int:
     if ok:
         task["attempts"] = 0
         task["failures"] = []
+        if args.expect:
+            task["evidence"] = {
+                "command": args.command,
+                "exit": exit_code,
+                "expect": args.expect,
+                "matched": True,
+                "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "output_sha256": hashlib.sha256(log.encode("utf-8")).hexdigest(),
+            }
         write_state(args.state_dir, state)
         print("PASS (attempt %d)" % attempt)
         return 0
@@ -299,6 +406,26 @@ def cmd_run(args: argparse.Namespace) -> int:
     write_state(args.state_dir, state)
     print("FAIL (attempt %d/%d)" % (attempt, MAX_ATTEMPTS))
     return 1
+
+
+def cmd_approve(args: argparse.Namespace) -> int:
+    """Record the command's fingerprint in the approvals store (idempotent)."""
+    cwd = os.getcwd()
+    fingerprint = command_fingerprint(args.command, args.expect or "", cwd)
+    data = read_approvals(args.state_dir)
+    if fingerprint in data["approvals"]:
+        print("already approved: " + fingerprint)
+        return 0
+    data["approvals"][fingerprint] = {
+        "command": args.command,
+        "expect": args.expect or "",
+        "cwd": cwd,
+        "executor": EXECUTOR,
+        "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+    write_approvals(args.state_dir, data)
+    print("approved: " + fingerprint)
+    return 0
 
 
 def cmd_status(args: argparse.Namespace) -> int:
@@ -358,6 +485,17 @@ def main() -> int:
     run_p = sub.add_parser("run", help="run a verification command under the ledger")
     run_p.add_argument("--command", default=None, help="command to execute")
     run_p.add_argument("--task", dest="task_id", required=True)
+    run_p.add_argument(
+        "--expect",
+        default=None,
+        help="success marker: PASS requires exit 0 AND this marker in the output",
+    )
+    run_p.add_argument(
+        "--lane",
+        default=None,
+        choices=["A", "B", "C", "D"],
+        help="lanes A/B require a prior 'approve' for this command fingerprint",
+    )
     run_p.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
     run_p.add_argument("--hypothesis", default=None)
     run_p.add_argument(
@@ -370,6 +508,16 @@ def main() -> int:
     )
     run_p.add_argument("--state-dir", type=Path, default=None)
     run_p.set_defaults(func=cmd_run)
+
+    approve_p = sub.add_parser(
+        "approve", help="record a command's fingerprint in the approvals store"
+    )
+    approve_p.add_argument("--command", required=True, help="exact command to approve")
+    approve_p.add_argument(
+        "--expect", default=None, help="Expect marker bound to the approval"
+    )
+    approve_p.add_argument("--state-dir", type=Path, default=None)
+    approve_p.set_defaults(func=cmd_approve)
 
     status_p = sub.add_parser("status", help="read the retry ledger")
     status_p.add_argument("--task", dest="task_id", required=True)

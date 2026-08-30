@@ -1,6 +1,6 @@
 # PHASE 1.5 - HANDOFF (reference checklist)
 
-Load after the approval step (plan.md section 5) for Lanes B and A. **Read-only - no file edits.** Spec 008 D1: a session that produced an approved spec MUST stop here; implementation always runs in a new session.
+Load after the approval step (plan.md section 5) for Lanes B and A. **Read-only - no file edits.** A session that produced an approved spec MUST stop here; implementation always runs in a new session.
 
 ## 1. Why this phase exists
 

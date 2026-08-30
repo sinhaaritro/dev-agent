@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """task-cleaner engine - scratchpad purge with a gate-log preservation guarantee.
 
-Owns the mechanical parts of the framework's cleanup contract (000 ss5.6,
-ss10, ss13): purging the ephemeral docs/temp/ scratchpad on human acceptance
+Owns the mechanical parts of the framework's cleanup contract: purging the
+ephemeral docs/temp/ scratchpad on human acceptance
 while never touching gate-log.md until a human explicitly clears it. The
 engine never decides whether the task was accepted - the agent calls it when
 the acceptance gate has passed (phase-protocol review.md section 4.2).
@@ -11,7 +11,7 @@ Modes:
     clean    clean.py clean [--dry-run] [--preserve <list>] [--temp-dir <dir>]
              Delete every file and subdirectory inside the scratchpad except
              the preserved basenames. Default preserve list: gate-log.md
-             (append-only audit file, 000 ss3.4.2) and .gitignore (the file
+             (append-only audit file) and .gitignore (the file
              that makes the directory ephemeral). --preserve "" is the
              explicit override that allows purging everything - only lawful
              after a human has reviewed and cleared the gate-log. --dry-run
