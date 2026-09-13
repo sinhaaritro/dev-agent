@@ -66,6 +66,9 @@ Modes:
               Regenerate the deterministic "## Index" marker blocks in the
               README.md of the three committed docs folders (specs/,
               decisions/, reference/) and the docs/ landing README.
+              --root is the docs dir (default <repo>/docs) - never the repo
+              root; a repo root passed by mistake is auto-corrected to
+              <repo>/docs so stray top-level folders are never created.
               --dry-run prints each computed block without writing. Never
               touches text outside the <!-- TOC:START -->/END markers.
 
@@ -374,8 +377,9 @@ def slug_from_title(text: str) -> str:
 
     Leading ID tokens are stripped so a draft titled '# 103: Refresh Token
     Column' promotes to 'refresh-token-column', a sub-ID draft titled
-    '# 001-A01: Child Plan' promotes to 'child-plan', and an ADR titled
-    '# ADR-001: In-Memory Storage' files to 'in-memory-storage'
+    '# 001-A01: Child Plan' promotes to 'child-plan', an ADR titled
+    '# ADR-001: In-Memory Storage' files to 'in-memory-storage', and an
+    unnumbered ADR titled '# ADR: Topic Name' files to 'topic-name'
     (sub-ID titles carry no numeric prefix in the filename).
     """
     title = ""
@@ -383,7 +387,7 @@ def slug_from_title(text: str) -> str:
         if line.strip().startswith("# "):
             title = line.strip().lstrip("# ").strip()
             break
-    title = re.sub(r"^(\[\S+\]|\d{3}-[A-Z]\d{2}(?:-[A-Z]\d{2})?|\d{3}|ADR-\d{3}):\s*", "", title)
+    title = re.sub(r"^(\[\S+\]|\d{3}-[A-Z]\d{2}(?:-[A-Z]\d{2})?|\d{3}|ADR(-\d{3})?):\s*", "", title)
     slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
     return slug or "spec"
 
@@ -568,7 +572,7 @@ def cmd_adr(args: argparse.Namespace) -> int:
         text = stamp_source(text, args.source)
     target.write_text(ensure_frontmatter_tags(text), encoding="utf-8")
     print(f"adr: {target}")
-    _refresh_toc_for(find_root())
+    _refresh_toc_for(find_root() / "docs")
     return 0
 
 
@@ -638,7 +642,7 @@ def ensure_scratchpad_guard(handoff_dir: Path) -> None:
     """
     root = handoff_dir
     for _ in range(4):
-        if (root / "AGENTS.md").is_file() and (root / ".agents").is_dir():
+        if (root / "AGENTS.md").is_file():
             break
         root = root.parent
     root_ignore = root / ".gitignore"
@@ -899,6 +903,23 @@ def _landing_readme_stub() -> str:
         f"{TAG_START}\n"
         f"{TAG_END}\n"
     )
+
+
+def _docs_root(root: Path) -> Path:
+    """Resolve the canonical docs root, self-correcting a repo-root mistake.
+
+    The TOC writers assume ``root`` is the docs root (``<repo>/docs``), but a
+    caller or a misused ``--root`` can hand over the repo root itself. A docs
+    root never contains ``AGENTS.md`` (the repo root does), so when ``root`` is
+    a repo root we redirect to ``root / "docs"`` instead of materializing
+    ``specs``/``decisions``/``reference`` at the repo top level. This removes
+    the latent inconsistency rather than trusting every caller to pass the
+    right path.
+    """
+    if (root / "AGENTS.md").is_file():
+        print(f"warning: {root} is a repo root; using {root / 'docs'} for the TOC")
+        return root / "docs"
+    return root
 
 
 def _ensure_docs_readmes(root: Path) -> None:
@@ -1166,6 +1187,7 @@ def _refresh_toc_for(root: Path) -> None:
     READMEs are bootstrapped with marker scaffolding first, so a fresh repo
     gets its index on the first lifecycle event.
     """
+    root = _docs_root(root)
     _ensure_docs_readmes(root)
     docs = _scan_docs(root)
     targets = [
@@ -1183,12 +1205,13 @@ def _refresh_toc_for(root: Path) -> None:
 
 
 def cmd_toc(args: argparse.Namespace) -> int:
-    _ensure_docs_readmes(args.root)
-    docs = _scan_docs(args.root)
+    root = _docs_root(args.root)
+    _ensure_docs_readmes(root)
+    docs = _scan_docs(root)
     targets = [
-        (args.root / "README.md", _build_toc_lines(docs, landing=True)),
+        (root / "README.md", _build_toc_lines(docs, landing=True)),
     ] + [
-        (args.root / folder / "README.md", _build_toc_lines(docs, (folder,), landing=False))
+        (root / folder / "README.md", _build_toc_lines(docs, (folder,), landing=False))
         for folder in COMMIT_FOLDERS
     ]
     for target, block in targets:
@@ -1424,6 +1447,10 @@ def main() -> int:
         args.root = root_default
     if args.command in ("tag-list", "tag-suggest", "tag-lint", "tag-rename", "tag-index") and args.root is None:
         args.root = root_default
+    # Normalize a misused repo root to <repo>/docs for every --root subcommand,
+    # so no engine entry point can materialize top-level docs folders.
+    if getattr(args, "root", None) is not None:
+        args.root = _docs_root(args.root)
     return args.func(args)
 
 
