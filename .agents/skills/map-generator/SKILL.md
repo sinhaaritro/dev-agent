@@ -26,13 +26,13 @@ You keep `.agents/MAP.md` current — the single table-format index of all skill
 ## Instructions
 
 1. Engine: `.agents/skills/map-generator/scripts/generate_map.py`.
-2. Run it (one-time setup: `uv venv` in the repo root):
-   `python .agents/skills/map-generator/scripts/generate_map.py`
+2. Run it (one-time setup: `python3 -m venv .venv` in the repo root; always invoke through the venv interpreter, never bare `python`):
+   `.venv/bin/python .agents/skills/map-generator/scripts/generate_map.py`
 3. Interpret the output exactly:
    - `MAP.md is fresh` — index is current; proceed with the existing MAP.md.
    - `regenerated` — index was rebuilt; **re-read** `.agents/MAP.md` before matching anything against it.
 4. `--force` rebuilds unconditionally:
-   `python .agents/skills/map-generator/scripts/generate_map.py --force`
+   `.venv/bin/python .agents/skills/map-generator/scripts/generate_map.py --force`
    (Use after manual MAP.md edits — which are forbidden; the file is auto-generated.)
 
 ## Output Format

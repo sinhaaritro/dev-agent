@@ -1,28 +1,20 @@
 # Framework: Python
 
-Canonical commands and failure patterns for Python projects. Two styles are covered: `uv`-managed (uv.lock / [tool.uv] present) and plain system Python + venv. Pick the style by detection, then use that style's commands verbatim. For plain Python projects, the project declares a `Run Prefix` in `AGENTS.md` (for example `source .venv/bin/ && `, or empty for PATH python) - the canonical commands below apply with that prefix when set.
+Canonical commands and failure patterns for Python projects. Plain system Python + venv is the **default** style; `uv`-managed projects (uv.lock / [tool.uv] present) are the **alternate**. Pick the style by detection, then use that style's commands verbatim. **Always prefer the venv:** activate it (or use the project's `Run Prefix`) rather than relying on bare PATH commands. For plain Python projects, the project declares a `Run Prefix` in `AGENTS.md` (for example `source .venv/bin/ && `, or empty for PATH python) - the canonical commands below apply with that prefix when set.
 
 ## Detection
 
-- `uv.lock` or pyproject.toml with a `[tool.uv]` section -> **uv style**
-- `pyproject.toml` only (or `setup.py` / `requirements.txt`) -> **plain style**
+- `pyproject.toml` only, or `setup.py` / `requirements.txt` (no uv signal) -> **plain style (default)**
+- `uv.lock` or pyproject.toml with a `[tool.uv]` section -> **uv style (alternate)**
+
+Always try to use the venv: if `.venv/` exists, run commands through it (activate it or use the `Run Prefix`); create it (`python -m venv .venv`) if missing.
 
 ## Canonical commands
 
-### uv style (this repository)
-
-- Install / sync dependencies: `uv sync` (uv reads pyproject.toml + uv.lock; never use bare `pip install` in a uv project - it bypasses the lockfile)
-- Run a script: `python <script>` (or `uv run <tool>` for tools declared in `[dependency-groups]` / `[project.scripts]`)
-- Test (full suite): `uv run pytest`
-- Test (single file): `uv run pytest tests/path/to/test_module.py`
-- Test (single test): `uv run pytest tests/path/to/test_module.py::test_name`
-- Lint: `uv run ruff check .`
-- Format check: `uv run ruff format --check .`
-- Type check (if mypy/pyright configured): `uv run mypy src`
-
-### Plain style (system python + venv)
+### Plain style (default: system python + venv)
 
 - Provision the venv (once): `python -m venv .venv`
+- Activate the venv (always prefer this before running): `source .venv/bin/activate` (Unix) / `.venv\Scripts\activate` (Windows)
 - Install / sync dependencies: `python -m pip install -r requirements.txt` (or `python -m pip install -e .` for a pyproject.toml package); optionally `python -m pip freeze > requirements.lock` for a lockfile
 - Test (full suite): `pytest`
 - Test (single file): `pytest tests/path/to/test_module.py`
@@ -32,6 +24,17 @@ Canonical commands and failure patterns for Python projects. Two styles are cove
 - Type check (if mypy/pyright configured): `mypy src`
 
 When the venv is not already activated, run the plain commands through the project's `Run Prefix` from `AGENTS.md` (e.g. `source .venv/bin/ && pytest` on Unix, `call .venv\Scripts\activate && pytest` on Windows).
+
+### uv style (alternate: uv-managed projects)
+
+- Install / sync dependencies: `uv sync` (uv reads pyproject.toml + uv.lock; never use bare `pip install` in a uv project - it bypasses the lockfile)
+- Run a script: `python <script>` (or `uv run <tool>` for tools declared in `[dependency-groups]` / `[project.scripts]`)
+- Test (full suite): `uv run pytest`
+- Test (single file): `uv run pytest tests/path/to/test_module.py`
+- Test (single test): `uv run pytest tests/path/to/test_module.py::test_name`
+- Lint: `uv run ruff check .`
+- Format check: `uv run ruff format --check .`
+- Type check (if mypy/pyright configured): `uv run mypy src`
 
 ## Failure patterns & fixes
 
@@ -45,6 +48,6 @@ When the venv is not already activated, run the plain commands through the proje
 
 ## Verification checklist
 
-- Build/install step: `uv sync` (uv, frozen when the lockfile is authoritative) or `python -m pip install -r requirements.txt` (plain)
-- Test step: `uv run pytest` (uv) or `pytest` (plain, with the project's `Run Prefix` when the venv is not activated) - full suite or the scoped invocation from the plan's section 5
-- Lint step: `uv run ruff check .` (uv) or `ruff check .` (plain; and `ruff format --check .` when the plan says formatting)
+- Build/install step: `python -m pip install -r requirements.txt` (plain, default) or `uv sync` (uv alternate; `--frozen` when the lockfile is authoritative)
+- Test step: `pytest` (plain, default - run with the venv activated or the project's `Run Prefix`) or `uv run pytest` (uv alternate) - full suite or the scoped invocation from the plan's section 5
+- Lint step: `ruff check .` (plain, default; and `ruff format --check .` when the plan says formatting) or `uv run ruff check .` (uv alternate)
