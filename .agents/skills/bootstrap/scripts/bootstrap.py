@@ -5,6 +5,7 @@ Copies the canonical seed files from this skill's reference/ folder to
 their proper locations in the target repository:
 
     reference/AGENTS.md        -> <target>/AGENTS.md
+    reference/.gitignore       -> <target>/.gitignore
     reference/rules/system.md  -> <target>/.agents/rules/system.md
     reference/.cursorrules     -> <target>/.cursorrules
     reference/.windsurfrules   -> <target>/.windsurfrules
@@ -18,9 +19,13 @@ Usage:
     python <skill>/scripts/bootstrap.py --target /path/to/repo --dry-run
 
 Per-file report lines:
-    dry-run: new: <rel>  ok: <rel>  overwrite: <rel>
-    install: installed: <rel>  unchanged: <rel>  updated: <rel>
+    dry-run: new: <rel>  ok: <rel>  overwrite: <rel>  append: <rel>
+    install: installed: <rel>  unchanged: <rel>  updated: <rel>  appended: <rel>
 Summary line (install): bootstrap complete: <N> installed, <M> updated, <K> unchanged
+
+.gitignore is special: an existing target .gitignore is never clobbered. Bootstrap
+appends only the seed's ignore patterns that are not already present (idempotent);
+a brand-new target gets the full seed .gitignore.
 
 Exit codes: 0 = success (including dry-run); 1 = error (bad target,
 missing seed file, self-bootstrap refused).
@@ -34,6 +39,7 @@ from pathlib import Path
 # (path inside reference/, path inside the target repo)
 SEED_FILES = (
     ("AGENTS.md", "AGENTS.md"),
+    (".gitignore", ".gitignore"),
     ("rules/system.md", ".agents/rules/system.md"),
     (".cursorrules", ".cursorrules"),
     (".windsurfrules", ".windsurfrules"),
@@ -89,6 +95,27 @@ def rel_or_root(path: Path, base: Path) -> str:
         return path.name
 
 
+def parse_gitignore(content: str):
+    """Split gitignore content into (header_comment, [pattern_lines]).
+
+    header_comment is the first comment line ("" if none); pattern_lines are the
+    non-blank, non-comment lines in original order. Blank lines and other comments
+    are dropped. Used to merge an existing .gitignore without clobbering it.
+    """
+    header = ""
+    patterns = []
+    for line in content.splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        if s.startswith("#"):
+            if not header:
+                header = s
+        else:
+            patterns.append(s)
+    return header, patterns
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="bootstrap: install the Dev Agent framework into a target repository"
@@ -126,7 +153,13 @@ def main() -> int:
     for seed_rel, dest_rel in SEED_FILES:
         src = skill_root / "reference" / seed_rel
         dst = target / dest_rel
-        if not dst.exists():
+        if seed_rel == ".gitignore" and dst.exists():
+            # never clobber an existing .gitignore: only append missing patterns
+            _seed_header, seed_patterns = parse_gitignore(src.read_text())
+            _existing_header, existing_patterns = parse_gitignore(dst.read_text())
+            missing = [p for p in seed_patterns if p not in set(existing_patterns)]
+            status = "append" if missing else "ok"
+        elif not dst.exists():
             status = "new"
         elif dst.is_file() and dst.read_bytes() == src.read_bytes():
             status = "ok"
@@ -148,6 +181,22 @@ def main() -> int:
             unchanged += 1
             continue
         dst.parent.mkdir(parents=True, exist_ok=True)
+        if status == "append":
+            seed_header, seed_patterns = parse_gitignore(src.read_text())
+            existing = dst.read_text()
+            _existing_header, existing_patterns = parse_gitignore(existing)
+            missing = [p for p in seed_patterns if p not in set(existing_patterns)]
+            block_lines = []
+            if seed_header and seed_header not in existing:
+                block_lines.append(seed_header)
+            block_lines.extend(missing)
+            block = "\n".join(block_lines) + "\n"
+            if existing and not existing.endswith("\n"):
+                existing += "\n"
+            dst.write_text(existing + block)
+            print("appended: " + rel)
+            updated += 1
+            continue
         shutil.copyfile(src, dst)
         if status == "new":
             print("installed: " + rel)

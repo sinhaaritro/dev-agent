@@ -21,6 +21,7 @@ You install the Dev Agent framework into a target repository by copying the cano
 | Source (skill-local) | Destination (target repo) |
 | :--- | :--- |
 | `reference/AGENTS.md` | `AGENTS.md` (repo root) |
+| `reference/.gitignore` | `.gitignore` (repo root) |
 | `reference/rules/system.md` | `.agents/rules/system.md` |
 | `reference/.cursorrules` | `.cursorrules` (repo root) |
 | `reference/.windsurfrules` | `.windsurfrules` (repo root) |
@@ -41,8 +42,8 @@ Copy mechanics belong to `scripts/bootstrap.py`; you decide WHERE the target rep
 1. **Identify the target repo.** The target is the repository being set up — almost never the repo this skill lives in. Confirm the absolute path before running.
 2. **Dry-run first.** Always preview:
    `python <this-skill>/scripts/bootstrap.py --target <abs-path> --dry-run`
-   The report lists every file as `new:`, `ok:` (identical, nothing to do), or `overwrite:` (differs, will be replaced). Show it to the human.
-3. **Overwrite policy.** Files marked `overwrite:` are replaced by the canonical seed. Existing content in the target that diverges (e.g. a filled-in `AGENTS.md`) is lost — confirm with the human before a real run that overwrites anything. A target where every file is `new:` or `ok:` needs no confirmation.
+    The report lists every file as `new:`, `ok:` (identical, nothing to do), `overwrite:` (differs, will be replaced), or `append:` (existing `.gitignore` will get only its missing patterns added). Show it to the human.
+    3. **Overwrite policy.** Files marked `overwrite:` are replaced by the canonical seed. Existing content in the target that diverges (e.g. a filled-in `AGENTS.md`) is lost — confirm with the human before a real run that overwrites anything. A target where every file is `new:` or `ok:` needs no confirmation. **`.gitignore` is never overwritten:** an existing one is only appended with the seed's missing ignore patterns (idempotent), so a target's own ignores are always preserved.
 4. **Run the install:**
    `python <this-skill>/scripts/bootstrap.py --target <abs-path>`
    Success contract: one line per file (`installed:` / `updated:` / `unchanged:`) followed by `bootstrap complete: N installed, M updated, K unchanged`.
@@ -50,7 +51,7 @@ Copy mechanics belong to `scripts/bootstrap.py`; you decide WHERE the target rep
 
 ## Output Contract
 
-- Dry-run: the per-file list (`new:` / `ok:` / `overwrite:`) verbatim in block 2; block 4 states the real run proceeds only on confirmation when any `overwrite:` is present.
+- Dry-run: the per-file list (`new:` / `ok:` / `overwrite:` / `append:`) verbatim in block 2; block 4 states the real run proceeds only on confirmation when any `overwrite:` is present.
 - Install: the per-file lines plus the `bootstrap complete:` summary verbatim; block 4 states the target is bootstrapped and names the next step.
 - Errors (bad target, source tree refused, missing seed files): the engine's error message verbatim; no partial install is reported as success.
 
@@ -60,4 +61,4 @@ Copy mechanics belong to `scripts/bootstrap.py`; you decide WHERE the target rep
 - **Self-bootstrap is refused:** running with `--target` at or above the skill's own repo root exits 1 — this repo is the framework's source of truth, not a bootstrap target.
 - **`--target` is required.** No defaults, no guessing. A relative path is resolved against the current working directory and reported in the output.
 - **Reference files are the canonical seeds.** To change what bootstrap installs, edit the files under `reference/` in this skill — never the destination. Destinations are generated output.
-- **Idempotent:** re-running against an already-bootstrapped target prints `unchanged:` for every file and changes nothing.
+- **Idempotent:** re-running against an already-bootstrapped target prints `unchanged:` for every file and changes nothing. `.gitignore` appends only patterns not already present, so repeated runs never duplicate lines.
