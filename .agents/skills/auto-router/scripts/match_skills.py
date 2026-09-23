@@ -172,7 +172,7 @@ def find_root() -> Path:
 def tokenize(text: str) -> list[str]:
     """Lowercase, split on non-alphanumerics, drop stopwords.
 
-    Splitting on any non-alphanumeric boundary means "docs/specs" and
+    Splitting on any non-alphanumeric boundary means "specs" and
     "draft-plan.md" yield ["docs", "specs"] and ["draft", "plan", "md"].
     """
     tokens = [t for t in re.split(r"[^a-z0-9]+", text.lower()) if t]

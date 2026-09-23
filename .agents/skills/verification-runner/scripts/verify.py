@@ -9,9 +9,9 @@ lives on disk so the limit survives across agent turns and cannot be
 silently reset by forgetting. The engine is a ledger, never a judge: it
 records what the command actually returned and trips at the threshold.
 
-State: docs/temp/verify-state.json (gitignored scratchpad, per-task keys,
-purged by task-cleaner on acceptance). Escalation: docs/temp/escalation.md.
-Approvals: docs/temp/approvals.json (gitignored scratch, per-task lifetime;
+State: specs/temp/verify-state.json (gitignored scratchpad, per-task keys,
+purged by task-cleaner on acceptance). Escalation: specs/temp/escalation.md.
+Approvals: specs/temp/approvals.json (gitignored scratch, per-task lifetime;
 a new session re-approves - the safe default).
 
 Modes:
@@ -163,14 +163,14 @@ def ensure_scratchpad_guard(state_dir: Path) -> None:
         root_ignore.write_text("# DEV Agent framework\n", encoding="utf-8")
     lines = root_ignore.read_text(encoding="utf-8").splitlines()
     if not any(
-        ln.strip().strip("/") in ("docs", "docs/temp")
+        ln.strip().strip("/") in ("specs", "specs/temp")
         for ln in lines
         if ln.strip() and not ln.strip().startswith("#")
     ):
         text = root_ignore.read_text(encoding="utf-8")
         if text and not text.endswith("\n"):
             text += "\n"
-        root_ignore.write_text(text + "\ndocs/temp\n", encoding="utf-8")
+        root_ignore.write_text(text + "\nspecs/temp\n", encoding="utf-8")
 
 
 def write_state(state_dir: Path, state: dict) -> None:
@@ -541,7 +541,7 @@ def main() -> int:
 
     args = parser.parse_args()
     if getattr(args, "state_dir", None) is None:
-        args.state_dir = find_root() / "docs" / "temp"
+        args.state_dir = find_root() / "specs" / "temp"
     return args.func(args)
 
 

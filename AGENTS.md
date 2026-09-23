@@ -12,7 +12,8 @@
 
 - `src/` - application source code
 - `tests/` - test suite
-- `docs/` - shared space: `docs/specs/`, `docs/decisions/`, `docs/reference/`, and `docs/temp/` (gitignored scratchpad); human landing page at `docs/README.md`
+- `specs/` - what to build: approved specs with a lifecycle (DRAFT -> APPROVED) + `specs/temp/` (gitignored scratchpad)
+- `docs/` - what is + why we chose: reference series `001..007`, topic docs (per-subsystem decision log; AI index at `docs/_topics.md`); human landing page at `docs/README.md`
 - `.agents/` - machine space: `MAP.md` (generated skill index), `.agents/rules/`, `.agents/skills/`, `.agents/scripts/`
 
 ## Commands

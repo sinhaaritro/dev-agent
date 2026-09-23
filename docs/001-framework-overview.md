@@ -45,12 +45,15 @@ It is:
 ├── .windsurfrules               # IDE pointer -> .agents/rules/system.md
 ├── skills.sh.json               # skills.sh catalog groupings (install via npx skills)
 │
+├── specs/                       # What to build — specs with a lifecycle (DRAFT -> APPROVED)
+│   └── temp/                    # EPHEMERAL SCRATCHPAD (gitignored: * except .gitignore)
+│
 ├── docs/                        # HUMAN + AI SHARED SPACE (committed)
 │   ├── README.md                # Landing page with generated Index block
-│   ├── specs/                   # What to build — specs with a lifecycle (DRAFT -> APPROVED)
-│   ├── decisions/               # Why we chose — immutable ADRs, backlinked to specs
-│   ├── reference/               # What is — this series; living, no lifecycle
-│   └── temp/                    # EPHEMERAL SCRATCHPAD (gitignored: * except .gitignore)
+│   ├── 001..007-*.md            # Reference series — "what is"; living, no lifecycle
+│   ├── <name>.md or <name>/     # Why we chose — topic docs: one livedoc per subsystem
+│   │                            #   (## Current State + ## Decision Log)
+│   └── _topics.md               # Generated AI routing index for the topic docs (sync-docs)
 │
 └── .agents/                     # MACHINE SPACE (AI internals)
     ├── rules/
@@ -69,10 +72,10 @@ Memory is strictly split:
 
 | Tier | Location | Lifecycle | Examples |
 | :--- | :--- | :--- | :--- |
-| Ephemeral working memory | `docs/temp/` (gitignored) | Purged on task acceptance by `task-cleaner` | `draft-plan.md`, `active-task.md`, `escalation.md`, `gate-log.md`, `handoff.md`, `verify-state.json` |
-| Persistent memory | `docs/specs/`, `docs/decisions/`, `docs/reference/` (committed) | Never purged; specs have a lifecycle; ADRs and reference docs are living/immutable | promoted specs, ADRs, this series |
+| Ephemeral working memory | `specs/temp/` (gitignored) | Purged on task acceptance by `task-cleaner` | `draft-plan.md`, `active-task.md`, `escalation.md`, `gate-log.md`, `handoff.md`, `verify-state.json` |
+| Persistent memory | topic docs + reference series under `docs/`, specs under `specs/` (committed) | Never purged; specs have a lifecycle; topic docs and reference docs are living (decisions revised in place, never deleted) | topic docs, promoted specs, this series |
 
-The one deliberate exception: `docs/temp/gate-log.md` is append-only and
+The one deliberate exception: `specs/temp/gate-log.md` is append-only and
 survives every purge until a human explicitly reviews and clears it — it is the
 audit trail of autonomous gate decisions.
 
@@ -83,7 +86,7 @@ audit trail of autonomous gate decisions.
 | `auto-router` | Triage: lane assignment (D/C/B/A), session detection, skill recall, escalation monitoring | `match_skills.py` |
 | `map-generator` | Keeps `.agents/MAP.md` fresh (snapshot-hash freshness check) | `generate_map.py` |
 | `phase-protocol` | Meta-skill: SDLC phases, Socratic gates, autonomy policy, 4-block response schema | `resolve_gate.py` |
-| `spec-builder` | Plan drafting, spec promotion, ADR filing, handoff recording, tag governance, TOC rollup | `promote_spec.py` |
+| `spec-builder` | Plan drafting, spec promotion, topic decision recording, handoff recording, tag governance, TOC rollup | `promote_spec.py` |
 | `verification-runner` | Verification command execution, 3-retry circuit breaker, escalation reports | `verify.py` |
 | `task-cleaner` | Scratchpad garbage collection on acceptance (preserves gate-log) | `clean.py` |
 | `bootstrap` | Installs the framework (AGENTS.md + system.md + IDE pointers) into a target repo | `bootstrap.py` |
@@ -104,21 +107,24 @@ Defined in `.agents/rules/system.md`, in order:
    candidate skills (candidates only, never a filter).
 3. **Gover (phase-protocol).** Drive Plan → 1.5-Handoff → Build → Review;
    emit the 5-tag status header and 4-block schema; resolve every gate through
-   `resolve_gate.py`; at approval, promote the spec, file ADRs, record the
-   handoff — then the session stops.
+    `resolve_gate.py`; at approval, promote the spec, record topic decisions,
+    record the handoff — then the session stops.
 4. **Load matching on-demand skills** and obey their engines (spec-builder for
    plans, verification-runner for verification, task-cleaner for cleanup).
-5. **No matching skill** → baseline: plan in `docs/temp/draft-plan.md`, build,
+5. **No matching skill** → baseline: plan in `specs/temp/draft-plan.md`, build,
    verify, promote only on human acceptance.
 
 ## 6. Guardrails (non-negotiable, regardless of loaded skills)
 
 - Never modify or delete `.env*` files, credentials/keys/certificates, or
   lockfiles (unless executing approved dependency commands).
-- Never modify `docs/decisions/*` or `docs/specs/*` without explicit human
-  confirmation — filed records are immutable.
-- Never commit `docs/temp/` contents.
-- `docs/temp/gate-log.md` is append-only, never purged until a human reviews it.
+- Never modify `specs/*` without explicit human confirmation.
+- Topic guardrail: no silent / unrequested topic-doc edits in any lane; Lanes
+  A/B consult topic docs and emit the Conflict Surface on a reversal; Lanes
+  C/D skip docs and escalate on a pattern-break; a reversal is a revision
+  (next ID, `--supersedes`), never "delete + recreate".
+- Never commit `specs/temp/` contents.
+- `specs/temp/gate-log.md` is append-only, never purged until a human reviews it.
 - Blocking gates are never resolved by judgment alone — the gate engine is the
   single decision path.
 

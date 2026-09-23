@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""spec-builder engine - draft validation, spec promotion, ADR filing, and handoff.
+"""spec-builder engine - draft validation, spec promotion, topic decisions, and handoff.
 
 Owns the mechanical parts of the spec lifecycle: template
-enforcement, sequential numbering, promotion mechanics, Architectural
-Decision Record filing, and the Phase 1.5 handoff record. The
-acceptance gate itself is the caller's - the agent asserts it via --status
+enforcement, sequential numbering, promotion mechanics, Topic-Based
+decision recording, and the Phase 1.5 handoff record. The acceptance
+gate itself is the caller's - the agent asserts it via --status
 (APPROVED for human acceptance, PROVISIONAL for a compliant autonomous
-resolution); this script never decides whether the gate passed. ADRs are
-filed only alongside APPROVED promotion (human acceptance).
+resolution); this script never decides whether the gate passed. Topic
+decisions are recorded only alongside APPROVED promotion (human
+acceptance).
 
 Modes:
     check    promote_spec.py check <draft> --lane <B|A>
@@ -34,43 +35,51 @@ Modes:
              title, write the promoted file with its Status line replaced,
              and refuse if the target already exists. --specs-dir overrides
              the target directory (tests and evals use a sandbox; the real
-             docs/specs/ is never touched by verification).
+             specs/ is never touched by verification).
 
-    adr      promote_spec.py adr <draft-adr> [--source <spec-path>]
-                 [--dry-run] [--decisions-dir <dir>]
-             Validate an ADR draft against references/adr-template.md (title,
-             "Status: Accepted", "Date: YYYY-MM-DD", and the Context, Decision,
-             Consequences sections), compute the next adr number by scanning
-             the decisions directory for the max "adr-<NNN>-" prefix + 1,
-             derive the slug from the title, stamp the Source: line from
-             --source when given, refuse to overwrite an existing ADR (ADRs
-             are protected files - system.md section 3), and write the record
-             to docs/decisions/. --decisions-dir overrides the target
-             directory (tests and evals use a sandbox; the real
-             docs/decisions/ is never touched by verification).
+    topic    promote_spec.py topic <name> --why <text> [--title <text>]
+                  [--file <sub>] [--tags a,b] [--state <text>]
+                  [--supersedes <ID>] [--affects <target>]
+                  [--reciprocal <topic>] [--reciprocal-file <sub>]
+                  [--reciprocal-why <text>] [--reciprocal-state <text>]
+                  [--reciprocal-title <text>] [--date YYYY-MM-DD]
+                  [--docs-dir <dir>] [--dry-run]
+              The Topic-Based ADR path: create a topic doc
+              (docs/<name>.md or docs/<name>/<sub>.md) or revise an existing
+              one. A revision allocates the next <TOPIC>-D<nn> by scanning
+              every file of the topic (IDs are topic-global, never reused),
+              updates the Current State in place when --state is given, marks
+              a --supersedes entry "(superseded)" (never deleted), appends the
+              Decision Log entry (Date / Why / Supersedes / Affects / Ref),
+              and, when --reciprocal is given, writes a terse Ref entry in the
+              affected topic pointing back at the primary decision (the
+              primary records the one-way Affects pointer). Links are plain
+              heading anchors. --docs-dir overrides the target (tests and
+              evals use a sandbox; the real docs/ is never touched by
+              verification).
 
     handoff  promote_spec.py handoff <spec> --lane <B|A>
-                 [--dry-run] [--handoff-dir <dir>] [--decisions-dir <dir>]
-              Record the Phase 1.5 handoff for an approved spec.
-              Validates the spec exists with Status: APPROVED (Lane A also
-              requires at least one ADR whose Source: points at the spec;
-              Lane B allows zero), writes docs/temp/handoff.md (ephemeral
-              record), and stamps "Handoff: <YYYY-MM-DD>" on the spec's
-              status header (durable marker). Idempotent - re-running against
-              an already-handoffed spec reports the existing record and exits
-              0. --dry-run prints what would be written without writing.
-              --handoff-dir/--decisions-dir override the targets (tests and
-              evals use a sandbox; the real docs/ are never touched).
+                   [--dry-run] [--handoff-dir <dir>]
+               Record the Phase 1.5 handoff for an approved spec.
+               Validates the spec exists with Status: APPROVED, writes
+               specs/temp/handoff.md (ephemeral record), and stamps
+               "Handoff: <YYYY-MM-DD>" on the spec's status header
+               (durable marker). Idempotent - re-running against an
+               already-handoffed spec reports the existing record and exits
+               0. --dry-run prints what would be written without writing.
+               --handoff-dir overrides the target (tests and evals use a
+               sandbox; the real docs/ are never touched).
 
-    toc      promote_spec.py toc [--root <dir>] [--dry-run]
-              Regenerate the deterministic "## Index" marker blocks in the
-              README.md of the three committed docs folders (specs/,
-              decisions/, reference/) and the docs/ landing README.
-              --root is the docs dir (default <repo>/docs) - never the repo
-              root; a repo root passed by mistake is auto-corrected to
-              <repo>/docs so stray top-level folders are never created.
-              --dry-run prints each computed block without writing. Never
-              touches text outside the <!-- TOC:START -->/END markers.
+     toc      promote_spec.py toc [--root <dir>] [--dry-run]
+                Regenerate the deterministic "## Index" marker blocks in the
+                docs/ landing README (reference series + specs) and the
+                specs/README.md (specs only).
+               --root is the repo root (default <repo>) - the engine scans
+               <root>/specs and <root>/docs. A misused nested path (e.g.
+               <repo>/docs) is auto-corrected to the repo root so stray
+               folders are never created.
+               --dry-run prints each computed block without writing. Never
+               touches text outside the <!-- TOC:START -->/END markers.
 
     tag-list    promote_spec.py tag-list [--root <dir>]
               Read-only: print a sorted per-folder report of tag -> files
@@ -86,20 +95,18 @@ Modes:
               The only tag writer: rewrites the tags frontmatter line of
               every doc carrying <old>. Prose outside the frontmatter is
               never touched.
-    tag-index   promote_spec.py tag-index [--root <dir>] [--dry-run]
-              Write the "## Tag Index" marker block into each folder
-              README's docs/README.md.
+     tag-index   promote_spec.py tag-index [--root <dir>] [--dry-run]
+               Write the "## Tag Index" marker block into docs/README.md.
 
 Usage:
     python .agents/skills/spec-builder/scripts/promote_spec.py \
-        check docs/temp/draft-plan.md --lane B
+        check specs/temp/draft-plan.md --lane B
     python .agents/skills/spec-builder/scripts/promote_spec.py \
-        promote docs/temp/draft-plan.md --lane A --status APPROVED
+        promote specs/temp/draft-plan.md --lane A --status APPROVED
     python .agents/skills/spec-builder/scripts/promote_spec.py \
-        adr docs/temp/adr-draft-<topic>.md \
-        --source <promoted-spec>
+        topic auth --why "Cookies beat JWT here" --title "Session cookies"
     python .agents/skills/spec-builder/scripts/promote_spec.py \
-        handoff docs/specs/<NNN>-<slug>.md --lane A
+        handoff specs/<NNN>-<slug>.md --lane A
 
 Exit codes: 0 = ok; 1 = check failed, exists, or violation/error.
 """
@@ -113,7 +120,9 @@ from pathlib import Path
 LANE_SECTIONS = {"B": {1, 4, 5}, "A": {1, 2, 3, 4, 5, 6, 7}}
 PROVISIONAL_STATUS = "PROVISIONAL - AUTONOMOUS DEFAULT"
 
-COMMIT_FOLDERS = ("specs", "decisions", "reference")
+SPEC_FOLDER = "specs"
+COMMIT_FOLDERS = ("specs",)
+REF_SERIES_RE = re.compile(r"^\d{3}-.+\.md$")
 TOC_START = "<!-- TOC:START -->"
 TOC_END = "<!-- TOC:END -->"
 TAG_START = "<!-- TAG-INDEX:START -->"
@@ -128,7 +137,7 @@ def find_root() -> Path:
     """The repository root: the nearest AGENTS.md marker.
 
     Walks up from the CWD first so sandboxed runs (``--specs-dir`` /
-    ``--decisions-dir`` / ``--handoff-dir`` under /tmp) resolve their docs
+    ``--docs-dir`` / ``--handoff-dir`` under /tmp) resolve their docs
     root to the sandbox, not the engine's own repo. Falls back to walking up
     from the script location when the CWD has no marker (e.g. the engine is
     invoked from an unrelated directory with explicit target dirs).
@@ -376,18 +385,16 @@ def slug_from_title(text: str) -> str:
     """Derive a slug from the first '#' title: lowercase, non-alnum to hyphen.
 
     Leading ID tokens are stripped so a draft titled '# 103: Refresh Token
-    Column' promotes to 'refresh-token-column', a sub-ID draft titled
-    '# 001-A01: Child Plan' promotes to 'child-plan', an ADR titled
-    '# ADR-001: In-Memory Storage' files to 'in-memory-storage', and an
-    unnumbered ADR titled '# ADR: Topic Name' files to 'topic-name'
-    (sub-ID titles carry no numeric prefix in the filename).
+    Column' promotes to 'refresh-token-column' and a sub-ID draft titled
+    '# 001-A01: Child Plan' promotes to 'child-plan' (sub-ID titles carry
+    no numeric prefix in the filename).
     """
     title = ""
     for line in text.splitlines():
         if line.strip().startswith("# "):
             title = line.strip().lstrip("# ").strip()
             break
-    title = re.sub(r"^(\[\S+\]|\d{3}-[A-Z]\d{2}(?:-[A-Z]\d{2})?|\d{3}|ADR(-\d{3})?):\s*", "", title)
+    title = re.sub(r"^(\[\S+\]|\d{3}-[A-Z]\d{2}(?:-[A-Z]\d{2})?|\d{3}):\s*", "", title)
     slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
     return slug or "spec"
 
@@ -473,109 +480,6 @@ def _lint_tags(tags: list[str]) -> list[str]:
     return problems
 
 
-def adr_required_sections() -> list[str]:
-    """The body sections an ADR must carry (references/adr-template.md)."""
-    return ["Context", "Decision", "Consequences"]
-
-
-def check_adr(text: str) -> tuple[bool, list[str]]:
-    """Return (ok, missing) for the ADR template's required elements."""
-    lines = text.splitlines()
-    missing: list[str] = []
-    if not any(line.strip().startswith("# ") for line in lines):
-        missing.append("title")
-    if not re.search(r"(?m)^Status:\s*Accepted\s*$", text):
-        missing.append("Status: Accepted")
-    if not re.search(r"(?m)^Date:\s*\d{4}-\d{2}-\d{2}\s*$", text):
-        missing.append("Date: YYYY-MM-DD")
-    for section in adr_required_sections():
-        if not any(
-            re.match(r"^##\s+" + section + r"\s*$", line.strip()) for line in lines
-        ):
-            missing.append(section)
-    return (not missing), missing
-
-
-def next_adr_number(decisions_dir: Path) -> int:
-    """Highest 'adr-<NNN>' prefix in the decisions directory + 1 (1 if empty)."""
-    highest = 0
-    if decisions_dir.is_dir():
-        for entry in decisions_dir.iterdir():
-            if entry.is_file():
-                match = re.match(r"^adr-(\d{3})-", entry.name)
-                if match:
-                    highest = max(highest, int(match.group(1)))
-    return highest + 1
-
-
-def find_existing_adr_by_title(decisions_dir: Path, title: str) -> Path | None:
-    """Return an existing ADR whose first '#' title matches the draft's.
-
-    The ADR topic is its identity - re-filing the same decision must be
-    refused even though the sequential number is new.
-    """
-    if not decisions_dir.is_dir():
-        return None
-    for entry in decisions_dir.iterdir():
-        if not entry.is_file() or not re.match(r"^adr-\d{3}-", entry.name):
-            continue
-        try:
-            first = read_text(entry).splitlines()
-        except (OSError, UnicodeDecodeError):
-            continue
-        for line in first:
-            if line.strip().startswith("# "):
-                if line.strip() == title.strip():
-                    return entry
-                break
-    return None
-
-
-def stamp_source(text: str, source: str) -> str:
-    """Replace or insert the 'Source:' line pointing back to the spec."""
-    if re.search(r"(?m)^Source:\s*", text):
-        return re.sub(r"(?m)^Source:\s*.*$", "Source: " + source, text, count=1)
-    return re.sub(r"(?m)^(Date:\s*\S+.*)$", r"\g<1>\nSource: " + source, text, count=1)
-
-
-def cmd_adr(args: argparse.Namespace) -> int:
-    try:
-        text = read_text(args.draft)
-    except (OSError, UnicodeDecodeError):
-        print("error: cannot read " + str(args.draft))
-        return 1
-
-    ok, missing = check_adr(text)
-    if not ok:
-        print("missing: " + ", ".join(missing))
-        return 1
-
-    title = draft_title(text)
-    existing = find_existing_adr_by_title(args.decisions_dir, title) if title else None
-    if existing is not None:
-        print(f"already exists: {existing}")
-        return 1
-
-    num = next_adr_number(args.decisions_dir)
-    slug = slug_from_title(text)
-    target = args.decisions_dir / f"adr-{num:03d}-{slug}.md"
-    print(f"next: adr-{num:03d}")
-    if target.exists():
-        print(f"already exists: {target}")
-        return 1
-    if args.dry_run:
-        print(f"target: {target}")
-        return 0
-
-    args.decisions_dir.mkdir(parents=True, exist_ok=True)
-    if args.source:
-        text = stamp_source(text, args.source)
-    target.write_text(ensure_frontmatter_tags(text), encoding="utf-8")
-    print(f"adr: {target}")
-    _refresh_toc_for(find_root() / "docs")
-    return 0
-
-
 def _fm_stripped(text: str) -> str:
     """Drop a leading YAML frontmatter block so scans see body content only."""
     return FM_BLOCK.sub("", text, count=1)
@@ -603,34 +507,6 @@ def status_value(text: str) -> str:
     return match.group(1).strip() if match else ""
 
 
-def adrs_sourced_to(decisions_dir: Path, spec_ref: str) -> list[str]:
-    """ADR filenames whose 'Source:' line points at the spec (normalized).
-
-    Matches either on the full normalized path or on the filename alone, so
-    an absolute caller path still matches an ADR stamped with a relative
-    docs/specs/... Source: line.
-    """
-    norm = spec_ref.replace("\\", "/")
-    norm_base = norm.rsplit("/", 1)[-1]
-    found: list[str] = []
-    if not decisions_dir.is_dir():
-        return found
-    for entry in decisions_dir.iterdir():
-        if not entry.is_file() or not re.match(r"^adr-\d{3}-", entry.name):
-            continue
-        try:
-            text = read_text(entry)
-        except (OSError, UnicodeDecodeError):
-            continue
-        for line in text.splitlines():
-            if line.strip().startswith("Source:"):
-                src = line.split(":", 1)[1].strip().replace("\\", "/")
-                if src == norm or src.rsplit("/", 1)[-1] == norm_base:
-                    found.append(entry.name)
-                break
-    return found
-
-
 def ensure_scratchpad_guard(handoff_dir: Path) -> None:
     """Scratchpad guard: a root .gitignore entry for the dir and the inner stub.
 
@@ -650,14 +526,14 @@ def ensure_scratchpad_guard(handoff_dir: Path) -> None:
         root_ignore.write_text("# DEV Agent framework\n", encoding="utf-8")
     lines = root_ignore.read_text(encoding="utf-8").splitlines()
     if not any(
-        ln.strip().strip("/") in ("docs", "docs/temp")
+        ln.strip().strip("/") in ("specs", "specs/temp")
         for ln in lines
         if ln.strip() and not ln.strip().startswith("#")
     ):
         text = root_ignore.read_text(encoding="utf-8")
         if text and not text.endswith("\n"):
             text += "\n"
-        root_ignore.write_text(text + "\ndocs/temp\n", encoding="utf-8")
+        root_ignore.write_text(text + "\nspecs/temp\n", encoding="utf-8")
     inner = handoff_dir / ".gitignore"
     if not inner.is_file():
         inner.write_text("*\n!.gitignore\n", encoding="utf-8")
@@ -676,10 +552,6 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         return 1
 
     spec_ref = str(args.spec).replace("\\", "/")
-    adrs = adrs_sourced_to(args.decisions_dir, spec_ref)
-    if args.lane == "A" and not adrs:
-        print("error: Lane A handoff requires an ADR sourced to this spec")
-        return 1
 
     today = date.today().isoformat()
     handoff_file = args.handoff_dir / "handoff.md"
@@ -705,22 +577,21 @@ def cmd_handoff(args: argparse.Namespace) -> int:
     args.spec.write_text(stamped, encoding="utf-8")
     _refresh_toc_for(args.root)
 
-    adr_line = ", ".join(adrs) if adrs else "none (Lane B)"
     handoff_file.write_text(
         "# Handoff - Session Ends Here\n\n"
         f"Date: {today}\n"
         f"Spec: {spec_ref}\n"
         f"Lane: {args.lane}\n"
-        f"ADRs: {adr_line}\n\n"
+        "Decisions: topic docs under docs/ (AI index: docs/_topics.md)\n\n"
         "Implementation runs in a new session that reads the promoted spec. "
         "The session that recorded this handoff must not open "
         "references/build.md.\n",
         encoding="utf-8",
     )
     print(f"handoff: {handoff_file}")
-    # the TOC refresh is skipped on sandboxed handoff runs (no docs root)
-    if args.handoff_dir == (find_root() / "docs" / "temp"):
-        _refresh_toc_for(find_root() / "docs")
+    # the TOC refresh is skipped on sandboxed handoff runs (no repo root)
+    if args.handoff_dir == (find_root() / "specs" / "temp"):
+        _refresh_toc_for(find_root())
     return 0
 
 
@@ -735,9 +606,6 @@ def _folder_sort_key(folder: str, name: str) -> tuple:
         if match:
             return (int(match.group(1)), "~")
         return (9999, name)
-    if folder == "decisions":
-        match = re.match(r"^adr-(\d{3})-", name)
-        return (int(match.group(1)), name) if match else (9999, name)
     return (0, name)
 
 
@@ -759,7 +627,7 @@ def _doc_title(text: str) -> str:
     for line in _strip_fenced_code(text).splitlines():
         if line.strip().startswith("# "):
             t = line.strip()[1:].strip()
-            return re.sub(r"^(ADR-\d{3}:|\d{3}:|\[\S+\]:\s*)", "", t).strip() or t
+            return re.sub(r"^(\d{3}:|\[\S+\]:\s*)", "", t).strip() or t
     return ""
 
 
@@ -774,38 +642,47 @@ def _doc_backlinks(text: str) -> list[str]:
 
 
 def _scan_docs(root: Path) -> dict:
-    """Scan the three committed folders into sorted per-folder doc entries.
+    """Scan the committed docs into sorted doc entries.
 
-    Shared by the TOC roll-up, tag-index, and every tag-governance function -
-    one frontmatter parse, no cross-subcommand drift.
+    ``root`` is the repo root. Returns a dict keyed by section:
+    ``"specs"`` -> ``root/specs/*.md`` and ``"reference"`` -> the numbered
+    ``root/docs/NNN-*.md`` series (topic docs live directly under ``docs/``
+    and are indexed separately by ``sync-docs``). Shared by the TOC roll-up,
+    tag-index, and every tag-governance function - one frontmatter parse, no
+    cross-subcommand drift.
     """
-    docs: dict[str, list[dict]] = {}
-    for folder in COMMIT_FOLDERS:
-        fdir = root / folder
+    def collect(paths: list[Path]) -> list[dict]:
         entries = []
-        if fdir.is_dir():
-            for f in fdir.iterdir():
-                if not f.is_file() or f.name == "README.md":
-                    continue
-                try:
-                    text = read_text(f)
-                except (OSError, UnicodeDecodeError):
-                    continue
-                clean = _strip_fenced_code(text)
-                m1 = re.search(r"(?m)^version_pin:\s*(\S+)", clean)
-                m2 = re.search(r"(?m)^fallback_pin:\s*(\S+)", clean)
-                entries.append({
-                    "name": f.name,
-                    "text": text,
-                    "title": _doc_title(text),
-                    "status": _ref_status(text),
-                    "tags": _extract_tags(text) or [],
-                    "version_pin": m1.group(1) if m1 else "",
-                    "fallback_pin": m2.group(1) if m2 else "",
-                    "backlinks": _doc_backlinks(text),
-                })
-        entries.sort(key=lambda e: _folder_sort_key(folder, e["name"]))
-        docs[folder] = entries
+        for f in paths:
+            if not f.is_file() or f.name == "README.md":
+                continue
+            try:
+                text = read_text(f)
+            except (OSError, UnicodeDecodeError):
+                continue
+            clean = _strip_fenced_code(text)
+            m1 = re.search(r"(?m)^version_pin:\s*(\S+)", clean)
+            m2 = re.search(r"(?m)^fallback_pin:\s*(\S+)", clean)
+            entries.append({
+                "name": f.name,
+                "text": text,
+                "title": _doc_title(text),
+                "status": _ref_status(text),
+                "tags": _extract_tags(text) or [],
+                "version_pin": m1.group(1) if m1 else "",
+                "fallback_pin": m2.group(1) if m2 else "",
+                "backlinks": _doc_backlinks(text),
+            })
+        return entries
+
+    docs: dict[str, list[dict]] = {}
+    spec_dir = root / SPEC_FOLDER
+    specs = collect(sorted(spec_dir.glob("*.md"))) if spec_dir.is_dir() else []
+    docs["specs"] = sorted(specs, key=lambda e: _folder_sort_key("specs", e["name"]))
+    ref_dir = root / "docs"
+    refs = collect(sorted(ref_dir.glob("*.md"))) if ref_dir.is_dir() else []
+    refs = [e for e in refs if REF_SERIES_RE.match(e["name"])]
+    docs["reference"] = sorted(refs, key=lambda e: e["name"])
     return docs
 
 
@@ -823,51 +700,25 @@ def _write_marker_block(text: str, start: str, end: str, block: str) -> str | No
     return text[:m1.start()] + start + "\n" + block + end + "\n" + text[m2.end():]
 
 
-def _folder_readme_stub(folder: str) -> str:
-    """Rich committed README scaffold for a docs subfolder (creator half, D6).
+def _specs_readme_stub() -> str:
+    """Rich specs/README.md scaffold (creator half, D6).
 
     Carries human-curated prose (heading, purpose, naming/ID convention,
-    frontmatter note) plus both marker blocks, so a fresh repo's folder README
-    reads like the hand-curated one on first creation. ``folder`` is one of
-    COMMIT_FOLDERS (specs / decisions / reference).
+    frontmatter note) plus both marker blocks, so a fresh repo's specs README
+    reads like the hand-curated one on first creation.
     """
-    prose = {
-        "specs": (
-            "# Specs\n\n"
-            "Permanent functional & technical specs. Promotion pipeline:\n\n"
-            "- Draft: `docs/temp/draft-plan.md` (gitignored)\n"
-            "- Acceptance: promoted to `docs/specs/<NNN>-<feature-slug>.md` and committed\n\n"
-            "Naming: `NNN-<feature-slug>.md` (e.g. `001-feature-spec.md`). Sub-documents use\n"
-            "sub-IDs that share the parent `NNN` prefix: `NNN-<letter><NN>` (e.g. `001-A01`),\n"
-            "deeper `NNN-<letter><NN>-<letter><NN>` (e.g. `001-A01-B01`). Parent and child\n"
-            "share the `NNN` so a worktree can claim the subtree.\n\n"
-            "Every spec carries `tags: [lowercase-kebab, ...]`; the promotion gate runs\n"
-            "`tag-lint` on them.\n\n"
-        ),
-        "decisions": (
-            "# Decisions\n\n"
-            "Architectural Decision Records (ADRs). Naming: `adr-<NNN>-<topic>.md`\n"
-            "(e.g. `adr-001-database-selection.md`). Flat — ADRs never nest; nesting is\n"
-            "expressed by the backlink graph (`Source:` points at the spec, optional\n"
-            "`Governed-by:` points at a reference doc).\n\n"
-            "Protected files: ADRs in this directory must not be edited or deleted without\n"
-            "explicit human confirmation.\n\n"
-            "Every ADR carries `tags: [lowercase-kebab, ...]`.\n\n"
-        ),
-        "reference": (
-            "# Reference\n\n"
-            "Living reference docs — the authoritative, lookup surface of current system\n"
-            "truth (living, version-pinable; no DRAFT/APPROVED lifecycle). Distinct from\n"
-            "`docs/specs/` (what to build, lifecycle) and `docs/decisions/` (why we chose,\n"
-            "immutable, backlinked).\n\n"
-            "ID convention: `<slug>.md` (no numeric prefix; the filename is the single\n"
-            "identity). Display title comes from the filename or H1, never a `name:` field.\n\n"
-            "Version pin (opt-in): `version_pin: <git-tag>` (primary) or `fallback_pin:\n"
-            "<commit-hash>` (when no tag exists). Absent by default; when present the value\n"
-            "must be a real tag / reachable commit.\n\n"
-        ),
-    }
-    body = prose.get(folder, f"# {folder.capitalize()}\n\n")
+    body = (
+        "# Specs\n\n"
+        "Permanent functional & technical specs. Promotion pipeline:\n\n"
+        "- Draft: `specs/temp/draft-plan.md` (gitignored)\n"
+        "- Acceptance: promoted to `specs/<NNN>-<feature-slug>.md` and committed\n\n"
+        "Naming: `NNN-<feature-slug>.md` (e.g. `001-feature-spec.md`). Sub-documents use\n"
+        "sub-IDs that share the parent `NNN` prefix: `NNN-<letter><NN>` (e.g. `001-A01`),\n"
+        "deeper `NNN-<letter><NN>-<letter><NN>` (e.g. `001-A01-B01`). Parent and child\n"
+        "share the `NNN` so a worktree can claim the subtree.\n\n"
+        "Every spec carries `tags: [lowercase-kebab, ...]`; the promotion gate runs\n"
+        "`tag-lint` on them.\n\n"
+    )
     return (
         body
         + f"{TOC_START}\n"
@@ -882,64 +733,64 @@ def _landing_readme_stub() -> str:
     return (
         "# Docs\n\n"
         "Human + AI shared space: the committed knowledge of this repository.\n\n"
-        "| Folder | Holds | ID convention |\n"
+        "| Location | Holds | ID convention |\n"
         "| :--- | :--- | :--- |\n"
-        "| `specs/` | What to build — permanent functional & technical specs with a lifecycle (DRAFT → APPROVED) | `NNN-<slug>.md`, sub-IDs `NNN-<letter><NN>` |\n"
-        "| `decisions/` | Why we chose — immutable ADRs, backlinked to specs | `adr-<NNN>-<slug>.md` (flat, never nested) |\n"
-        "| `reference/` | What is — living, lookup, authoritative docs (no lifecycle) | `<slug>.md` |\n"
-        "| `temp/` | Ephemeral working memory (gitignored; purged by task-cleaner) | none |\n\n"
+        "| `docs/NNN-*.md` (reference series) | What is — living, lookup, authoritative docs (no lifecycle) | `NNN-<slug>.md` |\n"
+        "| `<name>.md` / `<name>/` (topic docs) | Why we chose — one livedoc per subsystem (`## Current State` + `## Decision Log`) | `<name>.md`; decision IDs `<NAME>-D<nn>` (topic-global) |\n"
+        "| `_topics.md` | Generated AI routing index for the topic docs (`generate_map.py sync-docs`) | none (generated) |\n"
+        "| `specs/` (repo root) | What to build — specs with a lifecycle (DRAFT → APPROVED) | `NNN-<slug>.md` |\n\n"
         "## Index\n\n"
-        "Deterministic per-folder index — regenerated by `promote_spec.py toc` on every\n"
-        "promotion, ADR filing, and handoff. Marker block only; surrounding prose is\n"
-        "untouched.\n\n"
+        "Deterministic index — regenerated by `promote_spec.py toc` on every\n"
+        "promotion, topic decision, and handoff. Marker block only; surrounding\n"
+        "prose is untouched.\n\n"
         f"{TOC_START}\n"
         f"{TOC_END}\n\n"
         "## Frontmatter conventions\n\n"
-        "- `tags: [lowercase-kebab, ...]` on every doc in `specs/`, `decisions/`,\n"
-        "  `reference/` (governed by `promote_spec.py tag-lint`, also inside `check`).\n"
-        "- Optional on `reference/` only: `version_pin: <git-tag>` or `fallback_pin:\n"
-        "  <commit-hash>` (validated when present).\n"
+        "- `tags: [lowercase-kebab, ...]` on every doc in `specs/` and the reference\n"
+        "  series — and every topic doc (governed by `promote_spec.py tag-lint`, also\n"
+        "  inside `check`).\n"
+        "- Optional on the reference series only: `version_pin: <git-tag>` or\n"
+        "  `fallback_pin: <commit-hash>` (validated when present).\n"
         "- The filename is the single identity — no `name:` field anywhere.\n\n"
         f"{TAG_START}\n"
         f"{TAG_END}\n"
     )
 
 
-def _docs_root(root: Path) -> Path:
-    """Resolve the canonical docs root, self-correcting a repo-root mistake.
+def _repo_root(root: Path) -> Path:
+    """Resolve the canonical repo root the TOC writers scan from.
 
-    The TOC writers assume ``root`` is the docs root (``<repo>/docs``), but a
-    caller or a misused ``--root`` can hand over the repo root itself. A docs
-    root never contains ``AGENTS.md`` (the repo root does), so when ``root`` is
-    a repo root we redirect to ``root / "docs"`` instead of materializing
-    ``specs``/``decisions``/``reference`` at the repo top level. This removes
-    the latent inconsistency rather than trusting every caller to pass the
-    right path.
+    ``--root`` now means the repo root (the engine scans ``root/specs`` and
+    ``root/docs``). A misused nested path (e.g. ``<repo>/docs``) is
+    self-corrected by walking up to the nearest ``AGENTS.md`` marker, so a
+    wrong path never materializes ``specs``/``docs`` in an unexpected place.
     """
-    if (root / "AGENTS.md").is_file():
-        print(f"warning: {root} is a repo root; using {root / 'docs'} for the TOC")
-        return root / "docs"
+    r = root
+    for _ in range(6):
+        if (r / "AGENTS.md").is_file():
+            return r
+        if r.parent == r:
+            break
+        r = r.parent
     return root
 
 
 def _ensure_docs_readmes(root: Path) -> None:
-    """Bootstrap the four docs READMEs if missing (creator half).
+    """Bootstrap the two docs READMEs if missing (creator half).
 
-    The engine previously only *regenerated* marker blocks and silently skipped
-    files that did not exist, so a fresh repo never got its docs/README.md or
-    folder READMEs. This creates any missing README with the marker scaffolding
-    (idempotent - existing files are never touched) so the first promote/adr/
-    handoff/toc run can roll the index up immediately.
+    ``root`` is the repo root. Creates ``docs/README.md`` (landing) and
+    ``specs/README.md`` with marker scaffolding when absent (idempotent -
+    existing files are never touched) so the first promote/topic/handoff/toc
+    run can roll the index up immediately.
     """
-    landing = root / "README.md"
+    landing = root / "docs" / "README.md"
     if not landing.is_file():
-        root.mkdir(parents=True, exist_ok=True)
+        landing.parent.mkdir(parents=True, exist_ok=True)
         landing.write_text(_landing_readme_stub(), encoding="utf-8")
-    for folder in COMMIT_FOLDERS:
-        target = root / folder / "README.md"
-        if not target.is_file():
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(_folder_readme_stub(folder), encoding="utf-8")
+    specs_readme = root / SPEC_FOLDER / "README.md"
+    if not specs_readme.is_file():
+        specs_readme.parent.mkdir(parents=True, exist_ok=True)
+        specs_readme.write_text(_specs_readme_stub(), encoding="utf-8")
 
 
 def _tag_lint(docs: dict, verbose: bool = False) -> list[str]:
@@ -1067,8 +918,9 @@ def _tag_index(args: argparse.Namespace) -> int:
                 f"{t} ({n})" for t, n in sorted(tagmap.items())
             ))
     block = "\n".join(lines) + "\n"
-    target = root / "README.md"
+    target = root / "docs" / "README.md"
     if not target.is_file():
+        target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(
             "# Docs\n\n" + block + f"\n{TAG_START}\n{TAG_END}\n",
             encoding="utf-8",
@@ -1155,46 +1007,50 @@ def _toc_entry_line(e: dict, rel: str) -> str:
     return line
 
 
-def _build_toc_lines(docs: dict, folders: tuple[str, ...] | None = None,
-                     landing: bool = True) -> str:
+def _build_toc_lines(docs: dict, section: str | None = None) -> str:
     """Render the '## Index' block as a linked, iconed directory tree.
 
-    Folders act as header nodes and files as relative 📄 links - the standard
-    Markdown TOC shape. The block carries its own heading, so callers pass it
-    whole. ``folders`` scopes which folders appear (landing = all, folder =
-    itself); ``landing`` picks the link base: the landing README sits in
-    docs/ and links ``./<folder>/<file>``, while a folder README sits inside
-    the folder and links ``./<file>``.
+    ``section`` is ``None`` for the landing ``docs/README.md`` (shows the
+    reference series + specs, linking ``./NNN-…`` and ``../specs/NNN-…``) or
+    ``"specs"`` for ``specs/README.md`` (specs only, linking ``./NNN-…``).
+    The reference series lives directly under ``docs/``, so its links are
+    same-folder relative.
     """
     lines = ["## Index"]
-    for folder in (folders or COMMIT_FOLDERS):
-        entries = docs.get(folder, [])
-        if not entries:
-            continue
-        lines.append(f"- 📁 {folder}/")
-        for e in entries:
-            rel = f"./{folder}/{e['name']}" if landing else f"./{e['name']}"
-            lines.append(_toc_entry_line(e, rel))
+    if section is None:
+        ref = docs.get("reference", [])
+        if ref:
+            lines.append("- 📁 reference series (docs/NNN-*.md)")
+            for e in ref:
+                lines.append(_toc_entry_line(e, f"./{e['name']}"))
+            lines.append("")
+        spec = docs.get("specs", [])
+        if spec:
+            lines.append("- 📁 specs/ (repo root)")
+            for e in spec:
+                lines.append(_toc_entry_line(e, f"../specs/{e['name']}"))
+            lines.append("")
+    elif section == "specs":
+        for e in docs.get("specs", []):
+            lines.append(_toc_entry_line(e, f"./{e['name']}"))
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 
 def _refresh_toc_for(root: Path) -> None:
-    """Regenerate the TOC blocks in all four READMEs.
+    """Regenerate the TOC blocks in the two docs READMEs.
 
-    The landing README shows the whole tree; each folder README shows only its
-    own folder, so ``docs/specs/README.md`` stays a specs-only index. Missing
-    READMEs are bootstrapped with marker scaffolding first, so a fresh repo
-    gets its index on the first lifecycle event.
+    ``root`` is the repo root. The landing ``docs/README.md`` shows the
+    reference series + specs; ``specs/README.md`` stays a specs-only index.
+    Missing READMEs are bootstrapped with marker scaffolding first, so a fresh
+    repo gets its index on the first lifecycle event.
     """
-    root = _docs_root(root)
+    root = _repo_root(root)
     _ensure_docs_readmes(root)
     docs = _scan_docs(root)
     targets = [
-        (root / "README.md", _build_toc_lines(docs, landing=True)),
-    ] + [
-        (root / folder / "README.md", _build_toc_lines(docs, (folder,), landing=False))
-        for folder in COMMIT_FOLDERS
+        (root / "docs" / "README.md", _build_toc_lines(docs, None)),
+        (root / SPEC_FOLDER / "README.md", _build_toc_lines(docs, "specs")),
     ]
     for target, block in targets:
         if not target.is_file():
@@ -1205,14 +1061,12 @@ def _refresh_toc_for(root: Path) -> None:
 
 
 def cmd_toc(args: argparse.Namespace) -> int:
-    root = _docs_root(args.root)
+    root = _repo_root(args.root)
     _ensure_docs_readmes(root)
     docs = _scan_docs(root)
     targets = [
-        (root / "README.md", _build_toc_lines(docs, landing=True)),
-    ] + [
-        (root / folder / "README.md", _build_toc_lines(docs, (folder,), landing=False))
-        for folder in COMMIT_FOLDERS
+        (root / "docs" / "README.md", _build_toc_lines(docs, None)),
+        (root / SPEC_FOLDER / "README.md", _build_toc_lines(docs, "specs")),
     ]
     for target, block in targets:
         if not target.is_file():
@@ -1227,6 +1081,251 @@ def cmd_toc(args: argparse.Namespace) -> int:
         else:
             target.write_text(new_text, encoding="utf-8")
             print(f"up to date: {target}")
+    return 0
+
+
+TOPIC_RESERVED = ("reference", "specs", "temp", "readme")
+TOPIC_NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+
+
+def _topic_ns(name: str) -> str:
+    """The decision ID namespace: the full topic name, uppercased (auth -> AUTH)."""
+    return name.upper()
+
+
+def _topic_display(name: str, sub_file: str | None) -> str:
+    """Human display name for a new topic doc's H1 (may exceed the filename)."""
+    base = " ".join(w.capitalize() for w in name.split("-"))
+    if not sub_file:
+        return base
+    return base + " " + " ".join(w.capitalize() for w in sub_file.split("-"))
+
+
+def _topic_paths(docs_dir: Path, name: str, sub_file: str | None):
+    """Return (target file, all topic files) for one revision.
+
+    A topic is either one file ``docs/<name>.md`` or a folder ``docs/<name>/``
+    of sub-files - never both. The second value lists every file of the topic
+    so ID allocation stays topic-global across sub-files.
+    """
+    file_topic = docs_dir / (name + ".md")
+    folder = docs_dir / name
+    if sub_file:
+        if not TOPIC_NAME_RE.match(sub_file):
+            sys.exit(f"error: sub-file name '{sub_file}' must be lowercase-kebab")
+        if file_topic.is_file():
+            sys.exit(f"error: topic '{name}' is a file; a file topic takes no --file")
+        target = folder / (sub_file + ".md")
+        files = sorted(folder.glob("*.md")) if folder.is_dir() else []
+    else:
+        if folder.is_dir():
+            sys.exit(f"error: topic '{name}' is a folder; pass --file <sub>")
+        target = file_topic
+        files = []
+    if target not in files:
+        files.append(target)
+    return target, files
+
+
+def _next_topic_id(files: list[Path], ns: str) -> int:
+    """Next <ns>-D<nn> number: the max across every topic file + 1 (1 if none)."""
+    pattern = re.compile(r"^###\s+" + re.escape(ns) + r"-D(\d+)(?:\s|$)", re.MULTILINE)
+    highest = 0
+    for f in files:
+        if not f.is_file():
+            continue
+        try:
+            text = read_text(f)
+        except (OSError, UnicodeDecodeError):
+            continue
+        for match in pattern.finditer(text):
+            highest = max(highest, int(match.group(1)))
+    return highest + 1
+
+
+def _id_present(files: list[Path], decision_id: str) -> bool:
+    """True when any topic file carries a '### <decision_id>' log subheading."""
+    pattern = re.compile(r"^###\s+" + re.escape(decision_id) + r"(?:\s|$)", re.MULTILINE)
+    for f in files:
+        if not f.is_file():
+            continue
+        try:
+            if pattern.search(read_text(f)):
+                return True
+        except (OSError, UnicodeDecodeError):
+            continue
+    return False
+
+
+def _log_entry(decision_id: str, title: str, entry_date: str, why: str,
+               supersedes: str | None, affects: str | None,
+               ref: str | None) -> str:
+    """One Decision Log entry: '### <ID> - <title>' + its field lines."""
+    lines = [
+        f"### {decision_id} - {title}",
+        f"- **Date:** {entry_date}",
+        f"- **Why:** {why}",
+    ]
+    if supersedes:
+        lines.append(f"- **Supersedes:** {supersedes}")
+    if affects:
+        lines.append(f"- **Affects:** {affects}")
+    if ref:
+        lines.append(f"- **Ref:** {ref}")
+    return "\n".join(lines) + "\n"
+
+
+def _topic_scaffold(display: str, tags: list[str], state: str) -> str:
+    """A new topic doc matching references/topic-template.md (format-of-truth)."""
+    body = state.strip("\n") if state.strip() else "_(to be described)_"
+    return (
+        "---\n"
+        "tags: [" + ", ".join(tags) + "]\n"
+        "---\n\n"
+        f"# {display}\n\n"
+        "## Current State\n\n"
+        + body + "\n\n## Decision Log\n"
+    )
+
+
+def _ensure_sections(text: str) -> str:
+    """Guarantee both contract sections exist (Current State before the Log)."""
+    if "## Current State" not in text:
+        if "## Decision Log" in text:
+            text = text.replace(
+                "## Decision Log",
+                "## Current State\n\n_(to be described)_\n\n## Decision Log",
+                1,
+            )
+        else:
+            text = text.rstrip("\n") + "\n\n## Current State\n\n_(to be described)_\n"
+    if "## Decision Log" not in text:
+        text = text.rstrip("\n") + "\n\n## Decision Log\n"
+    return text
+
+
+def _mark_superseded(text: str, decision_id: str) -> str:
+    """Mark an existing log entry's heading '(superseded)'. Never removes it."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if re.match(r"^###\s+" + re.escape(decision_id) + r"(?:\s|$)", line):
+            if "(superseded)" not in line:
+                lines[i] = line.rstrip() + " (superseded)"
+            return "\n".join(lines) + ("\n" if text.endswith("\n") else "")
+    return text
+
+
+def _replace_state(text: str, state: str) -> str:
+    """Replace the '## Current State' body in place (up to the next '## ')."""
+    lines = text.splitlines()
+    start = None
+    for i, line in enumerate(lines):
+        if line.strip() == "## Current State":
+            start = i + 1
+            break
+    if start is None:
+        return text
+    end = len(lines)
+    for j in range(start, len(lines)):
+        if lines[j].startswith("## "):
+            end = j
+            break
+    lines[start:end] = state.strip("\n").splitlines()
+    return "\n".join(lines) + ("\n" if text.endswith("\n") else "")
+
+
+def _append_log_entry(text: str, entry: str) -> str:
+    """Append one entry at the end of the '## Decision Log' section (file end)."""
+    return text.rstrip("\n") + "\n\n" + entry
+
+
+def _revise_topic(path: Path, display: str, tags: list[str], entry: str,
+                  supersedes: str | None, state: str | None) -> None:
+    """Apply one revision to a topic file (create from the template if missing).
+
+    Never deletes or recreates: a superseded entry stays in the log (marked),
+    the Current State is updated in place, and the new entry takes the next
+    ID - one decision, one reason, one approval.
+    """
+    if path.is_file():
+        text = _ensure_sections(read_text(path))
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        text = _topic_scaffold(display, tags, state or "")
+    if supersedes:
+        text = _mark_superseded(text, supersedes)
+    if state is not None:
+        text = _replace_state(text, state)
+    path.write_text(_append_log_entry(text, entry), encoding="utf-8")
+
+
+def cmd_topic(args: argparse.Namespace) -> int:
+    """Create or revise a Topic-Based ADR topic doc (the decision path)."""
+    name = args.name
+    if not (2 <= len(name) <= 30) or not TOPIC_NAME_RE.match(name):
+        print(f"error: topic name '{name}' must be lowercase-kebab (2-30 chars)")
+        return 1
+    if name in TOPIC_RESERVED:
+        print(f"error: topic name '{name}' is reserved")
+        return 1
+
+    tags = ([t.strip() for t in args.tags.split(",") if t.strip()]
+            if args.tags else [name])
+    tag_problems = _lint_tags(tags)
+    if tag_problems:
+        for p in tag_problems:
+            print("error: " + p)
+        return 1
+
+    docs = _repo_root(args.docs_dir) / "docs"
+    target, files = _topic_paths(docs, name, args.file)
+    ns = _topic_ns(name)
+
+    if args.supersedes and not _id_present(files, args.supersedes):
+        print(f"error: {args.supersedes} not found in topic '{name}'")
+        return 1
+
+    num = _next_topic_id(files, ns)
+    decision_id = f"{ns}-D{num:02d}"
+    title = args.title or args.why
+    entry_date = args.date or date.today().isoformat()
+
+    entry = _log_entry(decision_id, title, entry_date, args.why,
+                       args.supersedes, args.affects, None)
+
+    if args.dry_run:
+        print(f"target: {target}")
+        print(f"decision: {decision_id}")
+        return 0
+
+    _revise_topic(target, _topic_display(name, args.file), tags, entry,
+                  args.supersedes, args.state)
+    print(f"topic: {target}")
+    print(f"decision: {decision_id}")
+
+    if args.reciprocal:
+        rname = args.reciprocal
+        if rname == name:
+            print("error: --reciprocal must name a different topic")
+            return 1
+        if not (2 <= len(rname) <= 30) or not TOPIC_NAME_RE.match(rname):
+            print(f"error: reciprocal topic name '{rname}' must be lowercase-kebab (2-30 chars)")
+            return 1
+        if rname in TOPIC_RESERVED:
+            print(f"error: reciprocal topic name '{rname}' is reserved")
+            return 1
+        rtarget, rfiles = _topic_paths(docs, rname, args.reciprocal_file)
+        rnum = _next_topic_id(rfiles, _topic_ns(rname))
+        rid = f"{_topic_ns(rname)}-D{rnum:02d}"
+        ref = target.relative_to(docs).as_posix() + "#" + decision_id.lower()
+        rentry = _log_entry(
+            rid, args.reciprocal_title or f"Cross-topic: {decision_id}",
+            entry_date, args.reciprocal_why or "(cross-topic revision)",
+            None, None, ref,
+        )
+        _revise_topic(rtarget, _topic_display(rname, args.reciprocal_file), [rname],
+                      rentry, None, args.reciprocal_state)
+        print(f"reciprocal: {rtarget} ({rid})")
     return 0
 
 
@@ -1311,7 +1410,7 @@ def cmd_promote(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="spec-builder check, promotion, ADR filing, handoff, TOC & tag governance"
+        description="spec-builder check, promotion, topic decisions, handoff, TOC & tag governance"
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -1319,11 +1418,11 @@ def main() -> int:
     check_p.add_argument("draft", type=Path)
     check_p.add_argument("--lane", required=True, choices=["B", "A"])
     check_p.add_argument("--root", type=Path, default=None,
-                         help="docs root for the tag-lint scan (default <root>/docs)")
+                         help="repo root for the tag-lint scan (default <repo-root>)")
     check_p.set_defaults(func=cmd_check)
 
     promote_p = sub.add_parser(
-        "promote", help="promote an approved draft to docs/specs"
+        "promote", help="promote an approved draft to specs/"
     )
     promote_p.add_argument("draft", type=Path)
     promote_p.add_argument("--lane", required=True, choices=["B", "A"])
@@ -1339,47 +1438,23 @@ def main() -> int:
         "--specs-dir",
         type=Path,
         default=None,
-        help="target specs directory (default <root>/docs/specs; sandbox for tests)",
+        help="target specs directory (default <repo-root>/specs; sandbox for tests)",
     )
     promote_p.add_argument("--root", type=Path, default=None,
-                           help="docs root for the tag-lint scan + TOC refresh")
+                           help="repo root for the tag-lint scan + TOC refresh")
     promote_p.set_defaults(func=cmd_promote)
-
-    adr_p = sub.add_parser(
-        "adr", help="validate and file an ADR draft to docs/decisions"
-    )
-    adr_p.add_argument("draft", type=Path, help="ADR draft in docs/temp")
-    adr_p.add_argument(
-        "--source",
-        default=None,
-        help="spec path to stamp on the Source: line (e.g. docs/specs/001-<slug>.md)",
-    )
-    adr_p.add_argument("--dry-run", action="store_true")
-    adr_p.add_argument(
-        "--decisions-dir",
-        type=Path,
-        default=None,
-        help="target decisions directory (default <root>/docs/decisions; sandbox for tests)",
-    )
-    adr_p.set_defaults(func=cmd_adr)
 
     handoff_p = sub.add_parser(
         "handoff", help="record the Phase 1.5 handoff for an approved spec"
     )
-    handoff_p.add_argument("spec", type=Path, help="promoted spec in docs/specs")
+    handoff_p.add_argument("spec", type=Path, help="promoted spec in specs/")
     handoff_p.add_argument("--lane", required=True, choices=["B", "A"])
     handoff_p.add_argument("--dry-run", action="store_true")
     handoff_p.add_argument(
         "--handoff-dir",
         type=Path,
         default=None,
-        help="target record directory (default <root>/docs/temp; sandbox for tests)",
-    )
-    handoff_p.add_argument(
-        "--decisions-dir",
-        type=Path,
-        default=None,
-        help="decisions directory for the Lane A ADR check (default <root>/docs/decisions)",
+        help="target record directory (default <repo-root>/specs/temp; sandbox for tests)",
     )
     handoff_p.set_defaults(func=cmd_handoff)
 
@@ -1387,9 +1462,41 @@ def main() -> int:
         "toc", help="regenerate the deterministic TOC blocks in the docs READMEs"
     )
     toc_p.add_argument("--root", type=Path, default=None,
-                       help="docs root (default <root>/docs)")
+                       help="repo root (default <repo-root>)")
     toc_p.add_argument("--dry-run", action="store_true")
     toc_p.set_defaults(func=cmd_toc)
+
+    topic_p = sub.add_parser(
+        "topic", help="create/revise a topic doc decision (Topic-Based ADR)"
+    )
+    topic_p.add_argument("name", help="topic name (lowercase-kebab; e.g. auth, data-storage)")
+    topic_p.add_argument("--why", required=True, help="decision rationale (the Why field)")
+    topic_p.add_argument("--title", default=None, help="decision display title (default: the why)")
+    topic_p.add_argument("--file", default=None,
+                         help="sub-file of a folder topic (e.g. core -> docs/<name>/core.md)")
+    topic_p.add_argument("--tags", default=None,
+                         help="comma-separated frontmatter tags (default: the topic name)")
+    topic_p.add_argument("--state", default=None,
+                         help="replace the Current State section body (revision)")
+    topic_p.add_argument("--supersedes", default=None,
+                         help="existing decision ID being reversed (marked superseded)")
+    topic_p.add_argument("--affects", default=None,
+                         help="one-way pointer to the ripple target (topic.md#anchor)")
+    topic_p.add_argument("--reciprocal", default=None,
+                         help="topic name gaining a decision because of this one")
+    topic_p.add_argument("--reciprocal-file", default=None,
+                         help="sub-file of the reciprocal folder topic")
+    topic_p.add_argument("--reciprocal-why", default=None,
+                         help="rationale for the reciprocal entry")
+    topic_p.add_argument("--reciprocal-state", default=None,
+                         help="replace the reciprocal topic's Current State body")
+    topic_p.add_argument("--reciprocal-title", default=None,
+                         help="display title of the reciprocal entry")
+    topic_p.add_argument("--date", default=None, help="decision date (default today)")
+    topic_p.add_argument("--docs-dir", type=Path, default=None,
+                         help="repo root (default <repo-root>; sandbox for tests)")
+    topic_p.add_argument("--dry-run", action="store_true")
+    topic_p.set_defaults(func=cmd_topic)
 
     tag_ls_p = sub.add_parser(
         "tag-list", help="read-only sorted tag -> files report"
@@ -1425,7 +1532,7 @@ def main() -> int:
     tag_idx_p.set_defaults(func=_tag_index)
 
     args = parser.parse_args()
-    root_default = find_root() / "docs"
+    root_default = find_root()
     if args.command == "check":
         if args.root is None:
             args.root = root_default
@@ -1433,24 +1540,23 @@ def main() -> int:
         if args.root is None:
             args.root = root_default
         if args.specs_dir is None:
-            args.specs_dir = args.root / "specs"
-    if args.command == "adr" and args.decisions_dir is None:
-        args.decisions_dir = root_default / "decisions"
+            args.specs_dir = args.root / SPEC_FOLDER
     if args.command == "handoff":
         if args.handoff_dir is None:
-            args.handoff_dir = root_default / "temp"
-        if args.decisions_dir is None:
-            args.decisions_dir = root_default / "decisions"
+            args.handoff_dir = root_default / SPEC_FOLDER / "temp"
         if getattr(args, "root", None) is None:
-            args.root = find_root() / "docs"
+            args.root = find_root()
     if args.command == "toc" and args.root is None:
         args.root = root_default
     if args.command in ("tag-list", "tag-suggest", "tag-lint", "tag-rename", "tag-index") and args.root is None:
         args.root = root_default
-    # Normalize a misused repo root to <repo>/docs for every --root subcommand,
-    # so no engine entry point can materialize top-level docs folders.
-    if getattr(args, "root", None) is not None:
-        args.root = _docs_root(args.root)
+    if args.command == "topic" and args.docs_dir is None:
+        args.docs_dir = root_default
+    # Resolve a misused nested path to the repo root for every --root subcommand,
+    # so no engine entry point can materialize specs/docs in an unexpected place.
+    for attr in ("root", "docs_dir"):
+        if getattr(args, attr, None) is not None:
+            setattr(args, attr, _repo_root(getattr(args, attr)))
     return args.func(args)
 
 

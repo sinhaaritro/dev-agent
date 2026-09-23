@@ -69,7 +69,7 @@ A `Verify`/Phase-Gate command is shell code written by the AI; approving the
 spec does not approve its commands (spec 001 D5 / U6).
 
 - Before the first execution of each distinct command on lanes A/B, approve it
-  (idempotent; writes the fingerprint to `docs/temp/approvals.json`):
+  (idempotent; writes the fingerprint to `specs/temp/approvals.json`):
   `python .agents/skills/verification-runner/scripts/verify.py approve --command "<cmd>" --expect "<marker>"`
 - The fingerprint is `sha256(command | expect | cwd | executor)`. Any change to
   the command, `Expect`, or CWD re-arms approval; cached re-runs are free.
@@ -80,7 +80,7 @@ spec does not approve its commands (spec 001 D5 / U6).
 
 ## 4. The retry ledger (engine-owned counter)
 
-State lives in `docs/temp/verify-state.json` — **never hand-tracked, never
+State lives in `specs/temp/verify-state.json` — **never hand-tracked, never
 hand-edited**. `status` reads it; `run` writes it.
 
 - A pass resets the counter for that task.
@@ -91,7 +91,7 @@ hand-edited**. `status` reads it; `run` writes it.
 - The ledger is ephemeral: `task-cleaner` purges `verify-state.json` with the
   scratchpad when the task closes.
 - `--state-dir` is for tests/evals only — sandbox runs must never point at
-  the real `docs/temp/` state file.
+  the real `specs/temp/` state file.
 
 ## 5. Fixing like a doctor, not a gambler
 
@@ -109,7 +109,7 @@ verbatim, and the report is reviewable.
 
 When the breaker trips:
 
-1. The engine writes `docs/temp/escalation.md` (engine-generated,
+1. The engine writes `specs/temp/escalation.md` (engine-generated,
    engine-enforced structure — never hand-write a substitute).
 2. Finalize with `verify.py escalate` mode: it merges the stored attempt logs
    with the agent's hypothesis and guided remediation options into the report.
@@ -134,6 +134,5 @@ checkbox state and the ledger never disagree.
 
 Verification never overrides the global guardrails (001, section 6): running
 an "approved dependency command" is the one sanctioned exception to the
-lockfile rule; everything else — `.env*`, credentials, `docs/decisions/*`,
-`docs/specs/*` — stays protected regardless of what a verification command
-would touch.
+lockfile rule; everything else — `.env*`, credentials, `specs/*` —
+stays protected regardless of what a verification command would touch.

@@ -15,7 +15,7 @@ Completion rules:
 
 1. A subtask is `[x]` only when its Verify command exited 0 AND its output
    matched its Expect marker; evidence (command, exit, matched marker) is
-   recorded in `docs/temp/verify-state.json`. Exit 0 alone is never enough; a
+   recorded in `specs/temp/verify-state.json`. Exit 0 alone is never enough; a
    checkbox without evidence counts as unmet.
 2. Before marking `[x]`, run the four passes: (1) implement complete, no
    placeholders; (2) expert re-read, replace the cheap version of each part;

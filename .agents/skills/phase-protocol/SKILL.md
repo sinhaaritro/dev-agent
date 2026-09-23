@@ -47,7 +47,7 @@ Every response uses exactly this schema, inherited by every other skill:
 1. SUMMARY OF UNDERSTANDING
    One-sentence recap of the user input or processed state.
 2. ACTIONS TAKEN / DISCOVERY
-   Files inspected, searches run, draft plans written to docs/temp/. Verification claims carry re-measured evidence: each Phase Gate command, the matched Expect marker, and attempt count — from a fresh re-run, never memory of what ran.
+   Files inspected, searches run, draft plans written to specs/temp/. Verification claims carry re-measured evidence: each Phase Gate command, the matched Expect marker, and attempt count — from a fresh re-run, never memory of what ran.
 3. SOCRATIC GATE / DECISION PROPOSAL
    Guided multiple-choice options with recommended defaults (only if ambiguity exists).
 4. NEXT STEP

@@ -18,16 +18,16 @@ auto-router's lane verdict:
 
 | Phase | Lane entry | Tool posture | Exit |
 | :--- | :--- | :--- | :--- |
-| **1-Plan** | B, A (C runs a single pass; D is header-only, no phases) | Read-only — no file edits | Validated `draft-plan.md` in `docs/temp/` |
-| **1.5-Handoff** | B, A — mandatory after approval | Read-only | `docs/temp/handoff.md` written, spec stamped `Handoff: <date>`, **session stops** |
+| **1-Plan** | B, A (C runs a single pass; D is header-only, no phases) | Read-only — no file edits | Validated `draft-plan.md` in `specs/temp/` |
+| **1.5-Handoff** | B, A — mandatory after approval | Read-only | `specs/temp/handoff.md` written, spec stamped `Handoff: <date>`, **session stops** |
 | **2-Build** | B, A — always a *new* session, starting from the promoted spec | Edits within lane scope only | All section-5 subtasks verified green (`Verify` + `Expect`, evidence recorded) via `verify.py`; commands pre-approved on lanes A/B |
 | **3-Review** | B, A | Read-only | Spec finalized (`Phase: 3-Review`, section-5 subtasks synced with re-measured evidence), scratchpad purged on acceptance |
 
 Key invariants:
 
 - **Spec-first two-step lifecycle.** Step 1 (spec production) ends at the
-  approval gate, which promotes the draft to `docs/specs/`, files ADRs, and
-  records the 1.5 handoff. Step 2 (implementation) is a separate session that
+  approval gate, which promotes the draft to `specs/`, records topic
+  decisions, and records the 1.5 handoff. Step 2 (implementation) is a separate session that
   builds from the promoted spec. A spec-producing session never builds in the
   same session — `build.md` refuses to start without the `Handoff:` marker.
 - **Phase checklists are loaded one at a time.** At each phase start the agent
@@ -40,7 +40,7 @@ Key invariants:
   informational: the 5-tag header is emitted, but no phases, no gates.
 - **Passes are evidence-gated and commands are pre-approved** (spec 001
   D4/D5): a subtask is done only when its `Verify` exits 0 AND its `Expect`
-  marker matches, with evidence recorded in `docs/temp/verify-state.json`; on
+  marker matches, with evidence recorded in `specs/temp/verify-state.json`; on
   lanes A/B a first-ever command is approved (`verify.py approve`) before it
   runs, or the engine refuses with exit 4 before execution (no state change,
   not an attempt).
@@ -79,9 +79,9 @@ Exit code is the contract:
 
 | Exit | Meaning | Side effects |
 | :--- | :--- | :--- |
-| **0** | Proceed / resolved | Non-blocking: default stated, continue. Autonomous blocking: Recommended Option applied, `docs/temp/gate-log.md` appended verbatim (question, options, choice, timestamp) |
+| **0** | Proceed / resolved | Non-blocking: default stated, continue. Autonomous blocking: Recommended Option applied, `specs/temp/gate-log.md` appended verbatim (question, options, choice, timestamp) |
 | **1** | Halt for human answer | Interactive blocking gate — await the human's reply |
-| **2** | Fail-closed | `supervised` non-interactive blocking gate, or any Lane-A surface gate — `docs/temp/escalation.md` written with the pending question and options, no changes made, clean exit |
+| **2** | Fail-closed | `supervised` non-interactive blocking gate, or any Lane-A surface gate — `specs/temp/escalation.md` written with the pending question and options, no changes made, clean exit |
 
 The **Lane-A exception is encoded in the engine, never advisory:** gates
 touching database schema, authentication, or public APIs (pass
@@ -120,11 +120,11 @@ autonomy_level: supervised   # Options: supervised | autonomous
   nothing ships without a human answering.
 - **`autonomous`**: a blocking gate resolves to the **Recommended Option**
   automatically, subject to strict audit:
-  1. The choice is logged verbatim to `docs/temp/gate-log.md` — never purged
+  1. The choice is logged verbatim to `specs/temp/gate-log.md` — never purged
      until a human reviews it.
   2. Any spec promoted under autonomous resolution is tagged
      `Status: PROVISIONAL - AUTONOMOUS DEFAULT` until a human clears the tag
-     (and files no ADRs until then).
+     (and records no decisions until then).
   3. Never applies to Lane-A surfaces — those always fail closed (section 2).
 
 ## 4. The 4-block response schema (5-tag header)
@@ -137,7 +137,7 @@ Every response — including Lane D answers and Lane C micro-edits — carries:
 1. SUMMARY OF UNDERSTANDING
    One-sentence recap of the user input or processed state.
 2. ACTIONS TAKEN / DISCOVERY
-   Files inspected, searches run, draft plans written to docs/temp/. Verification claims carry re-measured evidence: each Phase Gate command, the matched Expect marker, and attempt count — from a fresh re-run, never memory of what ran.
+   Files inspected, searches run, draft plans written to specs/temp/. Verification claims carry re-measured evidence: each Phase Gate command, the matched Expect marker, and attempt count — from a fresh re-run, never memory of what ran.
 3. SOCRATIC GATE / DECISION PROPOSAL
    Guided multiple-choice options with recommended defaults (only if ambiguity exists).
 4. NEXT STEP
@@ -152,8 +152,8 @@ phases or gates.
 
 | Phase | Allowed |
 | :--- | :--- |
-| Plan | Read-only: inspect, search, draft in `docs/temp/` |
-| 1.5-Handoff | Read-only: engine promotion/ADR/handoff writes only |
+| Plan | Read-only: inspect, search, draft in `specs/temp/` |
+| 1.5-Handoff | Read-only: engine promotion/topic/handoff writes only |
 | Build | Edits within the lane's scope (per auto-router `references/lane-matrix.md`); verification through `verify.py` |
 | Review | Read-only: audit, sync spec checkboxes, cleanup via `clean.py` |
 

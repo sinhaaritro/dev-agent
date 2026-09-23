@@ -83,7 +83,7 @@ subtask; non-feature tasks omit it.
 
 - State lives on subtasks: `[ ]` pending → `[/]` in progress → `[x]` done.
 - A subtask is `[x]` only when Verify exits 0 AND the output matches Expect;
-  record evidence (command, exit, matched marker) in docs/temp/verify-state.json.
+  record evidence (command, exit, matched marker) in specs/temp/verify-state.json.
   Exit 0 alone is never enough; a checkbox with no evidence counts as unmet.
 - Before marking `[x]`, run the four passes: (1) implement complete, no
   placeholders; (2) expert re-read, replace the cheap version of each part;
@@ -112,11 +112,11 @@ fires (escalation.md), dirty edits are reverted, and the subtask reverts to
 `[ ]`.
 
 ---
-Usage: drafted at `docs/temp/draft-plan.md` during Phase 1-Plan; validated with
+Usage: drafted at `specs/temp/draft-plan.md` during Phase 1-Plan; validated with
 `promote_spec.py check <draft> --lane <B|A>` (the check also lints the `tags:`
 field, validates the section-5 Task DAG structure, and lints every
 Verify/Expect pair); on acceptance promoted to
-`docs/specs/<id>-<feature>.md` via
+`specs/<id>-<feature>.md` via
 `promote_spec.py promote <draft> --lane <B|A> --status <APPROVED|PROVISIONAL>`.
 Lane A mandates all 7 sections; Lane B uses sections 1, 4, 5 only. The `tags:`
 field is mandatory on committed docs and lives in the YAML frontmatter block
@@ -146,7 +146,7 @@ section 6):
 `Task N` reference when a B plan splits into multiple tasks.
 
 Lane B completion rules (trimmed): a subtask is `[x]` only when Verify exits 0
-AND the output matches Expect (evidence recorded in docs/temp/verify-state.json);
+AND the output matches Expect (evidence recorded in specs/temp/verify-state.json);
 an impossible subtask gets `ABANDON: <non-empty reason>` (visible handoff, never
 silent completion); task done = all subtasks `[x]`; spec done = all subtasks
 `[x]` with recorded evidence.

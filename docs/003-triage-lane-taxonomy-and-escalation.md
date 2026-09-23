@@ -22,7 +22,7 @@ Single source of truth:
 | **D** | Read-Only / Informational | No file mutations. Explanations, comparisons, code Q&A. | None | None — informational | None |
 | **C** | Micro-Edit | Single file; no schema/public-API/auth/dependency changes; diff under ~30 lines | None (inline diff output) | Non-blocking only | Single pass with `Verify` + `Expect` via `verify.py` (PASS = exit 0 + marker); 3 fails escalate to B |
 | **B** | Scoped Multi-File Edit | 2–5 files; no schema/API/auth/security surface; no new external dependencies | Abbreviated `draft-plan.md` (sections 1, 4, 5), promoted on approval | Non-blocking by default; blocking only if scope creeps toward A | Full circuit breaker (3-retry) |
-| **A** | Full SDLC | >5 files, OR database schema, public API contracts, auth/security, OR a new architectural dependency | Full implementation plan, promoted on approval, ADR per architectural decision | Blocking mandatory at every decision point | Full circuit breaker + review phase |
+| **A** | Full SDLC | >5 files, OR database schema, public API contracts, auth/security, OR a new architectural dependency | Full implementation plan, promoted on approval, topic decision per architectural decision | Blocking mandatory at every decision point | Full circuit breaker + review phase |
 
 **Surface triggers outrank file count.** File count is a heuristic: a
 single-file edit that touches an auth middleware is Lane A; a wide but

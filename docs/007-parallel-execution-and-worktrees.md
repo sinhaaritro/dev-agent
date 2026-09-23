@@ -16,7 +16,7 @@ the seven core skills).
 ## 1. The problem
 
 Concurrent AI agent sessions on one repository share one working tree and one
-`docs/temp/` scratchpad. Two agents working different tasks in the same
+`specs/temp/` scratchpad. Two agents working different tasks in the same
 clone collide on: uncommitted edits, the scratchpad (draft plans,
 verify-state, gate-log entries), and the generated `MAP.md`.
 
@@ -26,20 +26,20 @@ The design relies on **Git Worktree Isolation**:
 
 ```text
 /home/user/workspace/project-main/            # Worktree 1 (main branch)
-    └── docs/temp/                            # Isolated main task state
+    └── specs/temp/                            # Isolated main task state
 
 /home/user/workspace/project-feature-auth/    # Worktree 2 (feature/auth branch)
-    └── docs/temp/                            # Isolated auth task state
+    └── specs/temp/                            # Isolated auth task state
 
 /home/user/workspace/project-hotfix-billing/  # Worktree 3 (hotfix/billing branch)
-    └── docs/temp/                            # Isolated billing task state
+    └── specs/temp/                            # Isolated billing task state
 ```
 
 Operating rules:
 
 1. **One worktree = one task.** Each parallel agent runs in a distinct
    physical git worktree directory on disk (one branch each).
-2. **File-system isolation.** Because `docs/temp/` lives inside the physical
+2. **File-system isolation.** Because `specs/temp/` lives inside the physical
    path of a specific worktree, working memory is physically isolated — no
    shared scratchpad, no shared `verify-state.json`, no cross-task
    `gate-log.md` pollution.
@@ -57,7 +57,7 @@ Operating rules:
 - **ID conventions.** Spec sub-IDs share the parent `NNN` prefix (005,
   section 2) precisely so "a worktree can claim the subtree" — a parallel
   branch works `001-A01` while main works `001-A02`.
-- **Handoff payload.** `docs/temp/handoff-payload.md` (inter-agent session
+- **Handoff payload.** `specs/temp/handoff-payload.md` (inter-agent session
   context: origin worktree, origin branch, completed state, pending blocks,
   artifact pointers) is the transfer document between worktrees/sessions; the
   per-session `handoff.md` (005, section 4) remains the approval-phase
@@ -78,7 +78,7 @@ engine-driven pattern of the core skills):
   convention.
 - `system.md` boot-chain step for worktree detection (is this session inside
   a non-main worktree? set the `Worktree:` tag).
-- An ADR recording the adoption decision, per the normal spec-first
+- A topic decision recording the adoption, per the normal spec-first
   lifecycle — this doc is the planning input, not the approval.
 
 Until then: parallel sessions should run **sequentially on one worktree**,

@@ -13,12 +13,12 @@ Outcomes:
     FAIL-CLOSED blocking gate in a non-interactive session under
                 `supervised`, OR any Lane-A surface gate under
                 `autonomous` (schema/auth/public-API never resolve
-                 autonomously). Writes docs/temp/escalation.md.
+                 autonomously). Writes specs/temp/escalation.md.
                 Exit 2.
     RESOLVED    blocking gate in a non-interactive session under
                 `autonomous` with no Lane-A surface: apply the
                 Recommended Option and append a verbatim audit entry to
-                docs/temp/gate-log.md (append-only, never truncated or
+                specs/temp/gate-log.md (append-only, never truncated or
                 purged - system.md ss3). Exit 0.
 
 Autonomy defaults to the `autonomy_level` frontmatter of AGENTS.md
@@ -83,7 +83,7 @@ def parse_options(options_text: str) -> list[str]:
 def gate_log_entry(
     question: str, option_lines: list[str], choice: str, autonomy: str
 ) -> str:
-    """Verbatim entry per the format declared in docs/temp/gate-log.md."""
+    """Verbatim entry per the format declared in specs/temp/gate-log.md."""
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     choice_line = option_lines[0] if choice == "A" and option_lines else choice
     lines = [
@@ -104,7 +104,7 @@ def gate_log_entry(
 def escalation_entry(
     question: str, option_lines: list[str], lane: str, session: str
 ) -> str:
-    """Fail-closed report per the format declared in docs/temp/escalation.md."""
+    """Fail-closed report per the format declared in specs/temp/escalation.md."""
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     lines = [
         f"Date: {now}",
@@ -129,7 +129,7 @@ def escalation_entry(
     lines.append("## 5. State Preserved")
     lines.append("- Dirty edits reverted: yes")
     lines.append("- Working tree state: clean (no changes were made)")
-    lines.append("- Related artifacts: docs/temp/<files>")
+    lines.append("- Related artifacts: specs/temp/<files>")
     lines.append("")
     return "\n".join(lines)
 
@@ -141,29 +141,29 @@ def ensure_scratchpad_guard(root: Path, temp_dir: Path) -> None:
     refuses to descend into a gitignored directory even without a root
     .gitignore - while the root entry documents the exclusion for viewers that
     stop at the top level. Idempotent; only touched when acting on the default
-    docs/temp/ location.
+    specs/temp/ location.
     """
     root_ignore = root / ".gitignore"
     if not root_ignore.is_file():
         root_ignore.write_text("# DEV Agent framework\n", encoding="utf-8")
     lines = root_ignore.read_text(encoding="utf-8").splitlines()
     if not any(
-        ln.strip().strip("/") in ("docs", "docs/temp")
+        ln.strip().strip("/") in ("specs", "specs/temp")
         for ln in lines
         if ln.strip() and not ln.strip().startswith("#")
     ):
         text = root_ignore.read_text(encoding="utf-8")
         if text and not text.endswith("\n"):
             text += "\n"
-        root_ignore.write_text(text + "\ndocs/temp\n", encoding="utf-8")
+        root_ignore.write_text(text + "\nspecs/temp\n", encoding="utf-8")
     inner = temp_dir / ".gitignore"
     if not inner.is_file():
         inner.write_text("*\n!.gitignore\n", encoding="utf-8")
 
 
 def append_gate_log(root: Path, entry: str) -> None:
-    """Append-only write; creates docs/temp/gate-log.md with its header if missing."""
-    temp_dir = root / "docs" / "temp"
+    """Append-only write; creates specs/temp/gate-log.md with its header if missing."""
+    temp_dir = root / "specs" / "temp"
     temp_dir.mkdir(parents=True, exist_ok=True)
     ensure_scratchpad_guard(root, temp_dir)
     gate_log = temp_dir / "gate-log.md"
@@ -186,7 +186,7 @@ def append_gate_log(root: Path, entry: str) -> None:
             "- B: <option B>\n"
             "Choice made: <A | B> - <option summary>\n"
             "Autonomy mode: autonomous\n"
-            "Spec tagged provisional: <yes/no + docs/specs/<id> if promoted>\n"
+            "Spec tagged provisional: <yes/no + specs/<id> if promoted>\n"
             "```\n"
         )
         gate_log.write_text(header, encoding="utf-8")
@@ -195,8 +195,8 @@ def append_gate_log(root: Path, entry: str) -> None:
 
 
 def write_escalation(root: Path, report: str) -> None:
-    """Write the fail-closed report to docs/temp/escalation.md (ephemeral scratchpad)."""
-    temp_dir = root / "docs" / "temp"
+    """Write the fail-closed report to specs/temp/escalation.md (ephemeral scratchpad)."""
+    temp_dir = root / "specs" / "temp"
     temp_dir.mkdir(parents=True, exist_ok=True)
     ensure_scratchpad_guard(root, temp_dir)
     (temp_dir / "escalation.md").write_text(report, encoding="utf-8")

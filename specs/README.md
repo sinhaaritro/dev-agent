@@ -2,8 +2,8 @@
 
 Permanent functional & technical specs. Promotion pipeline:
 
-- Draft: `docs/temp/draft-plan.md` (gitignored)
-- Acceptance: promoted to `docs/specs/<NNN>-<feature-slug>.md` and committed
+- Draft: `specs/temp/draft-plan.md` (gitignored)
+- Acceptance: promoted to `specs/<NNN>-<feature-slug>.md` and committed
 
 Naming: `NNN-<feature-slug>.md` (e.g. `001-feature-spec.md`). Sub-documents use
 sub-IDs that share the parent `NNN` prefix: `NNN-<letter><NN>` (e.g. `001-A01`),
@@ -15,6 +15,7 @@ Every spec carries `tags: [lowercase-kebab, ...]`; the promotion gate runs
 
 <!-- TOC:START -->
 ## Index
+  - 📄 [001-tba-001-topic-based-adr-replace-many-adr-files-with-per-subsystem-topic-docs.md](./001-tba-001-topic-based-adr-replace-many-adr-files-with-per-subsystem-topic-docs.md) — APPROVED
 <!-- TOC:END -->
 
 <!-- TAG-INDEX:START -->

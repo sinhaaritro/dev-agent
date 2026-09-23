@@ -1,6 +1,6 @@
 # DEV Agent framework
 
-docs/temp
+specs/temp
 .agents/MAP.md
 __pycache__/
 .venv/

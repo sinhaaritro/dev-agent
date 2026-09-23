@@ -2,7 +2,7 @@
 """task-cleaner engine - scratchpad purge with a gate-log preservation guarantee.
 
 Owns the mechanical parts of the framework's cleanup contract: purging the
-ephemeral docs/temp/ scratchpad on human acceptance
+ephemeral specs/temp/ scratchpad on human acceptance
 while never touching gate-log.md until a human explicitly clears it. The
 engine never decides whether the task was accepted - the agent calls it when
 the acceptance gate has passed (phase-protocol review.md section 4.2).
@@ -57,7 +57,7 @@ def find_root() -> Path:
 def resolve_temp_dir(arg: str | None) -> Path:
     if arg is not None:
         return Path(arg).resolve()
-    return (find_root() / "docs" / "temp").resolve()
+    return (find_root() / "specs" / "temp").resolve()
 
 
 def assert_scratchpad(target: Path, root: Path) -> None:
@@ -179,7 +179,7 @@ def main() -> int:
         "--temp-dir",
         type=Path,
         default=None,
-        help="scratchpad to purge (default <root>/docs/temp; sandbox for tests)",
+        help="scratchpad to purge (default <repo-root>/specs/temp; sandbox for tests)",
     )
     clean_p.set_defaults(func=cmd_clean)
 
