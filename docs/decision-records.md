@@ -46,3 +46,7 @@ Grouping decisions by subsystem puts "why is it like this?" one file away from
 ### DECISION-RECORDS-D02 - Flatten knowledge layout: specs/ at root, reference series under docs/
 - **Date:** 2026-09-23
 - **Why:** Flatten the knowledge layout: specs live at repo-root specs/ (with specs/temp/ scratchpad), the 001-007 reference series lives directly under docs/ (no reference/ subfolder), and docs/ holds only the reference series + topic docs + README + _topics.md. Simpler, fewer nested dirs; the engine scans the repo root for specs/ and docs/.
+
+### DECISION-RECORDS-D03 - sync-docs indexes all docs/ topics; only _topics.md is skipped
+- **Date:** 2026-09-23
+- **Why:** sync-docs now indexes every docs/ file and folder as a topic - the reference series (001..007), the landing README, and all topic docs - and skips ONLY the generated _topics.md itself. The earlier reservation of the numbered series / README / underscore files was over-broad; the reference docs are legitimate routing topics.

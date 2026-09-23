@@ -10,9 +10,10 @@ Human + AI shared space: the committed knowledge of this repository.
 | `docs/<name>.md` (topic docs) | Why we chose — Topic-Based decision docs: one livedoc per subsystem (`## Current State` + `## Decision Log`), revised in place | `<name>.md` or `<name>/` (plain lowercase kebab; decision IDs `<TOPIC>-D<nn>`) |
 
 Topic docs live directly under `docs/`, one per subsystem. The AI routing
-index for them is the generated `docs/_topics.md` (underscore prefix =
-generated; rebuilt by `generate_map.py sync-docs` after any topic-doc edit) —
-humans read the topic files directly. See
+index for them is the generated `docs/_topics.md` (rebuilt by
+`generate_map.py sync-docs` after any docs/ edit) — it indexes every docs/
+file and folder, reference series included; only `_topics.md` itself is
+skipped. Humans read the topic files directly. See
 `docs/005-docs-architecture-and-spec-lifecycle.md` for the contract.
 
 ## Index

@@ -1,11 +1,10 @@
 """Regression suite for the sync-docs subcommand of the map-generator engine.
 
 Pins the AI topic index contract: `sync-docs` scans `docs/` for topic docs
-(one `.md` file or one folder per subsystem), skips reserved names
-(the numbered `NNN-*.md` reference series, `README.md`, and anything
-underscore-prefixed), and rebuilds `docs/_topics.md` with one section per topic
-carrying path, covers (frontmatter tags), and either sections (flat file) or
-files (folder).
+(one `.md` file or one folder per subsystem), skips ONLY the generated
+`_topics.md` itself (reference series, README, and other files all index),
+and rebuilds `docs/_topics.md` with one section per topic carrying path,
+covers (frontmatter tags), and either sections (flat file) or files (folder).
 
 Each test builds a sandbox repo under ``tempfile.TemporaryDirectory`` and
 drives the engine as a subprocess, exactly as system.md invokes it.
@@ -91,13 +90,14 @@ class SyncDocsTests(unittest.TestCase):
             self.assertIn("- core.md: storage, core", out)
             self.assertIn("- backups.md: storage, backups", out)
 
-    def test_reserved_names_are_skipped(self):
+    def test_only_topics_md_is_skipped(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             docs = root / "docs"
             docs.mkdir(parents=True)
-            # the numbered reference series, the landing README, and generated
-            # (underscore) files are all reserved - only real topics are indexed
+            # the reference series, the landing README, and other underscore
+            # files are all legitimate topics now - the ONLY thing skipped is
+            # the generated _topics.md itself
             (docs / "001-framework-overview.md").write_text(
                 "---\ntags: [framework]\n---\n\n# 001: Framework Overview\n",
                 encoding="utf-8",
@@ -110,10 +110,12 @@ class SyncDocsTests(unittest.TestCase):
             result = run(["sync-docs", "--root", str(root)], root)
             self.assertEqual(result.returncode, 0, result.stderr)
             out = (docs / "_topics.md").read_text(encoding="utf-8")
-            self.assertNotIn("001-framework-overview", out)
-            self.assertNotIn("README", out)
-            self.assertNotIn("_hidden", out)
-            self.assertIn("## auth", out)
+            self.assertIn("## 001-framework-overview.md", out)
+            self.assertIn("## README.md", out)
+            self.assertIn("## _hidden.md", out)
+            self.assertIn("## auth.md", out)
+            # the index must not list itself
+            self.assertNotIn("## _topics.md", out)
 
     def test_empty_docs_still_writes_header(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -241,22 +241,14 @@ def _topic_tags(path: Path) -> list[str]:
     return [sanitize_ascii(t) for t in (fields.get("tags") or [])]
 
 
-REF_SERIES_RE = re.compile(r"^\d{3}-.+\.md$")
-
-
 def _reserved_name(name: str) -> bool:
     """Names under docs/ that are not topic docs.
 
-    Excludes generated files (underscore prefix), the human landing README,
-    and the numbered reference series (001..007) - which is indexed by the
-    TOC/tag rollup, not the topic index.
+    Only the generated index itself is skipped - the reference series
+    (001..007) and every other docs/ file/folder are legitimate topics and
+    are indexed.
     """
-    if name.startswith("_"):
-        return True
-    stem = name.removesuffix(".md")
-    if stem == "README":
-        return True
-    return bool(REF_SERIES_RE.match(name))
+    return name == "_topics.md"
 
 
 def build_topics_index(root: Path) -> str:

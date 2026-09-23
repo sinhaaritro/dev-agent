@@ -243,13 +243,14 @@ NNN/sub-ID, showing name + status + version-pin + backlinks. It is hooked into
 prints without writing. **Never hand-edit a marker block** — prose outside
 the markers is safe from regeneration.
 
-The topic index is a separate, lighter rebuild: `python
-.agents/skills/map-generator/scripts/generate_map.py sync-docs` scans
-`docs/`, copies each topic's `tags:` frontmatter into a `covers:` line,
-derives `sections` (file topics) / `files` (folder topics) from headings, and
-writes `docs/_topics.md`. The agent runs it after editing a topic doc; a
-human runs it after hand edits. The generated file is excluded from the topic
-list by its underscore prefix.
+ The topic index is a separate, lighter rebuild: `python
+ .agents/skills/map-generator/scripts/generate_map.py sync-docs` scans
+ `docs/`, copies each topic's `tags:` frontmatter into a `covers:` line,
+ derives `sections` (file topics) / `files` (folder topics) from headings, and
+ writes `docs/_topics.md`. The agent runs it after editing a topic doc; a
+ human runs it after hand edits. Every docs/ file and folder is a topic - the
+ reference series (001..007) included - and the only thing skipped is the
+ generated `_topics.md` itself (it would otherwise index itself).
 
 ## 7. Scratchpad lifecycle & garbage collection
 
