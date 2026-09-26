@@ -717,8 +717,14 @@ the record, not the gate.
 ### Docs (the explanation lives here)
 - **[NEW]** `docs/lifecycle.md`, `docs/task-files.md`, `docs/verification.md`,
   `docs/run-contract.md`, `docs/branching.md`.
-- **[NEW]** `docs/flow.md` — the mermaid charts moved from `specs/temp/flow.md`.
-- **[GENERATED]** `docs/_topics.md`.
+- **[NEW]** `docs/flow.md` — the mermaid charts moved from `specs/002-flow-design.md`.
+- **[MODIFY]** the existing reference series — `docs/001-framework-overview.md`,
+  `docs/002-skill-discovery-and-indexing.md`, `docs/003-triage-lane-taxonomy-and-escalation.md`,
+  `docs/004-phases-gates-and-autonomy.md`, `docs/005-docs-architecture-and-spec-lifecycle.md`,
+  `docs/006-verification-and-circuit-breakers.md`,
+  `docs/007-parallel-execution-and-worktrees.md`, `docs/decision-records.md` — brought onto the
+  new phases / single `Status:` / gates / run contract / branch model.
+- **[GENERATED]** `docs/README.md`, `docs/_topics.md`.
 
 ### Tests
 - **[NEW]** `tests/test_promote_spec.py`, `tests/test_verify.py`, `tests/test_clean.py`,
@@ -839,10 +845,17 @@ the record, not the gate.
 
 ### Task 14: drift test + full canonical verification
 - Target Files: [NEW] `tests/test_drift_phases.py`, [MODIFY] `AGENTS.md`
-- Depends On: Task 5, Task 6, Task 7, Task 11, Task 13
+- Depends On: Task 5, Task 6, Task 7, Task 11, Task 13, Task 15
 - Outcomes: R9
 - Verify: `python .agents/skills/verification-runner/scripts/verify.py run --command "python -m unittest discover -s tests -v" --expect "OK" --task T14 --lane A`
 - Expect: "OK"
+
+### Task 15: update the docs reference series (001–007 + decision-records)
+- Target Files: [MODIFY] `docs/001-framework-overview.md`, `docs/002-skill-discovery-and-indexing.md`, `docs/003-triage-lane-taxonomy-and-escalation.md`, `docs/004-phases-gates-and-autonomy.md`, `docs/005-docs-architecture-and-spec-lifecycle.md`, `docs/006-verification-and-circuit-breakers.md`, `docs/007-parallel-execution-and-worktrees.md`, `docs/decision-records.md`
+- Depends On: Task 5, Task 6, Task 7
+- Outcomes: R7
+- Verify: `bash -c 'grep -q "1-Plan" docs/004-phases-gates-and-autonomy.md && test -z "$(grep -rln "1\\.5-Handoff\\|Phase: 2-Build\\|Phase: 3-Review" docs/)" && echo REFDOCS-OK'`
+- Expect: "REFDOCS-OK"
 
 ## 6. Gates
 
