@@ -303,27 +303,28 @@ not a second verification gate — the task's `Verify` still decides pass/fail.
 
 The task file is a **self-contained briefing** (copied, not referenced, so the coder never
 needs the full spec):
-- **role & rules** — implement exactly this task, obey the given signatures, do what
-  you're told;
-- **project overview** — 1-2 lines. The global task list is **not** copied here; it lives in
-  the spec's §5 (orchestrator-owned);
-- **the task** — objective + requirements, with a **`progress`** checklist (the ordered steps
-  the owning coder ticks off as it works; §2.3);
-- **Owns** — the files this task edits (the ownership-lease surface, §2.6): full content
-  if < ~300 lines, else relevant slices + top-level imports;
-- **Skills to use** — the exact skills to load, *named by the planning agent* at task
-  generation, so the coder does **no skill selection or matching at runtime** (the list is
-  the decision, not a hint);
-- **Reads/Context** — the context files/docs to read (**read-only, never edited**),
-  *decided by the planning agent* (the coder skips the full AGENTS.md boot loop and works
-  from this list);
-- **upstream interfaces** — signatures/type stubs only (never full dependency files);
-- **the verification command + Expect marker** — `Expect:` names the output substring
-  (or line) that must appear for the verify to count as passed; `verify.py` does a
-  literal substring match on the command's output;
-- **`doctor:`** *(optional)* — names a scoped pre-check the orchestrator runs before this
-  task's verify (a side-constraint or quick drift check). It does **not** gate the task;
-  the task's own verify still decides pass/fail (§2.6).
+- **Role & rules** — implement exactly this task, obey the given signatures;
+- **Project overview** — 1-2 lines; the global task list is **not** copied here (it lives in
+  the spec's §5, orchestrator-owned);
+- **Task** — objective + requirements, with a **Progress** checklist (the steps the owning
+  coder ticks off as it works; §2.3);
+- **Owns** — the files this task edits (the ownership-lease surface, §2.6);
+- **Reads / Context (read-only)** — context files/docs to read (never edited), decided by the
+  planning agent (the coder skips the full AGENTS.md boot loop);
+- **Skills to use** — the exact skills to load, named by the planning agent (no runtime matching);
+- **Upstream interfaces** — signatures/type stubs only (never full dependency files);
+- **Verification** — one fenced command plus an **Expect** marker (a literal substring match);
+- **`doctor:`** *(optional)* — a scoped pre-check (side-constraint/drift) a task may name; it
+  does **not** gate the task — `Verification` still decides pass/fail (§2.6).
+
+**Canonical task-file schema (the shape the engine checks against).** Every generated task
+file is standard Markdown with these `##` headings, in order: `Role & rules`,
+`Project overview`, `Task`, `Progress` (an `###` under Task), `Owns`,
+`Reads / Context (read-only)`, `Skills to use`, `Upstream interfaces`, `Verification`.
+`Verification` MUST contain one fenced code block (the command) and a `**Expect:**` line.
+`promote_spec.py compile` emits exactly this and **validates every file it writes** — a
+missing/misordered heading, or a missing fence or `Expect`, is an error. The schema lives in
+`.agents/skills/spec-builder/references/task-file-format.md`.
 
 If more context is needed, the coder fetches it on demand via tools (stated in the task
 file as a fallback, not an invitation). Explicitly excluded: planning discussions, other
@@ -338,43 +339,48 @@ the 32k budget and couple tasks to each other's internals.)
 **Worked example** (how a generated task file reads — this is how you write one; grounded
 in this repo):
 
-```
+````markdown
 # TASK 003 — add `verify.py doctor` pre-flight subcommand
 
-role & rules
-  You are a coder. Implement ONLY this task. Obey the given signatures.
-  Do not plan, do not touch files you don't Own, do not commit.
+## Role & rules
+Implement ONLY this task. Obey the given signatures. Do not plan, do not touch files you
+don't Own, do not commit.
 
-project overview
-  Dev-agent: a meta-framework that drives coding tasks through a phase protocol.
-  (the global task list lives in the spec §5 — not copied here)
+## Project overview
+Dev-agent: a meta-framework that drives coding tasks through a phase protocol.
+(the global task list lives in the spec §5 — not copied here)
 
-this task
-  003 doctor subcommand
+## Task
+Add a `doctor` subcommand to verify.py that checks the unattended preconditions and fails
+fast with a named list of gaps.
 
-task
-  Add a `doctor` subcommand to verify.py that checks the unattended preconditions and
-  fails fast with a named list of gaps.
+### Progress
+- [ ] add `doctor` subparser to the argparse setup
+- [ ] implement the pre-flight checks (root, imports, state files, spec status, approvals, canonical commands)
+- [ ] write the "named list of gaps" failure output
+- [ ] wire `Expect: PRECONDITIONS OK` on the success path
 
-  progress                      (this task only — the owning coder updates it)
-    [ ] add `doctor` subparser to the argparse setup
-    [ ] implement the pre-flight checks (root, imports, state files, spec status, approvals, canonical commands)
-    [ ] write the "named list of gaps" failure output
-    [ ] wire `Expect: PRECONDITIONS OK` on the success path
+## Owns
+- `.agents/skills/verification-runner/scripts/verify.py`
 
-Owns
-  .agents/skills/verification-runner/scripts/verify.py
-Reads/Context                     (read-only)
-  .agents/skills/spec-builder/scripts/promote_spec.py    (reuse find_root + spec parse)
-Skills to use
-  - verification-runner
-upstream interfaces
-  def find_root() -> Path
-  def load_spec(path) -> dict
-verification
-  python .agents/skills/verification-runner/scripts/verify.py doctor
-  Expect: PRECONDITIONS OK
+## Reads / Context (read-only)
+- `.agents/skills/spec-builder/scripts/promote_spec.py`   (reuse find_root + spec parse)
+
+## Skills to use
+- verification-runner
+
+## Upstream interfaces
+```python
+def find_root() -> Path
+def load_spec(path) -> dict
 ```
+
+## Verification
+```bash
+python .agents/skills/verification-runner/scripts/verify.py doctor
+```
+**Expect:** `PRECONDITIONS OK`
+````
 
 Everything the coder might need is copied in; it never opens the full spec.
 
@@ -668,7 +674,9 @@ the record, not the gate.
     shape, `R#` owner coverage, tag lint; prints `structure: ok` on success. The old
     `### Task N:` gate check is **retired**.
   - `promote <draft> --lane <A|B> --status <COMPILED>` → writes `NNN-SPEC-<slug>.md`.
-  - `compile <spec>` → **new**: writes `NNN-TASK-<NN>-<slug>.md` per §5 task.
+  - `compile <spec>` → **new**: writes `NNN-TASK-<NN>-<slug>.md` per §5 task in the
+    **canonical task-file shape** (`references/task-file-format.md`) and validates each file
+    before writing — `validate_task_file(text: str) -> list[str]`.
   - `status <spec>` / `status <spec> <receipt>` → enforces the transition table (§2.1).
   - `purge <spec>` / `sync` / `accept <spec>` → **new**; `toc`, `topic`, `tag-*` retained.
 - **[MODIFY]** `.agents/skills/verification-runner/scripts/verify.py`
@@ -684,6 +692,10 @@ the record, not the gate.
 - **[NEW]** `.agents/agents/coder.md` — portable coder contract (input = task file; never
   commit/plan/expand scope).
 - **[NEW]** `.agents/agents/critic.md` — *optional, deferred with vetting*.
+
+### Task-file schema
+- **[NEW]** `.agents/skills/spec-builder/references/task-file-format.md` — the canonical
+  task-file skeleton + required-heading list (the shape `compile` validates against).
 
 ### Rules & skills (text; keep lean, defer detail to `docs/`)
 - **[MODIFY]** `.agents/rules/system.md` — boot chain, phases, run contract, guardrails
