@@ -8,22 +8,6 @@ project overview
   Dev-agent: a portable meta-framework that drives coding tasks through a phase protocol
   (1-Plan → 2-Handoff → 3-Build → 4-Review → 5-Done).
 
-plan progress            (as written at 2-Handoff; updated live during the run)
-  [ ] 01 new-template check + statuses
-  [ ] 02 compile + purge/sync/accept
-  [ ] 03 verify.py doctor/hash/status/report
-  [ ] 04 coder contract
-  [ ] 05 phase renumber
-  [ ] 06 run contract
-  [ ] 07 branch/commit guardrail
-  [ ] 08 spec-builder template
-  [ ] 09 docs + charts
-  [ ] 10 slim skills
-  [ ] 11 bootstrap seeds
-  [ ] 12 task-cleaner
-  [ ] 13 migrate 001 + backlog
-  [ ] 14 drift test + final verify
-
 this task
   10 slim skills
 
@@ -34,7 +18,7 @@ task
   `phase-protocol/SKILL.md` under ~120 lines, same discipline for the other SKILL.md files.
   Do not lose any normative rule — move it to docs, don't delete it.
 
-  subtasks                      (static, generation-time — follow, do not check off)
+  progress                      (this task only — the owning coder updates it)
     - pick the long prose blocks in each SKILL.md
     - move them to the right docs/ topic; leave a one-line pointer
     - verify every pointer target exists

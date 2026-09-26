@@ -284,34 +284,31 @@ when they choose to).
 
 ### 2.3 Task file = targeted context for a 32k coder
 
-The task file is the **spec's working file**: the coder reads it to run the task, and the
-run writes back into it — the **plan-progress checklist** (the `[*]` current-task marker
-that updates as tasks complete, §2.6) and the **evidence block** (the per-task verification
-record, §2.5) both live here. Of the group's five file types (§2.2), the task file is the only
-one that changes while a run is in progress; the rest are static, and everything freezes at
-spec end.
+The task file is the **coder's own working file**: exactly one task file is owned by exactly
+one coder, and only that coder writes it. It carries the **subtask checklist** it works
+through and the **evidence block** (the per-task verification record, §2.5, written by
+`verify.py`). The **global** task list — which tasks are done — lives only in the spec's §5
+and is written by the orchestrator (§2.6); it is **not** copied into task files. This 1:1
+ownership is what keeps parallel coders from touching a shared file.
 
 A **task** is the atomic unit of work: **~10-30 minutes of work (≈ 3-5 file edits) + 1
 scoped verification**, sized so a single ~32k-context agent can hold it. The hierarchy is
-**spec → task list (the DAG) → task → subtasks**. Subtasks are **static, optional** steps
+**spec → task list (the DAG) → task → subtasks**. Subtasks are **optional** steps
 *inside* the task file (not top-level units): because a 10-30-min task is usually several
 small edits, most task files carry a short ordered `subtasks` list that breaks the
 implementation into steps the 32k coder works through one at a time (the *how*, inside the
-task). A trivial single-edit task omits the list. Subtasks are **generation-time guidance
-only** — the coder reads and follows them but does **not** check them off or write back into
-the task file; the run report (§2.6) is the record that the task's work happened, not a
-per-subtask checkbox trail.
+task). A trivial single-edit task omits the list. Subtasks are the coder's **own checklist**:
+because it owns this file, it may tick them off (`[ ]` → `[*]` → `[x]`) as it works. They are
+not a second verification gate — the task's `Verify` still decides pass/fail.
 
 The task file is a **self-contained briefing** (copied, not referenced, so the coder never
 needs the full spec):
 - **role & rules** — implement exactly this task, obey the given signatures, do what
   you're told;
-- **project overview** (1-2 lines) + **plan progress** (the full task list, created at
-  2-Handoff and updated live during the run: markers `[ ]` pending → `[*]` current →
-  `[x]` done, advanced as tasks complete — §2.6);
-- **the task** — objective + requirements, with an optional **subtasks** list (ordered
-  implementation steps; static generation-time guidance, the coder does not check them off —
-  §2.3 hierarchy note);
+- **project overview** — 1-2 lines. The global task list is **not** copied here; it lives in
+  the spec's §5 (orchestrator-owned);
+- **the task** — objective + requirements, with a **`progress`** checklist (the ordered steps
+  the owning coder ticks off as it works; §2.3);
 - **Owns** — the files this task edits (the ownership-lease surface, §2.6): full content
   if < ~300 lines, else relevant slices + top-level imports;
 - **Skills to use** — the exact skills to load, *named by the planning agent* at task
@@ -350,12 +347,7 @@ role & rules
 
 project overview
   Dev-agent: a meta-framework that drives coding tasks through a phase protocol.
-
-plan progress            (as written at 2-Handoff — before any task has run; updated live during the run)
-  [ ] 001 evidence ledger
-  [ ] 002 repo-root cwd
-  [ ] 003 doctor subcommand
-  [ ] 004 final review
+  (the global task list lives in the spec §5 — not copied here)
 
 this task
   003 doctor subcommand
@@ -364,11 +356,11 @@ task
   Add a `doctor` subcommand to verify.py that checks the unattended preconditions and
   fails fast with a named list of gaps.
 
-  subtasks                      (static, generation-time — the coder follows, does not check off)
-    - add `doctor` subparser to the argparse setup
-    - implement the pre-flight checks (root, imports, state files, spec status, approvals, canonical commands)
-    - write the "named list of gaps" failure output
-    - wire `Expect: PRECONDITIONS OK` on the success path
+  progress                      (this task only — the owning coder updates it)
+    [ ] add `doctor` subparser to the argparse setup
+    [ ] implement the pre-flight checks (root, imports, state files, spec status, approvals, canonical commands)
+    [ ] write the "named list of gaps" failure output
+    [ ] wire `Expect: PRECONDITIONS OK` on the success path
 
 Owns
   .agents/skills/verification-runner/scripts/verify.py
@@ -392,9 +384,10 @@ Everything the coder might need is copied in; it never opens the full spec.
 orchestrator/lead session dispatches the task file (or, for Lane C, an inline brief) to a
 coder, runs verification via `verify.py`, and updates the task-list state. The
 coder's prompt is the task file only (§2.3) — no AGENTS.md chain, no MAP, no skill
-matching, no planning skills. The orchestrator is the **sole writer** of the spec, the
-task-list state, the approvals store, and the reports; coders return patches + verification
-results and never write those files (this is what keeps parallel coders from racing).
+matching, no planning skills. The orchestrator is the **sole writer** of the spec (including
+the §5 global task state), the approvals store, and the reports; each **task file is owned by
+exactly one coder**, its only writer. Coders never write the spec or another task's file —
+this is what keeps parallel coders from racing.
 
 **Trivial fixes go direct.** The lead may edit code **directly** for trivial, single-file,
 low-risk fixes (a one-line bug fix, a typo, a small config tweak) — no coder dispatch, no

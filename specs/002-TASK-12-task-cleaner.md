@@ -8,22 +8,6 @@ project overview
   Dev-agent: a portable meta-framework that drives coding tasks through a phase protocol
   (1-Plan → 2-Handoff → 3-Build → 4-Review → 5-Done).
 
-plan progress            (as written at 2-Handoff; updated live during the run)
-  [ ] 01 new-template check + statuses
-  [ ] 02 compile + purge/sync/accept
-  [ ] 03 verify.py doctor/hash/status/report
-  [ ] 04 coder contract
-  [ ] 05 phase renumber
-  [ ] 06 run contract
-  [ ] 07 branch/commit guardrail
-  [ ] 08 spec-builder template
-  [ ] 09 docs + charts
-  [ ] 10 slim skills
-  [ ] 11 bootstrap seeds
-  [ ] 12 task-cleaner
-  [ ] 13 migrate 001 + backlog
-  [ ] 14 drift test + final verify
-
 this task
   12 task-cleaner
 
@@ -35,7 +19,7 @@ task
   purge everything in `specs/temp/` except `.gitignore`; never touch `specs/` group files,
   `docs/`, or `BACKLOG.md`; report `purged: N, preserved: M`.
 
-  subtasks                      (static, generation-time — follow, do not check off)
+  progress                      (this task only — the owning coder updates it)
     - retire gate-log.md/verify-state.json/approvals.json as scratch concepts
     - implement the new purge scope + dry-run/status
     - keep the scratchpad guard (refuse targets at/above repo root)
