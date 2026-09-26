@@ -9,7 +9,7 @@ project overview
   (1-Plan → 2-Handoff → 3-Build → 4-Review → 5-Done).
 
 plan progress            (as written at 2-Handoff; updated live during the run)
-  [*] 01 new-template check + statuses
+  [ ] 01 new-template check + statuses
   [ ] 02 compile + purge/sync/accept
   [ ] 03 verify.py doctor/hash/status/report
   [ ] 04 coder contract
