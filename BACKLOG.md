@@ -30,3 +30,7 @@ spec's plan).
 - [ ] 2026-09-28 | what: what  oracle | where: | who:  | how:  | when: 
 
 - [ ] 2026-09-28 | what: review_revision: auto means | where: | who:  | how:  | when: 
+
+- [ ] 2026-09-28 | what: commit messsage | where: | who:  | how:  | when: 
+
+- [ ] 2026-09-28 | what: | where: | who:  | how:  | when: 
