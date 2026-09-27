@@ -1,0 +1,47 @@
+{
+  "spec": "003",
+  "approvals": [
+    {
+      "task": "Task 1",
+      "fingerprint": "grep -o \"CLEAN\" .agents/skills/spec-builder/scripts/promote_spec.py | tail -1|CLEAN|/mnt/HDD2TB/Projects/dev-agent",
+      "command": "grep -o \"CLEAN\" .agents/skills/spec-builder/scripts/promote_spec.py | tail -1",
+      "expect": "CLEAN",
+      "cwd": "/mnt/HDD2TB/Projects/dev-agent"
+    },
+    {
+      "task": "Task 2",
+      "fingerprint": "grep -o \"ABSENT\" docs/README.md | tail -1|ABSENT|/mnt/HDD2TB/Projects/dev-agent",
+      "command": "grep -o \"ABSENT\" docs/README.md | tail -1",
+      "expect": "ABSENT",
+      "cwd": "/mnt/HDD2TB/Projects/dev-agent"
+    },
+    {
+      "task": "Task 3",
+      "fingerprint": "grep -o \"CLEAN\" .agents/rules/system.md | tail -1|CLEAN|/mnt/HDD2TB/Projects/dev-agent",
+      "command": "grep -o \"CLEAN\" .agents/rules/system.md | tail -1",
+      "expect": "CLEAN",
+      "cwd": "/mnt/HDD2TB/Projects/dev-agent"
+    },
+    {
+      "task": "Task 4",
+      "fingerprint": "grep -o \"ABSENT\" docs/005-docs-architecture-and-spec-lifecycle.md | tail -1|ABSENT|/mnt/HDD2TB/Projects/dev-agent",
+      "command": "grep -o \"ABSENT\" docs/005-docs-architecture-and-spec-lifecycle.md | tail -1",
+      "expect": "ABSENT",
+      "cwd": "/mnt/HDD2TB/Projects/dev-agent"
+    },
+    {
+      "task": "Task 5",
+      "fingerprint": "python -m unittest tests.test_promote_spec_docs_root -v|OK|/mnt/HDD2TB/Projects/dev-agent",
+      "command": "python -m unittest tests.test_promote_spec_docs_root -v",
+      "expect": "OK",
+      "cwd": "/mnt/HDD2TB/Projects/dev-agent"
+    },
+    {
+      "task": "Task 6",
+      "fingerprint": "grep -o \"SPEC\" .agents/skills/spec-builder/scripts/promote_spec.py | tail -1|SPEC|/mnt/HDD2TB/Projects/dev-agent",
+      "command": "grep -o \"SPEC\" .agents/skills/spec-builder/scripts/promote_spec.py | tail -1",
+      "expect": "SPEC",
+      "cwd": "/mnt/HDD2TB/Projects/dev-agent"
+    }
+  ]
+}

@@ -33,6 +33,13 @@ Every spec carries `tags: [lowercase-kebab, ...]`; the promotion gate runs
   - 📄 [002-TASK-14-drift-test-final.md](./002-TASK-14-drift-test-final.md)
   - 📄 [002-TASK-15-update-reference-docs.md](./002-TASK-15-update-reference-docs.md)
   - 📄 [002-flow-design.md](./002-flow-design.md)
+  - 📄 [003-SPEC-stop-the-engine-from-knowing-about-docs-readme-md.md](./003-SPEC-stop-the-engine-from-knowing-about-docs-readme-md.md) — BUILDING | Date: 2026-09-27
+  - 📄 [003-TASK-01-remove-docs-readme-md-machinery-from-pro.md](./003-TASK-01-remove-docs-readme-md-machinery-from-pro.md)
+  - 📄 [003-TASK-02-strip-generated-blocks-from-docs-readme-.md](./003-TASK-02-strip-generated-blocks-from-docs-readme-.md)
+  - 📄 [003-TASK-03-update-skill-rules-docs.md](./003-TASK-03-update-skill-rules-docs.md)
+  - 📄 [003-TASK-04-update-reference-topic-docs.md](./003-TASK-04-update-reference-topic-docs.md)
+  - 📄 [003-TASK-05-update-the-regression-tests.md](./003-TASK-05-update-the-regression-tests.md)
+  - 📄 [003-TASK-06-make-promote-write-the-nnn-spec-slug-md-.md](./003-TASK-06-make-promote-write-the-nnn-spec-slug-md-.md)
 <!-- TOC:END -->
 
 <!-- TAG-INDEX:START -->

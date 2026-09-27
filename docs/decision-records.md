@@ -43,10 +43,15 @@ Grouping decisions by subsystem puts "why is it like this?" one file away from
 - **Supersedes:** the many-ADR model (one `docs/decisions/adr-NNN-*.md` per decision, backlinked to specs)
 - **Affects:** docs/005-docs-architecture-and-spec-lifecycle.md#topic-based-decision-records
 
-### DECISION-RECORDS-D02 - Flatten knowledge layout: specs/ at root, reference series under docs/
+### DECISION-RECORDS-D02 - Flatten knowledge layout: specs/ at root, reference series under docs/ (superseded)
 - **Date:** 2026-09-23
 - **Why:** Flatten the knowledge layout: specs live at repo-root specs/ (with specs/temp/ scratchpad), the 001-007 reference series lives directly under docs/ (no reference/ subfolder), and docs/ holds only the reference series + topic docs + README + _topics.md. Simpler, fewer nested dirs; the engine scans the repo root for specs/ and docs/.
 
 ### DECISION-RECORDS-D03 - sync-docs indexes all docs/ topics; only _topics.md is skipped
 - **Date:** 2026-09-23
 - **Why:** sync-docs now indexes every docs/ file and folder as a topic - the reference series (001..007), the landing README, and all topic docs - and skips ONLY the generated _topics.md itself. The earlier reservation of the numbered series / README / underscore files was over-broad; the reference docs are legitimate routing topics.
+
+### DECISION-RECORDS-D04 - The engine (promote_spec.py) should not know about docs/README.md at all. The file stays as a plain human-maintained file (no engine-generated TOC/TAG-INDEX blocks; the AI may read it, and a human can explicitly ask the AI to write it), but no engine/script creates, writes, or updates it. The tag-index subcommand (whose only output was that file) is removed; specs/README.md keeps its generated TOC.
+- **Date:** 2026-09-27
+- **Why:** The engine (promote_spec.py) should not know about docs/README.md at all. The file stays as a plain human-maintained file (no engine-generated TOC/TAG-INDEX blocks; the AI may read it, and a human can explicitly ask the AI to write it), but no engine/script creates, writes, or updates it. The tag-index subcommand (whose only output was that file) is removed; specs/README.md keeps its generated TOC.
+- **Supersedes:** DECISION-RECORDS-D02
