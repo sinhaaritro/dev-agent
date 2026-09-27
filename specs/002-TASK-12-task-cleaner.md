@@ -17,10 +17,10 @@ purge everything in `specs/temp/` except `.gitignore`; never touch `specs/` grou
 `docs/`, or `BACKLOG.md`; report `purged: N, preserved: M`.
 
 ### Progress
-- [ ] retire gate-log.md / verify-state.json / approvals.json as scratch concepts
-- [ ] implement the new purge scope + dry-run/status
-- [ ] keep the scratchpad guard (refuse targets at/above repo root)
-- [ ] add cases to tests/test_clean.py
+- [x] retire gate-log.md / verify-state.json / approvals.json as scratch concepts
+- [x] implement the new purge scope + dry-run/status
+- [x] keep the scratchpad guard (refuse targets at/above repo root)
+- [x] add cases to tests/test_clean.py
 
 ## Owns
 - `.agents/skills/task-cleaner/scripts/clean.py`
@@ -28,7 +28,7 @@ purge everything in `specs/temp/` except `.gitignore`; never touch `specs/` grou
 - `tests/test_clean.py`
 
 ## Reads / Context (read-only)
-- `specs/002-subagent-task-files-phase-renumbering-and-full-plan-execution.md`
+- `specs/002-SPEC-subagent-task-files-full-plan.md`
 - `.agents/skills/verification-runner/scripts/verify.py`
 
 ## Skills to use

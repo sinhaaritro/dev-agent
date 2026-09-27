@@ -34,7 +34,24 @@ prose is untouched.
   - 📄 [007-parallel-execution-and-worktrees.md](./007-parallel-execution-and-worktrees.md)
 
 - 📁 specs/ (repo root)
-  - 📄 [001-tba-001-topic-based-adr-replace-many-adr-files-with-per-subsystem-topic-docs.md](../specs/001-tba-001-topic-based-adr-replace-many-adr-files-with-per-subsystem-topic-docs.md) — APPROVED
+  - 📄 [001-SPEC-topic-based-adr.md](../specs/001-SPEC-topic-based-adr.md) — COMPLETED
+  - 📄 [002-SPEC-subagent-task-files-full-plan.md](../specs/002-SPEC-subagent-task-files-full-plan.md) — DRAFTED | Date: 2026-09-23
+  - 📄 [002-TASK-01-new-template-check.md](../specs/002-TASK-01-new-template-check.md)
+  - 📄 [002-TASK-02-compile-purge-sync-accept.md](../specs/002-TASK-02-compile-purge-sync-accept.md)
+  - 📄 [002-TASK-03-verify-doctor-hash.md](../specs/002-TASK-03-verify-doctor-hash.md)
+  - 📄 [002-TASK-04-coder-contract.md](../specs/002-TASK-04-coder-contract.md)
+  - 📄 [002-TASK-05-phase-renumber.md](../specs/002-TASK-05-phase-renumber.md)
+  - 📄 [002-TASK-06-run-contract.md](../specs/002-TASK-06-run-contract.md)
+  - 📄 [002-TASK-07-branch-commit-guardrail.md](../specs/002-TASK-07-branch-commit-guardrail.md)
+  - 📄 [002-TASK-08-spec-builder-template.md](../specs/002-TASK-08-spec-builder-template.md)
+  - 📄 [002-TASK-09-docs-and-charts.md](../specs/002-TASK-09-docs-and-charts.md)
+  - 📄 [002-TASK-10-slim-skills.md](../specs/002-TASK-10-slim-skills.md)
+  - 📄 [002-TASK-11-bootstrap-seeds.md](../specs/002-TASK-11-bootstrap-seeds.md)
+  - 📄 [002-TASK-12-task-cleaner.md](../specs/002-TASK-12-task-cleaner.md)
+  - 📄 [002-TASK-13-migrate-001-backlog.md](../specs/002-TASK-13-migrate-001-backlog.md)
+  - 📄 [002-TASK-14-drift-test-final.md](../specs/002-TASK-14-drift-test-final.md)
+  - 📄 [002-TASK-15-update-reference-docs.md](../specs/002-TASK-15-update-reference-docs.md)
+  - 📄 [002-flow-design.md](../specs/002-flow-design.md)
 <!-- TOC:END -->
 
 ## Status board

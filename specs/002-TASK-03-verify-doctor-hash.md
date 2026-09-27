@@ -22,19 +22,19 @@ Contracts: `doctor(spec: Path) -> list[str]`, `run(...) -> int`, `status(task: P
 `report(spec: Path) -> Path`.
 
 ### Progress
-- [ ] change cwd handling + fingerprint
-- [ ] write/read the hash evidence block in the task file
-- [ ] implement doctor with the ordered checks
-- [ ] implement hash-based status derivation
-- [ ] implement report generation
-- [ ] add cases to tests/test_verify.py
+- [x] change cwd handling + fingerprint
+- [x] write/read the hash evidence block in the task file
+- [x] implement doctor with the ordered checks
+- [x] implement hash-based status derivation
+- [x] implement report generation
+- [x] add cases to tests/test_verify.py
 
 ## Owns
 - `.agents/skills/verification-runner/scripts/verify.py`
 - `tests/test_verify.py`
 
 ## Reads / Context (read-only)
-- `specs/002-subagent-task-files-phase-renumbering-and-full-plan-execution.md`
+- `specs/002-SPEC-subagent-task-files-full-plan.md`
 - `.agents/skills/spec-builder/references/task-file-format.md`
 
 ## Skills to use

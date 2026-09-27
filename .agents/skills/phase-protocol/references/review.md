@@ -1,12 +1,12 @@
-# PHASE 3 - REVIEW (reference checklist)
+# PHASE 4 - REVIEW (reference checklist)
 
-Load when all build steps are green. **Read-only - no more edits; review and finalize.**
+Load when the build is `BUILT` (all tasks `MET`). **Read-only - no more edits; review and finalize.**
 
 ## 1. Quality audit
 
 1. Review the full diff against the plan: no drift, no dead code, no debug leftovers.
 2. Re-check the affected surface: no protected files touched (`.env*`, credentials, lockfiles, `specs/*`), no unannounced schema/API/auth changes.
-3. Report audit: immediately before reporting, re-measure every completion claim and number — a fresh re-run of every Phase Gate (old evidence is not re-execution), confirm no subtask is unmet or `ABANDON`ed, and that no owner decision is still pending. A "done" report is never composed while any of those is open.
+3. Report audit: immediately before reporting, re-measure every completion claim and number — a fresh re-run of every task's `Verify` (old evidence is not re-execution) plus the canonical AGENTS.md Build/Test/Lint commands, confirm no task is unmet or `ABANDON`ed, and that no owner decision is still pending. A "done" report is never composed while any of those is open.
 
 ## 2. Security & risk pass (Lane A mandatory, others advisable)
 
@@ -19,13 +19,14 @@ Load when all build steps are green. **Read-only - no more edits; review and fin
 The spec was promoted at approval; this phase finalizes it, not births it.
 
 1. Confirm the implementation matches the spec: no drift from section 4 (affected files & contracts), no dead code, no debug leftovers.
-2. Set the spec header to `Phase: 3-Review`; confirm every section-5 subtask is `- [x]` with re-measured evidence (sync any subtask the build moved). Any `ABANDON`ed subtask is reported as visible handoff in the final response — never checked off, never silently dropped.
-3. Re-run the verification suite if the diff changed since the last run; record the evidence.
+2. Set the spec header to `Status: REVIEWED`; confirm every task's derived status is `MET` with re-measured evidence (sync any task the build moved). Any `FAILED`/`BLOCKED` task is reported as visible handoff in the final response — never checked off, never silently dropped.
+3. Re-run the verification suite (every task's `Verify` + the canonical AGENTS.md commands) if the diff changed since the last run; record the evidence.
 4. Any NEW architectural decision surfaced during build and not yet recorded gets a topic log entry now via `promote_spec.py topic` (spec-builder instruction 5). Entries recorded at approval are never edited here — a change to one is a revision (next ID, `--supersedes`), never an in-place rewrite of history.
-5. The spec keeps `Status: APPROVED` (unchanged on completion; the `Phase:` header and checked boxes carry that).
+5. The spec carries `Status: REVIEWED` on a green review; the evidence blocks + checked boxes carry the per-task proof.
 
 ## 4. Handoff & cleanup
 
-1. Summarize outcome + re-measured verification evidence in the final response (fresh Phase-Gate re-run per section 1): each Phase Gate command, the matched `Expect` marker, and attempt count — not memory of what ran. If any subtask is `ABANDON`ed or unmet, block 4 states the halt/handoff, never a "done".
-2. Call `task-cleaner` when the human accepts the task (purges `specs/temp/`; preserves unreviewed `gate-log.md`).
-3. Unresolved issues -> route back to Plan/Build; never silently downgrade the lane.
+1. Summarize outcome + re-measured verification evidence in the final response (fresh re-run per section 1): each task's `Verify` command, the matched `Expect` marker, and attempt count — not memory of what ran. If any task is `FAILED`/`ABANDON`ed or unmet, block 4 states the halt/handoff, never a "done".
+2. The 4.5-Sign-off gate (when `signoff: on`) is the human's "say ok" on the reviewed result; pass -> commit on the spec's branch -> `Status: COMPLETED` (commit is terminal; see build.md §3), block -> `REVIEW_REVISION_REQUIRED` -> re-build. An unresolvable failure parks the spec as `ESCALATED` (not `ABORTED`) and the batch continues to the next spec.
+3. Call `task-cleaner` when the human accepts the task (purges `specs/temp/`; preserves unreviewed `gate-log.md`).
+4. Unresolved issues -> route back to Plan/Build; never silently downgrade the lane.

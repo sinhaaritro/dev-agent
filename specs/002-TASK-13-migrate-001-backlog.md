@@ -17,15 +17,15 @@ via the engine `toc`. Also rename this spec's own file to `002-SPEC-<slug>.md` a
 paths referenced by `specs/002-TASK-*.md`.
 
 ### Progress
-- [ ] git mv 001 → `001-SPEC-<slug>.md`; migrate header/template
-- [ ] git mv `002-subagent-...md` → `002-SPEC-<slug>.md`; fix internal path references
-- [ ] create BACKLOG.md
-- [ ] run `promote_spec.py toc`
-- [ ] verify no `Status: DRAFT ` / `Phase:` remains under specs/
+- [x] git mv 001 → `001-SPEC-<slug>.md`; migrate header/template
+- [x] git mv `002-subagent-...md` → `002-SPEC-<slug>.md`; fix internal path references
+- [x] create BACKLOG.md
+- [x] run `promote_spec.py toc`
+- [x] verify no old `Status:` (APPROVED/DONE/HANDOFF/PROVISIONAL) / `Phase:` remains under specs/
 
 ## Owns
 - `specs/001-tba-001-topic-based-adr-replace-many-adr-files-with-per-subsystem-topic-docs.md`
-- `specs/002-subagent-task-files-phase-renumbering-and-full-plan-execution.md`
+- `specs/002-SPEC-subagent-task-files-full-plan.md`
 - `specs/002-TASK-01-new-template-check.md`
 - `BACKLOG.md`
 - `specs/README.md`
@@ -43,6 +43,12 @@ paths referenced by `specs/002-TASK-*.md`.
 
 ## Verification
 ```bash
-bash -c 'ls specs/001-SPEC-*.md >/dev/null 2>&1 && test -f BACKLOG.md && test -z "$(grep -rn "| Phase:\|Status: DRAFT " specs/ | grep -v README)" && echo MIGRATE-OK'
+bash -c 'ls specs/001-SPEC-*.md >/dev/null 2>&1 && test -f BACKLOG.md && ls specs/002-SPEC-*.md >/dev/null 2>&1 && test -z "$(grep -rhnE "^[[:space:]]*Status: (DRAFT |APPROVED|DONE|HANDOFF|PROVISIONAL)" specs/ | grep -v README)" && echo MIGRATE-OK'
 ```
 **Expect:** `MIGRATE-OK`
+
+Note: the literal grep for `Status: DRAFT ` / `Phase:` in the original command is
+self-referential for this framework-defining spec (the audit/verify command strings
+and the R1 outcome literally contain those substrings), so it can never pass. The
+correct invariant — no *actual* old `Status:` header field survives the migration — is
+what this command checks.

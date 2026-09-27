@@ -1,6 +1,6 @@
 ---
 name: task-cleaner
-description: Garbage collector - purges specs/temp/ scratchpad on human acceptance, preserves unreviewed gate-log.md. Use when a task is accepted or confirmed complete, phase 3 review sign-off happens, a spec is promoted and the scratchpad should reset, or scratchpad cleanup is requested.
+description: Garbage collector - purges the specs/temp/ draft-phase scratchpad on human acceptance (preserves .gitignore); never touches specs/ group files, docs/, or BACKLOG.md. Use when a task is accepted or confirmed complete, 4-Review sign-off happens, a spec is promoted and the scratchpad should reset, or scratchpad cleanup is requested.
 tags:
   - cleanup
   - purge
@@ -16,36 +16,39 @@ metadata:
 
 ## Overview
 
-You reset the ephemeral scratchpad (`specs/temp/`) when a task is accepted or confirmed complete — usually at the end of Phase 3 Review (`review.md` section 4) — preparing it for the next session. Purge mechanics belong to `scripts/clean.py`; you decide WHEN cleanup is lawful (acceptance gate passed) and report WHAT happened. Non-negotiable: `specs/temp/gate-log.md` is append-only and never purged until a human explicitly reviews and clears it — the engine preserves it by default, and only an explicit `--preserve ""` surrender is lawful.
+You reset the ephemeral scratchpad (`specs/temp/`) when a task is accepted or confirmed complete — usually at the end of 4-Review (`review.md` section 4) — preparing it for the next session. In the new world the scratchpad holds **only draft-phase scratch** (`draft-plan.md`, `active-task.md`, flow diagrams): per-task verification evidence lives in the **task files** under `specs/`, the gate log lives in the **spec's `Gates:` section**, and approvals are a **gitignored per-spec file** (`NNN-APPROVALS-<slug>.json`). Purge mechanics belong to `scripts/clean.py`; you decide WHEN cleanup is lawful (acceptance gate passed) and report WHAT happened. Non-negotiable: the purge never touches `specs/` group files, `docs/`, or `BACKLOG.md` — those are durable and live outside `specs/temp/`. The default preserve list is `.gitignore` only (the file that makes the directory ephemeral).
 
 ## When to Use
 
-- The human accepts the task or confirms completion — the final step of Review, after spec promotion.
+- The human accepts the task or confirms completion — the final step of 4-Review, after spec promotion.
 - A task closes and the scratchpad must reset for the next session.
 - Cleanup is requested explicitly ("clean up the scratchpad", "reset the workspace"), or a dry-run check is wanted first.
-- After a human reviewed and cleared the gate-log, a full purge including it is requested.
 
 ## Instructions
 
 1. **Confirm the acceptance gate first.** Run cleanup only after human acceptance or confirmed completion. The engine never decides this — you do. Task still open → do not purge.
 2. **Run the engine, never a hand-rolled delete:**
-   `python .agents/skills/task-cleaner/scripts/clean.py clean`
-   Default: everything in `specs/temp/` is purged **except** `gate-log.md` and `.gitignore`. The report is the contract: `purged: N, preserved: M` followed by the preserved names.
+    `python .agents/skills/task-cleaner/scripts/clean.py clean`
+    Default: everything in `specs/temp/` is purged **except** `.gitignore` (the file that makes the directory ephemeral). `gate-log.md` is no longer a scratchpad file — the gate log lives in the spec's `Gates:` section — so it is purged like any other draft scratch. The report is the contract: `purged: N, preserved: M` followed by the preserved names.
 3. **Check before you destroy.** In doubt, run `clean --dry-run` (lists would-purge/would-preserve, deletes nothing) or `status` (classifies current contents). A dry run costs nothing and makes the blast radius explicit.
-4. **Never touch the gate-log without an explicit human clear.** It survives every default purge. Only after a human explicitly reviews and clears its entries may you purge it, via `clean --preserve ""`. A hand-deleted gate-log is a policy violation with no audit trail; the override leaves a legible record.
-5. **Report the cleanup.** State exactly what was purged and what was preserved — the gate-log is always listed when preserved. The engine restores no template stubs; if the next task needs scratchpad files, the Plan phase creates them on demand.
+4. **Never touch the durable records.** The gate log lives in the spec's `Gates:` section (under `specs/`, not the scratchpad) and approvals are a gitignored per-spec file — neither is in `specs/temp/`, so the purge never touches them. The only in-scratchpad preservation is `.gitignore`; an explicit `--preserve ""` purges even that (rarely needed).
+5. **Report the cleanup.** State exactly what was purged and what was preserved (the default preserve is `.gitignore`). The engine restores no template stubs; if the next task needs scratchpad files, the Plan phase creates them on demand.
 
 ## Output Contract
 
 - Cleanup: the engine's `purged: N, preserved: M` verbatim in block 2, preserved names listed; block 4 states the scratchpad is reset for the next session.
 - Dry-run/status: the classification lists (would-purge / would-preserve) verbatim; block 4 states the purge proceeds only on confirmation.
-- Gate-log preserved: state it explicitly in every cleanup report — it is the audit file that survives.
-- Purge-all: when `--preserve ""` was used, state that the gate-log was cleared by human review and purged via the explicit override.
+- Purge-all: when `--preserve ""` was used, state that even `.gitignore` was purged by the explicit override.
 
 ## Notes
 
-- **The preserve list is the guardrail:** `gate-log.md` (audit trail) and `.gitignore` (what makes the directory ephemeral) survive by default; `--preserve ""` is the only lawful surrender.
-- **Scope is the scratchpad and nothing else:** `specs/`, the topic docs under `docs/`, and `docs/` are persistent and never touched; the engine refuses targets at or above the repo root.
+- **The preserve list is the guardrail:** `.gitignore` (what makes the directory ephemeral) survives by default; `--preserve ""` is the only surrender. There is no longer an append-only audit file in the scratchpad — the gate log is the spec's `Gates:` section and approvals are a gitignored per-spec file.
+- **Scope is the scratchpad and nothing else:** `specs/` group files, the topic docs under `docs/`, and `BACKLOG.md` are persistent and never touched; the engine refuses targets at or above the repo root.
 - **`--temp-dir` is for tests/evals only** — real purges target `specs/temp/`; sandbox runs must never point at the real scratchpad.
-- **Purged on acceptance, by design:** `verify-state.json` (verification-runner's ledger) and per-session workspaces are ephemeral — a closed task's counter and scratch are gone with it.
-- The trigger belongs to Review, but the skill is on-demand: any explicit cleanup request also loads it.
+- **Purged on acceptance, by design:** draft-phase scratch (`draft-plan.md`, `active-task.md`) is ephemeral — a closed task's draft is gone with it; the durable record is the spec + task files + report.
+- The trigger belongs to 4-Review, but the skill is on-demand: any explicit cleanup request also loads it.
+
+## Deep reference (context budget)
+
+The "why" lives in `docs/`, not here — load on demand, never at session start:
+- **lifecycle** — why the scratchpad is ephemeral vs the durable spec + task files (the 2-Handoff save point) → `docs/lifecycle.md`

@@ -16,10 +16,10 @@ Write the topic docs that carry the deep explanation (`.agents` files stay short
 escalation). Each doc gets a `tags:` frontmatter block (topic-doc rules).
 
 ### Progress
-- [ ] create the five topic docs from §2 of the spec (explain the why)
-- [ ] copy the mermaid blocks into docs/flow.md with short prose
-- [ ] add tags frontmatter to each; do not edit `.agents` here
-- [ ] regenerate docs/_topics.md (map-generator sync-docs)
+- [x] create the five topic docs from §2 of the spec (explain the why)
+- [x] copy the mermaid blocks into docs/flow.md with short prose
+- [x] add tags frontmatter to each; do not edit `.agents` here
+- [x] regenerate docs/_topics.md (map-generator sync-docs)
 
 ## Owns
 - `docs/lifecycle.md`
@@ -30,7 +30,7 @@ escalation). Each doc gets a `tags:` frontmatter block (topic-doc rules).
 - `docs/flow.md`
 
 ## Reads / Context (read-only)
-- `specs/002-subagent-task-files-phase-renumbering-and-full-plan-execution.md`
+- `specs/002-SPEC-subagent-task-files-full-plan.md`
 - `specs/002-flow-design.md`
 
 ## Skills to use

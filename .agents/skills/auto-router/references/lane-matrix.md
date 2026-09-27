@@ -49,3 +49,16 @@ Ambiguous:
 - **Docs-only multi-file edit** ("Update the README and the architecture doc"). Two files, no code, no surface -> **B** — surface criteria decide, not code-to-doc ratio; one doc file would be **C**.
 - **"Explain, then fix" split** -> answer in **D**, re-triage the fix separately (likely C or B by blast radius). Never auto-escalate D into a single mutating run.
 - **Mid-flight escalation C -> B** — a C edit reveals a second file must change for the build to pass. Reclassify immediately, announce, continue under B's contract (abbreviated draft plan, circuit breaker). No asking permission, no silent continuation as C.
+
+## 6. Run contract
+
+A run **never self-starts** — it begins only from an explicit trigger (free-form: `implement / execute / complete <spec>`). The trigger resolves to a **run contract**:
+
+- **targets** — which specs (`this`, a list, or `all`), each already `COMPILED`.
+- **mode** — `supervised` (ask) | `unattended` (don't ask). Default from the detected **session type** (Option A): Interactive → `supervised`, Non-Interactive → `unattended`, no signal → `unattended` (fail toward caution). The trigger may override either way ("run it overnight" / "wait for me at 4.5").
+- **stop point** — `commit` (default; commit → `COMPLETED`) | `pre-commit` (run to `REVIEWED`, stop before commit so the human inspects/commits).
+
+**Opt-in start (the cost gate).** The start condition is opt-in: in CI a ticket is only an *event*, and the wrapper maps an event to a trigger **only when it matches an allowlist** (a label, a `/agent` command, an approval, a schedule). Nothing runs and nothing costs money unless a trigger explicitly fires. **The allowlist is the cost gate** — it is what bounds spend.
+
+**Unattended behavior.** An unattended run does not ask for approvals or gate answers; it runs to the stop point. It **pauses** only at a spec-level human point — `signoff: on` (at 4.5) or a `review_revision: halt` review failure — and waits for a human. A `signoff: on` spec under unattended therefore **pauses at 4.5** (it is not refused).
+

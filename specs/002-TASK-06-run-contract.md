@@ -17,10 +17,10 @@ trigger may override either way. Document that a `signoff: on` spec **pauses at 
 unattended. Keep it short.
 
 ### Progress
-- [ ] document the run contract + Option A default in lane-matrix.md
-- [ ] update auto-router SKILL.md to emit it
-- [ ] add the run-contract/guardrail line to system.md
-- [ ] state the opt-in start condition (allowlist = the cost gate)
+- [x] document the run contract + Option A default in lane-matrix.md
+- [x] update auto-router SKILL.md to emit it
+- [x] add the run-contract/guardrail line to system.md
+- [x] state the opt-in start condition (allowlist = the cost gate)
 
 ## Owns
 - `.agents/skills/auto-router/SKILL.md`
@@ -28,7 +28,7 @@ unattended. Keep it short.
 - `.agents/rules/system.md`
 
 ## Reads / Context (read-only)
-- `specs/002-subagent-task-files-phase-renumbering-and-full-plan-execution.md`
+- `specs/002-SPEC-subagent-task-files-full-plan.md`
 
 ## Skills to use
 - auto-router

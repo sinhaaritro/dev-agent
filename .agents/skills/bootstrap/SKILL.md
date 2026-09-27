@@ -23,10 +23,13 @@ You install the Dev Agent framework into a target repository by copying the cano
 | `reference/AGENTS.md` | `AGENTS.md` (repo root) |
 | `reference/.gitignore` | `.gitignore` (repo root) |
 | `reference/rules/system.md` | `.agents/rules/system.md` |
+| `reference/agents/coder.md` | `.agents/agents/coder.md` |
 | `reference/.cursorrules` | `.cursorrules` (repo root) |
 | `reference/.windsurfrules` | `.windsurfrules` (repo root) |
 
 The two dotfiles are IDE pointer files — one line each, telling Cursor and Windsurf to load `.agents/rules/system.md` as the gateway.
+
+`reference/agents/coder.md` is the **portable coder subagent contract** (role, input = the task file only, fetch context on demand, search/replace blocks for large files, run the task's verification, never commit / never plan / never expand scope / never touch files it does not Own, sole writer of its own task file, the trivial direct-fix exception). Bootstrap seeds it so every target repo has the contract the Build phase's coder dispatch relies on.
 
 Copy mechanics belong to `scripts/bootstrap.py`; you decide WHERE the target repo is and confirm the overwrite policy. The engine never guesses a target: you pass `--target` explicitly, and the engine refuses to run against this framework's own source tree.
 
@@ -47,7 +50,8 @@ Copy mechanics belong to `scripts/bootstrap.py`; you decide WHERE the target rep
 4. **Run the install:**
    `python <this-skill>/scripts/bootstrap.py --target <abs-path>`
    Success contract: one line per file (`installed:` / `updated:` / `unchanged:`) followed by `bootstrap complete: N installed, M updated, K unchanged`.
-5. **Post-install.** The target now has the gateway rulebook and agent contract. Tell the human the next step: open the target in their AI editor (the agent reads `AGENTS.md` and `.agents/rules/system.md` on startup). If the target should also get the other core skills, install them via `npx skills add` per the target's AGENTS.md.
+5. **Post-install.** The target now has the gateway rulebook and the coder contract. Tell the human the next step: open the target in their AI editor (the agent reads `AGENTS.md` and `.agents/rules/system.md` on startup). If the target should also get the other core skills, install them via `npx skills add` per the target's AGENTS.md.
+6. **Adapter notes.** The seeded `.agents/agents/coder.md` is the *behavioral* contract only — it is harness-agnostic. Each harness adds a **thin adapter** on top: bind a small (≈32k-class) model and a narrow permission surface to that file, and load it as the coder subagent's system prompt. The adapter is per-harness (it lives in the harness's own subagent mechanism), so bootstrap does not seed it; remind the human to point their harness's coder at `.agents/agents/coder.md`.
 
 ## Output Contract
 

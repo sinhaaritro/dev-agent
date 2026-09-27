@@ -7,6 +7,7 @@ their proper locations in the target repository:
     reference/AGENTS.md        -> <target>/AGENTS.md
     reference/.gitignore       -> <target>/.gitignore
     reference/rules/system.md  -> <target>/.agents/rules/system.md
+    reference/agents/coder.md  -> <target>/.agents/agents/coder.md
     reference/.cursorrules     -> <target>/.cursorrules
     reference/.windsurfrules   -> <target>/.windsurfrules
 
@@ -41,6 +42,7 @@ SEED_FILES = (
     ("AGENTS.md", "AGENTS.md"),
     (".gitignore", ".gitignore"),
     ("rules/system.md", ".agents/rules/system.md"),
+    ("agents/coder.md", ".agents/agents/coder.md"),
     (".cursorrules", ".cursorrules"),
     (".windsurfrules", ".windsurfrules"),
 )

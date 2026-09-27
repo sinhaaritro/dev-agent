@@ -17,16 +17,16 @@ it short; the harness adapter (model binding + permission surface) is per-harnes
 `.agents/skills/bootstrap/SKILL.md` to seed `agents/coder.md` + the adapter notes on bootstrap.
 
 ### Progress
-- [ ] create `.agents/agents/coder.md` with the sections above
-- [ ] add the seed step to bootstrap/SKILL.md (and its reference copy if present)
-- [ ] note the trivial direct-fix exception (lead may edit directly; recorded `direct`)
+- [x] create `.agents/agents/coder.md` with the sections above
+- [x] add the seed step to bootstrap/SKILL.md (and its reference copy if present)
+- [x] note the trivial direct-fix exception (lead may edit directly; recorded `direct`)
 
 ## Owns
 - `.agents/agents/coder.md`
 - `.agents/skills/bootstrap/SKILL.md`
 
 ## Reads / Context (read-only)
-- `specs/002-subagent-task-files-phase-renumbering-and-full-plan-execution.md`
+- `specs/002-SPEC-subagent-task-files-full-plan.md`
 - `.agents/skills/phase-protocol/SKILL.md`
 
 ## Skills to use

@@ -76,19 +76,21 @@
     - 1. Command source (resolution order)
     - 2. Running through the engine (never bare)
     - 3. Command approval (separate from plan approval)
-    - 4. The retry ledger (engine-owned counter)
-    - 5. Fixing like a doctor, not a gambler
-    - 6. Escalation on a trip
-    - 7. Subtask checkbox coupling
+    - 4. The per-task retry ledger (engine-owned counter)
+    - 4a. Derived status (`verify.py status`)
+    - 5. The doctor (pre-flight, `verify.py doctor`)
+    - 6. Fixing like a doctor, not a gambler
+    - 7. Escalation & the report
     - 8. Guardrails context
 
 ## 007-parallel-execution-and-worktrees.md
 
   path: docs/007-parallel-execution-and-worktrees.md
-  covers: worktree, parallel, isolation, intent
+  covers: worktree, parallel, isolation, branch-per-spec, ownership-lease
   sections:
     - 1. The problem
-    - 2. The isolation model
+    - 1a. Current tier: branch-per-spec + the sole-writer lease
+    - 2. The isolation model (INTENT: physical worktrees)
     - 3. Integration points (where this would plug in)
     - 4. What a future skill would own
 
@@ -103,10 +105,61 @@
     - Frontmatter conventions
     - Tag Index
 
+## branching.md
+
+  path: docs/branching.md
+  covers: branching, branch-per-spec, worktree, commit-terminal, never-merge, main
+  sections:
+    - Current State
+    - Decision Log
+
 ## decision-records.md
 
   path: docs/decision-records.md
   covers: decision-records, adr, topic-docs, spec-lifecycle, framework
+  sections:
+    - Current State
+    - Decision Log
+
+## flow.md
+
+  path: docs/flow.md
+  covers: flow, state-machine, mermaid, build-run, review, multi-spec, escalation
+  sections:
+    - 1. Master per-spec state machine
+    - 2. Build run flow (`COMPILED → BUILT | ESCALATED`)
+    - 3. Review & acceptance (`BUILT → REVIEWED → commit → COMPLETED`)
+    - 4. Multi-spec + escalation
+    - 5. Build loop (orchestrator / coders / verify)
+
+## lifecycle.md
+
+  path: docs/lifecycle.md
+  covers: lifecycle, status, phases, gates, spec, handoff, phases-protocol
+  sections:
+    - Current State
+    - Decision Log
+
+## run-contract.md
+
+  path: docs/run-contract.md
+  covers: run-contract, trigger, mode, unattended, supervised, stop-point, opt-in
+  sections:
+    - Current State
+    - Decision Log
+
+## task-files.md
+
+  path: docs/task-files.md
+  covers: task-files, subagent, coder, owns, dag, dispatch, evidence
+  sections:
+    - Current State
+    - Decision Log
+
+## verification.md
+
+  path: docs/verification.md
+  covers: verification, verify, evidence, fingerprint, doctor, report, derived-status
   sections:
     - Current State
     - Decision Log

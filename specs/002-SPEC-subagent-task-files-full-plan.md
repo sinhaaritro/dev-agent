@@ -5,7 +5,7 @@ signoff: off          # 4.5-Sign-off gate: on | off (on => pauses for a human wh
 review_revision: auto # review failure: auto (<=3 re-build cycles) | halt (straight to human)
 ---
 
-# [SPEC-ID]: Subagent Task Files, Phase Renumbering, and Full-Plan Execution
+# 002: Subagent Task Files, Phase Renumbering, and Full-Plan Execution
 
 Status: DRAFTED | Date: 2026-09-23
 
@@ -840,7 +840,7 @@ the record, not the gate.
 - Target Files: [RENAME] `specs/001-tba-001-*.md` → `specs/001-SPEC-*.md`, [NEW] `BACKLOG.md`, [MODIFY] `specs/README.md`, `docs/README.md`
 - Depends On: Task 1, Task 2
 - Outcomes: R8
-- Verify: `bash -c 'ls specs/001-SPEC-*.md >/dev/null 2>&1 && test -f BACKLOG.md && test -z "$(grep -rn "| Phase:\|Status: DRAFT " specs/ | grep -v README)" && echo MIGRATE-OK'`
+- Verify: `bash -c 'ls specs/001-SPEC-*.md >/dev/null 2>&1 && test -f BACKLOG.md && ls specs/002-SPEC-*.md >/dev/null 2>&1 && test -z "$(grep -rhnE "^[[:space:]]*Status: (DRAFT |APPROVED|DONE|HANDOFF|PROVISIONAL)" specs/ | grep -v README)" && echo MIGRATE-OK'`
 - Expect: "MIGRATE-OK"
 
 ### Task 14: drift test + full canonical verification
@@ -869,7 +869,7 @@ deferred, §3.)_
 - Test Command: `python -m unittest discover -s tests -v`
 - Lint Command: `python -m ruff check .agents tests`
 - Audit (phase set): `grep -rn "1\.5-Handoff\|1\.5-Consensus\|4\.5-Consensus\|Phase:" .agents docs README.md AGENTS.md` → expect no matches (the `Phase:` field is dropped in favour of a single `Status:`); canonical stage set is `1-Plan`, `1.5-Vetting`, `2-Handoff`, `3-Build`, `4-Review`, `4.5-Sign-off`, `5-Done` (enforced by the drift test, §5)
-- Audit (status set): `grep -rn "Status: DRAFT \|Status: HANDOFF\|Status: APPROVED\|Status: DONE\|Status: PROVISIONAL" specs` → expect no matches; canonical `Status:` receipt set is `DRAFTED`, `COMPILED`, `BUILDING`, `BUILT`, `REVIEWED`, `COMPLETED`, `PLAN_REVISION_REQUIRED`, `REVIEW_REVISION_REQUIRED`, `ESCALATED`, `ABORTED` (§2.1)
+- Audit (status set): `grep -rn "Phase:\|Status: APPROVED\|Status: DONE\|Status: HANDOFF\|Status: PROVISIONAL" specs` → expect no matches; the single `Status:` receipt field carries the canonical set `DRAFTED, COMPILED, BUILDING, BUILT, REVIEWED, COMPLETED, PLAN_REVISION_REQUIRED, REVIEW_REVISION_REQUIRED, ESCALATED, ABORTED` (§2.1) — the old `Status: DRAFT`/`APPROVED`/`DONE`/`HANDOFF`/`PROVISIONAL` values are retired.
 
 
 ## 8. Rollback Strategy

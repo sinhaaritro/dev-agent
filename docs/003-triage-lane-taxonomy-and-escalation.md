@@ -21,8 +21,8 @@ Single source of truth:
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **D** | Read-Only / Informational | No file mutations. Explanations, comparisons, code Q&A. | None | None — informational | None |
 | **C** | Micro-Edit | Single file; no schema/public-API/auth/dependency changes; diff under ~30 lines | None (inline diff output) | Non-blocking only | Single pass with `Verify` + `Expect` via `verify.py` (PASS = exit 0 + marker); 3 fails escalate to B |
-| **B** | Scoped Multi-File Edit | 2–5 files; no schema/API/auth/security surface; no new external dependencies | Abbreviated `draft-plan.md` (sections 1, 4, 5), promoted on approval | Non-blocking by default; blocking only if scope creeps toward A | Full circuit breaker (3-retry) |
-| **A** | Full SDLC | >5 files, OR database schema, public API contracts, auth/security, OR a new architectural dependency | Full implementation plan, promoted on approval, topic decision per architectural decision | Blocking mandatory at every decision point | Full circuit breaker + review phase |
+| **B** | Scoped Multi-File Edit | 2–5 files; no schema/API/auth/security surface; no new external dependencies | Abbreviated plan (sections 1, 4, 5), compiled into a spec group on approval | Non-blocking by default; blocking only if scope creeps toward A | Task verify with 3-attempt run-to-exhaustion, then `ESCALATED` |
+| **A** | Full SDLC | >5 files, OR database schema, public API contracts, auth/security, OR a new architectural dependency | Full implementation plan, compiled on approval, topic decision per architectural decision | Blocking mandatory at every decision point | Task verify + 4-Review, run-to-exhaustion, then `ESCALATED` |
 
 **Surface triggers outrank file count.** File count is a heuristic: a
 single-file edit that touches an auth middleware is Lane A; a wide but
@@ -41,8 +41,16 @@ surface-free refactor may be Lane B.
 - **Non-Interactive** — headless, no human in the loop (CI, batch, daemon).
 - No harness signal → **default Non-Interactive** (fail toward caution).
 
-The session type feeds gate behavior (004, section 3) — triage detects it,
-phase-protocol consumes it.
+The session type feeds two consumers — triage detects it, the rest consume it:
+
+- **Gate behavior** (004, section 3): Interactive blocking gates halt for a
+  human; Non-Interactive ones are governed by the autonomy policy.
+- **Run mode** (004, section 3): the run contract's `mode` defaults from the
+  session type — **Interactive → `supervised`**, **Non-Interactive →
+  `unattended`**, **no signal → `unattended`** (fail toward caution). An
+  explicit trigger may override either way (`wait for me at 4.5` forces
+  `supervised`; `run it overnight` forces `unattended`). See the topic doc
+  `docs/run-contract.md`.
 
 ## 3. Escalation rules
 
@@ -58,6 +66,17 @@ phase-protocol consumes it.
    less than under-scoping a schema change.
 4. **Lane D never auto-escalates.** "Explain this function, then fix the bug"
    splits: answer in D (read-only), then re-triage the fix separately.
+
+5. **Run failures park `ESCALATED`, not `ABORTED`.** When a task exhausts its
+   3 verify attempts and no unblocked task remains, the spec is stamped
+   **`ESCALATED`** with a consolidated `NNN-ESCALATION-<slug>.md` (every failed
+   task with its attempts + last output, every blocked task, the dirty edits
+   left in the tree). The run stops **that spec's branch** and the batch
+   **continues** to the next spec — a bad spec cannot cascade. `ABORTED` is
+   reserved for a human deliberately stopping a spec at a gate. This is
+   distinct from the upward re-lane escalation above (which is mid-run and
+   announced); here the run itself halts the spec. See `docs/branching.md` and
+   `docs/run-contract.md`.
 
 ## 4. Worked examples
 
@@ -76,8 +95,8 @@ Ambiguous:
   file → **C**. Surface criteria decide, not code-to-doc ratio.
 - "Explain, then fix" → D for the answer, separate re-triage for the fix.
 - Mid-flight C → B (a second file must change for the build to pass) →
-  reclassify, announce, continue under B's contract (abbreviated draft plan,
-  circuit breaker). No asking permission, no silent continuation as C.
+  reclassify, announce, continue under B's contract (abbreviated plan, task
+  verify). No asking permission, no silent continuation as C.
 
 ## 5. The routing verdict
 

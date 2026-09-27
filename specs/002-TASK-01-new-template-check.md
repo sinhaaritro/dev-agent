@@ -34,7 +34,7 @@ Make `promote_spec.py check` validate the NEW spec template and retire the old
 - `tests/test_promote_spec.py`
 
 ## Reads / Context (read-only)
-- `specs/002-subagent-task-files-phase-renumbering-and-full-plan-execution.md`
+- `specs/002-SPEC-subagent-task-files-full-plan.md`
 - `.agents/skills/spec-builder/references/implementation-plan-template.md`
 
 ## Skills to use
@@ -50,6 +50,6 @@ def _is_noop_verify(cmd: str) -> bool
 
 ## Verification
 ```bash
-python .agents/skills/spec-builder/scripts/promote_spec.py check specs/002-subagent-task-files-phase-renumbering-and-full-plan-execution.md --lane A
+python .agents/skills/spec-builder/scripts/promote_spec.py check specs/002-SPEC-subagent-task-files-full-plan.md --lane A
 ```
 **Expect:** `structure: ok`

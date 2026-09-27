@@ -16,10 +16,10 @@ the canonical phases, the single `Status:` model, the run contract, and the neve
 guardrail — and seed `.agents/agents/coder.md` (from task 04).
 
 ### Progress
-- [ ] apply the T5 phase/status renames to every reference file
-- [ ] add the run contract + guardrail (T6/T7) to reference/rules/system.md
-- [ ] ensure .gitignore covers `specs/temp` and `MAP.md`
-- [ ] confirm no `Phase:` remains in reference/
+- [x] apply the T5 phase/status renames to every reference file
+- [x] add the run contract + guardrail (T6/T7) to reference/rules/system.md
+- [x] ensure .gitignore covers `specs/temp` and `MAP.md`
+- [x] confirm no `Phase:` remains in reference/
 
 ## Owns
 - `.agents/skills/bootstrap/reference/AGENTS.md`
@@ -31,7 +31,7 @@ guardrail — and seed `.agents/agents/coder.md` (from task 04).
 ## Reads / Context (read-only)
 - `.agents/rules/system.md`
 - `.agents/skills/auto-router/references/lane-matrix.md`
-- `specs/002-subagent-task-files-phase-renumbering-and-full-plan-execution.md`
+- `specs/002-SPEC-subagent-task-files-full-plan.md`
 
 ## Skills to use
 - bootstrap

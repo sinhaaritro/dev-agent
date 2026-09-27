@@ -1,7 +1,7 @@
-# Project - [PROJECT_NAME]
+# Project - Dev Agent
 
 ## Description
-[Brief 1-2 sentence description of the project is, does.]
+This is a framework for a agent setup. This repo, has the skills that will help agents to do agentinc coding.
 
 ## Tech Stack
 
@@ -18,9 +18,9 @@
 
 ## Commands
 
-- Build: <command>
-- Test: <command>
-- Lint: <command>
+- Build: `python -m compileall -q .agents tests`
+- Test: `python -m unittest discover -s tests -v`
+- Lint: `python -m ruff check .agents tests`
 
 # DEV AGENT
 

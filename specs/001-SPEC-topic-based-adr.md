@@ -2,9 +2,9 @@
 tags: [topic-adr, decision-record, revision, discovery, guardrail]
 ---
 
-# TBA-001: Topic-Based ADR (replace many-ADR files with per-subsystem topic docs)
+# 001: Topic-Based ADR (replace many-ADR files with per-subsystem topic docs)
 
-Status: APPROVED
+Status: COMPLETED
 Handoff: 2026-09-22
 
 > Scope: **complete and check-passing (promotion-ready).** Sections 1-4 capture

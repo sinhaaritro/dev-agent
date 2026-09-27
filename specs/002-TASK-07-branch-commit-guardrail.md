@@ -19,9 +19,9 @@ Document the build/commit model in `system.md` and the phase references:
 - on failure the spec parks as `ESCALATED` (not `ABORTED`) and the batch continues.
 
 ### Progress
-- [ ] add the branch rule + commit-terminal to build.md
-- [ ] add the never-merge guardrail to system.md
-- [ ] note `ESCALATED` vs `ABORTED` and batch-continue in build.md/review.md
+- [x] add the branch rule + commit-terminal to build.md
+- [x] add the never-merge guardrail to system.md
+- [x] note `ESCALATED` vs `ABORTED` and batch-continue in build.md/review.md
 
 ## Owns
 - `.agents/rules/system.md`
@@ -29,7 +29,7 @@ Document the build/commit model in `system.md` and the phase references:
 - `.agents/skills/phase-protocol/references/review.md`
 
 ## Reads / Context (read-only)
-- `specs/002-subagent-task-files-phase-renumbering-and-full-plan-execution.md`
+- `specs/002-SPEC-subagent-task-files-full-plan.md`
 
 ## Skills to use
 - phase-protocol

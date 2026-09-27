@@ -1,30 +1,58 @@
 ---
 tags: [lowercase-kebab, ...]
+vetting: off          # 1.5-Vetting gate (plan review): on | off
+signoff: off          # 4.5-Sign-off gate: on | off (on => pauses for a human when unattended)
+review_revision: auto # review failure: auto (<=3 re-build cycles) | halt (straight to human)
 ---
 
 # [SPEC-ID]: Feature Title
 
-Status: DRAFT | Phase: 1-Plan | Date: YYYY-MM-DD
+Status: DRAFTED | Date: YYYY-MM-DD
+
+## 0. Frontmatter
+
+The YAML block above the title is the single, easy-to-flip home for the per-spec
+flow flags (set at draft time; §2.1 of the plan spec):
+
+- `tags:` — lowercase-kebab, 2-30 chars, max 7 (mandatory on committed docs).
+- `vetting: on|off` — the 1.5-Vetting (plan review) gate. Default `on` for a
+  Lane-A surface, `off` otherwise (token cost).
+- `signoff: on|off` — the 4.5-Sign-off (human "say ok") gate. The **one spec-level
+  human point**: in an unattended run `signoff: on` **pauses at 4.5** until a human
+  signs off.
+- `review_revision: auto|halt` — on a `REVIEWED` failure, `auto` allows up to 3
+  re-build cycles before a human; `halt` goes straight to a human.
 
 ## 1. Goal & Context
 
 1-2 sentences explaining the business/technical goal.
 
-## 2. Architectural Decisions & Trade-offs
+## 2. The Change (end state, by area)
 
-Ownership rule: a fact lives in exactly one place. Section 2 owns the choice +
-rejected alternative + reason and points forward ("consequence flagged in
-section 3"); section 3 owns the consequence awaiting sign-off, referenced by
+Ownership rule: a fact lives in exactly one place. Section 2 owns the **choice +
+rejected alternative + reason** and points forward ("consequence flagged in
+section 3"); section 3 owns the **consequence awaiting sign-off**, referenced by
 decision number, and the open questions.
 
-1. **<Decision>.** Alternative: <option>. Rejected: <reason>. (consequence flagged in section 3)
-2. **<Decision>.** Alternative: <option>. Rejected: <reason>.
+Write this as **thematic subsections, not a flat list of items** — one `###` per
+area the change touches (a component, a contract, a subsystem), each stating the
+end state for that area.
+
+### <Area / component>
+
+- **<Decision>.** Alternative: <option>. Rejected: <reason>. (consequence flagged in section 3)
+- End state: <what is true here after this spec>
+
+### <Area / component>
+
+- **<Decision>.** Alternative: <option>. Rejected: <reason>.
+- End state: <what is true here after this spec>
 
 ## 3. Risks & Open Questions
 
 > [!IMPORTANT]
 > **User Review Required**
-> - <consequence of a settled decision awaiting human acceptance> — consequence of decision 2.N. Acceptable?
+> - <consequence of a settled decision awaiting human acceptance> — consequence of a section-2 decision. Acceptable?
 
 ### Open Questions
 
@@ -34,7 +62,9 @@ decision number, and the open questions.
 
 One entry per file. The tag + path is the scope boundary; the contract block
 states the shape the file's code must take (interface, signature, behavior).
-Files without an interface (migrations, tests, config) carry no contract block.
+This section is the **contract source** the task files copy as their `Owns` /
+`Reads` context. Files without an interface (migrations, tests, config) carry no
+contract block.
 
 - Deleted: none
 
@@ -53,107 +83,115 @@ Files without an interface (migrations, tests, config) carry no contract block.
 - Contract:
   - exports `requireRole(roles: Role[]): RequestHandler`
 
-## 5. Task DAG
+## 5. Tasks & Outcomes
 
-Tasks are units of coherence (one component/behavior); subtasks are units of
-atomic action (2-10 minutes). Build order is read from `Depends On`.
+> This list is the **source** the 2-Handoff compiles into one task file per task
+> (`NNN-TASK-<NN>-<slug>.md`). The global task list lives **only here** (it is not
+> copied into task files). Build order is read from `Depends On`.
+
+**Outcomes:** each task delivers one or more `R#` outcomes; every `R#` must have a
+recorded observation by 4-Review (reconciliation).
+
+| ID | Outcome (what the user gets) |
+|----|------------------------------|
+| R1 | <outcome> |
+| R2 | <outcome> |
+
+---
 
 ### Task 1: <coherent component/behavior>
 
 - Target Files: [NEW] migrations/add_role.sql, [NEW] src/auth/roles.ts
 - Depends On: None
-- Subtasks:
-  - [ ] 1.1 <atomic step>.
-    - Input: <what this subtask consumes>
-    - Output: <what this subtask produces>
-    - Verify: <exact command>
-    - Expect: "<marker the output must contain>"
-  - [ ] 1.2 <atomic step>.
-    - Input: <output of 1.1>
-    - Output: <artifact>
-    - Verify: <exact command>
-    - Expect: "<marker>"
-- Phase Gate: <command confirming the whole task is done>
+- Outcomes: R1
+- Verify: `python -m unittest tests.test_role -v`
+- Expect: "OK"
 
-RED→GREEN is permitted, not mandated: a feature task may open with an
-`(expect RED)` subtask (Expect: a failing-test marker) before its implementing
-subtask; non-feature tasks omit it.
+### Task 2: <coherent component/behavior>
 
-### Completion rules
+- Target Files: [MODIFY] src/auth/service.ts
+- Depends On: Task 1
+- Outcomes: R1, R2
+- Verify: `python -m unittest tests.test_auth -v`
+- Expect: "OK"
 
-- State lives on subtasks: `[ ]` pending → `[/]` in progress → `[x]` done.
-- A subtask is `[x]` only when Verify exits 0 AND the output matches Expect;
-  record evidence (command, exit, matched marker) in specs/temp/verify-state.json.
-  Exit 0 alone is never enough; a checkbox with no evidence counts as unmet.
-- Before marking `[x]`, run the four passes: (1) implement complete, no
-  placeholders; (2) expert re-read, replace the cheap version of each part;
-  (3) hunt defects (correctness, integration, portability, performance);
-  (4) polish — repeat until a full pass finds nothing.
-- An impossible or out-of-scope subtask is never deleted: add
-  `ABANDON: <non-empty reason>` under it. An ABANDONed subtask never becomes
-  `[x]`; its task never closes; the spec ends in visible handoff, never silent
-  completion.
-- A task is done only when every subtask is `[x]` AND its Phase Gate is green.
-- A task starts only when every task in its `Depends On` is done.
-- The spec is done only when every task is done AND a fresh re-run of every
-  Phase Gate is green (old evidence is not re-execution).
+**Task shape (one per task):**
 
-## 6. Verification Commands
+- `Depends On:` — required. `None`, or a `Task N` reference (or list). It forms the
+  DAG; a task starts only when every task it depends on is `MET`.
+- `Outcomes:` — the `R#` IDs this task delivers (see the Outcomes table).
+- `Verify:` / `Expect:` — the **task-level** verification. `Verify` is the exact
+  command (run from the repo root); `Expect` is the marker the combined output
+  must contain. On PASS the engine records evidence (command, exit, matched marker,
+  `sha256` of every owned file) into the task file.
+
+**Authoring rule (both lanes):** every `Verify`/`Expect` pair must be able to fail —
+no no-op commands (`true`, `:`, `exit 0`, bare `echo`), no expectation that matches
+unconditionally (Expect must not appear in the Verify command line), no command that
+selects zero tests — pin the expected count in Expect. This is checked by the engine
+(`check`); the judgment "could this fail in the wild?" is yours at authoring time.
+
+**Subtasks are NOT here.** A task's internal step checklist (`### Progress`) lives in
+its own task file, written by the 2-Handoff compile — it is the coder's own progress
+checklist, not a gate and not a section-5 field. RED→GREEN is still permitted at the
+coder level (a task may open with an `(expect RED)` subtask) but the task's `Verify`
+above is what decides pass/fail.
+
+## 6. Gates
+
+_(empty until a gate runs — §2.1. One entry per gate that ran: which gate
+(1.5-Vetting / 4.5-Sign-off / blocking), when, the note, pass/block. A blocked entry
+records the issues that triggered `PLAN_REVISION_REQUIRED` / `REVIEW_REVISION_REQUIRED`.
+A gate that is off writes nothing.)_
+
+## 7. Verification Commands
 
 - Build Command: <canonical repo build command>
 - Test Command: <canonical repo test command>
 - Lint Command: <canonical repo lint command>
 
-## 7. Rollback Strategy
+## 8. Rollback Strategy
 
-Revert edits in reverse Task DAG order: Task N (...) → ... → Task 1 (...).
-If verification fails 3 consecutive times on any subtask the circuit breaker
-fires (escalation.md), dirty edits are reverted, and the subtask reverts to
-`[ ]`.
+The run **never reverts** a mid-build failure — it leaves the working tree dirty for
+a human to inspect. On a failure the spec parks as `ESCALATED` (not `ABORTED`): the run
+writes `NNN-ESCALATION-<slug>.md` (every `FAILED` task with its attempts + last
+output, every `BLOCKED` task, the dirty edits left in the tree) and stops that spec's
+branch. Because the run commits only at the end of a spec, a **mid-build** failure has
+no commit yet; a **completed-but-wrong** task is re-dispatched to its coder (bounded to
+its own `Owns` set). Once a spec's commit lands on its branch, any task reverts as one
+`git revert`; each spec has its own branch + commit, so reverting one spec never
+touches another.
 
 ---
-Usage: drafted at `specs/temp/draft-plan.md` during Phase 1-Plan; validated with
-`promote_spec.py check <draft> --lane <B|A>` (the check also lints the `tags:`
-field, validates the section-5 Task DAG structure, and lints every
-Verify/Expect pair); on acceptance promoted to
-`specs/<id>-<feature>.md` via
-`promote_spec.py promote <draft> --lane <B|A> --status <APPROVED|PROVISIONAL>`.
-Lane A mandates all 7 sections; Lane B uses sections 1, 4, 5 only. The `tags:`
-field is mandatory on committed docs and lives in the YAML frontmatter block
-at the top of the file (lowercase-kebab, 2-30 chars, max 7); a bare `tags:`
-line outside frontmatter is accepted for reading and normalized into
-frontmatter by the engine on promote/adr/tag-rename.
+Usage: drafted at `specs/temp/draft-plan.md` during 1-Plan; validated with
+`promote_spec.py check <draft> --lane <B|A>` (the check lints the `tags:` field,
+validates the section-5 Tasks & Outcomes structure, and lints every Verify/Expect
+pair); on acceptance promoted to `specs/<NNN>-<SPEC>-<slug>.md` via
+`promote_spec.py promote <draft> --lane <B|A> --status <APPROVED|PROVISIONAL>`,
+then compiled into task files at 2-Handoff via `promote_spec.py compile <spec>`.
+Lane A mandates sections 1-8 (plus the 0 Frontmatter); Lane B uses sections 1, 4, 5
+only. The `tags:` field is mandatory on committed docs and lives in the YAML
+frontmatter block at the top of the file (lowercase-kebab, 2-30 chars, max 7); the
+flow flags (`vetting`, `signoff`, `review_revision`) ride in the same block.
 
 ## Lane B abbreviated skeleton (sections 1, 4, 5 only)
 
 A Lane B plan carries section 1 (Goal & Context), section 4 (Affected Files &
-Contracts), and section 5 (Task DAG) only. Section 5 is a single degenerate
-task — no `Phase Gate` (the per-subtask Verify is the gate; Lane B has no
-section 6):
+Contracts), and section 5 (Tasks & Outcomes) only. Section 5 is a single degenerate
+task (no subtasks here; the task-level `Verify` is the gate; Lane B has no section 6):
 
 ### Task 1: <scope>
 
 - Target Files: [MODIFY] src/foo.ts
 - Depends On: None
-- Subtasks:
-  - [ ] 1.1 <atomic step>.
-    - Input: <input>
-    - Output: <artifact>
-    - Verify: <exact command>
-    - Expect: "<marker>"
+- Outcomes: R1
+- Verify: `python -m unittest tests.test_foo -v`
+- Expect: "OK"
 
-`Depends On:` is required: `None` in the canonical single-task shape, a
-`Task N` reference when a B plan splits into multiple tasks.
+`Depends On:` is required: `None` in the canonical single-task shape, a `Task N`
+reference when a B plan splits into multiple tasks.
 
-Lane B completion rules (trimmed): a subtask is `[x]` only when Verify exits 0
-AND the output matches Expect (evidence recorded in specs/temp/verify-state.json);
-an impossible subtask gets `ABANDON: <non-empty reason>` (visible handoff, never
-silent completion); task done = all subtasks `[x]`; spec done = all subtasks
-`[x]` with recorded evidence.
-
-Authoring rule (both lanes): every `Verify`/`Expect` pair must be able to
-fail — no no-op commands (`true`, `:`, `exit 0`, bare `echo`), no expectation
-that matches unconditionally (Expect must not appear in the Verify command
-line), no command that selects zero tests — pin the expected count in Expect.
-This is checked by the engine (`check`), but the judgment "could this fail in
-the wild?" is yours at authoring time.
+Authoring rule (both lanes): every `Verify`/`Expect` pair must be able to fail —
+no no-op commands, no unconditional Expect, no command that selects zero tests.
+This is checked by the engine (`check`), but the judgment "could this fail in the
+wild?" is yours at authoring time.

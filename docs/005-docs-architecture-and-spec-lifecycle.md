@@ -5,13 +5,13 @@ tags: [docs, spec, lifecycle, topic-adr, scratchpad]
 # 005 - Docs Architecture & Spec Lifecycle
 
 The knowledge layer: the `docs/` folder structure, Topic-Based decision
-records, ID and tag conventions, the spec-first lifecycle (draft → approval →
-promotion → topic decisions → handoff → build → review), and the scratchpad's
-garbage collection.
+records, ID and tag conventions, the spec-first lifecycle (draft → vetting →
+compile → handoff → build → review → sign-off → done), the spec **group** file
+layout, and the scratchpad's garbage collection.
 
-**Skills covered:** `spec-builder` (templates, promotion, topic decisions,
-handoff, tag governance, TOC), `map-generator` (`sync-docs` topic index),
-`task-cleaner` (scratchpad purging).
+**Skills covered:** `spec-builder` (templates, compile/promote, task-file
+generation, topic decisions, tag governance, TOC), `map-generator`
+(`sync-docs` topic index), `task-cleaner` (scratchpad purging).
 
 ## 1. The `docs/` layout: topic docs + triad + scratchpad
 
@@ -19,8 +19,8 @@ handoff, tag governance, TOC), `map-generator` (`sync-docs` topic index),
 | :--- | :--- | :--- |
 | `docs/001..007-*.md` (reference series) | What is — living series; no lifecycle | Living; optional `version_pin` / `fallback_pin` |
 | `docs/<name>.md` or `docs/<name>/` (topic docs) | Why we chose — one livedoc per subsystem: current state + decision history | Living; decisions are appended and revised in place |
-| `specs/` | What to build | Lifecycle: `Status: DRAFT` → `APPROVED` (or `PROVISIONAL - AUTONOMOUS DEFAULT`) |
-| `specs/temp/` | Ephemeral working memory | Gitignored (`*` except `.gitignore`); purged on acceptance |
+| `specs/` | What to build | A single `Status:` receipt per spec: `DRAFTED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED` (failure states `ESCALATED` / `ABORTED`; gate-block states `PLAN_REVISION_REQUIRED` / `REVIEW_REVISION_REQUIRED`) |
+| `specs/temp/` | Ephemeral working memory | Gitignored (`*` except `.gitignore`); purged by `task-cleaner` (default preserves `.gitignore` only) |
 
 Topic docs live **directly** under `docs/` (never inside the committed
 folders), one per subsystem: `docs/auth.md`, or `docs/auth/` once grown. The
@@ -112,10 +112,14 @@ python .agents/skills/map-generator/scripts/generate_map.py sync-docs
    the decision-ID namespace. Reserved names a topic may not use: the
    `001..007-` numbered reference series, `README.md`, and anything
    underscore-prefixed (generated files, e.g. `_topics.md`).
-- **`specs/`:** `NNN-<slug>.md`. Sub-IDs: `NNN-<letter><NN>` (e.g. `001-A01`),
-  deeper `NNN-<letter><NN>-<letter><NN>` (e.g. `001-A01-B01`). Parent and
-  child share the `NNN` prefix so a worktree can claim the subtree. A sub-ID
-  child promotes as `NNN-<slug>.md` (the engine strips the `NNN-LNN:` title
+- **`specs/`:** a **group** of companions sharing one `NNN` prefix:
+  `NNN-SPEC-<slug>.md` (the spec), `NNN-TASK-<NN>-<slug>.md` (one per §5 task),
+  `NNN-APPROVALS-<slug>.json` (gitignored; pre-approved verify fingerprints),
+  `NNN-REPORT-<slug>.md` (the 4-Review report, `verify.py report`), and
+  `NNN-ESCALATION-<slug>.md` (the consolidated failure record, when a run
+  parks the spec `ESCALATED`). Sub-IDs `NNN-<letter><NN>` (e.g. `001-A01`),
+  deeper `NNN-<letter><NN>-<letter><NN>` (e.g. `001-A01-B01`); a sub-ID child
+  compiles into the parent group (the engine strips the `NNN-LNN:` title
   prefix).
 - **`docs/001..007-*.md` (reference series):** `NNN-<slug>.md` — this
   numbered series; living, not lifecycle-tracked.
@@ -166,79 +170,87 @@ Governance subcommands of `promote_spec.py`:
 Incoming requirement
         │
         ▼
- specs/temp/draft-plan.md          (Lane B: sections 1,4,5 / Lane A: all 7)
+ specs/temp/draft-plan.md          (Lane B: sections 1,4,5 / Lane A: sections 0-8)
         │  validated: promote_spec.py check <draft> --lane <B|A>
         ▼
- [ Approval gate — human acceptance or compliant autonomous resolution ]
-        │  promote_spec.py promote <draft> --lane <B|A> --status <APPROVED|PROVISIONAL>
-        ├──► specs/NNN-<slug>.md        (committed, the working contract)
-        ├──► topic log entries in docs/<topic>.md (one per architectural decision; APPROVED only)
-        └──► task-cleaner purges specs/temp/  (preserves gate-log.md)
+ [ 1.5-Vetting gate — optional, when the spec's vetting: on ]
+        │  a block drops the spec to PLAN_REVISION_REQUIRED (re-plan)
         ▼
- Phase 1.5 - HANDOFF (mandatory)
-        │  promote_spec.py handoff specs/NNN-<slug>.md --lane <B|A>
-        ├──► specs/temp/handoff.md            (ephemeral)
-        └──► spec header stamped Handoff: <YYYY-MM-DD>   (durable proof)
+ [ "approve draft" gate — human acceptance or compliant autonomous resolution ]
+        │  promote_spec.py compile <spec> --lane <B|A>
+        ├──► specs/NNN-SPEC-<slug>.md          (committed, Status: COMPILED)
+        ├──► specs/NNN-TASK-<NN>-<slug>.md     (one per §5 task, the coder's briefing)
+        ├──► specs/NNN-APPROVALS-<slug>.json   (pre-approved verify fingerprints)
+        └──► topic log entries in docs/<topic>.md (one per architectural decision)
         ▼
  SESSION STOPS — no build in the spec-producing session
         ▼
- STEP 2: a NEW session reads the promoted spec (verified via the Handoff:
- marker), executes the section-5 Task DAG in order, ticks subtasks (Verify +
- Expect, evidence recorded), finalizes at Phase 3-Review (Phase: 3-Review,
- section-5 subtasks synced to - [x] with re-measured evidence), then
- task-cleaner purges the scratchpad on acceptance.
+ STEP 2: an explicit RUN (a new session / lead agent) reads the COMPILED spec
+ group (verified via Status: COMPILED + the Handoff: stamp), runs
+ verify.py doctor (PRECONDITIONS OK), creates one branch per spec off main,
+ dispatches unblocked tasks to coders (each ticks its own task file, Verify +
+ Expect with content-hash evidence), runs verify.py report at 4-Review,
+ commits on the branch at the run's stop point (commit → COMPLETED,
+ pre-commit → stop at REVIEWED), then task-cleaner purges the scratchpad on
+ acceptance. A failure parks the spec ESCALATED (NNN-ESCALATION-<slug>.md)
+ and the batch continues to the next spec.
 ```
 
 Rules that make the split real:
 
-- Promotion happens **at approval, never during review** and never before
-  implementation. The `--status` argument is the agent's assertion of which
-  gate passed — the engine is mechanics only, so never promote without the
-  gate.
-- `APPROVED` = human acceptance. `PROVISIONAL` renders
-  `PROVISIONAL - AUTONOMOUS DEFAULT` and stays until a human clears the tag;
-  autonomous resolutions record **no decisions** until cleared.
+- **Compile happens at "approve draft", never during review** and never before
+  implementation. The engine is mechanics only, so never compile without the
+  gate having passed.
+- `COMPILED` is the **only** state a run may start from — it is unreachable
+  without passing the handoff gate. A spec compiled under an autonomous
+  resolution keeps its `Gates:` record marked **autonomous** and records **no
+  topic decisions** until a human clears that mark.
 - Topic log entries are triggered by **the decision, not the lane**: any
   architectural decision at any lane (schema, public API, auth/security, new
-  dependency) gets a permanent entry in its topic. Lane A: one per section-2
-  decision; Lane B: only when one surfaces.
-- The handoff engine validates `Status: APPROVED`. Exit 1 = fix the gap
-  first. Idempotent; `--dry-run` prints without writing.
+  dependency) gets a permanent entry in its topic. Lane A: one per §2 decision;
+  Lane B: only when one surfaces.
+- The compile step validates plan-readiness (the `check` oracles pass).
+  Idempotent; `--dry-run` prints without writing.
 - Lanes C/D have no plan or approval step, so **no handoff applies** — never
   look for or create a handoff record for C/D tasks.
-- A session that recorded a handoff MUST NOT open `build.md` in the same
-  session.
+- A session that compiled a spec MUST NOT start a build in the same session —
+  a run is an explicit, separately-triggered execution.
 
 ## 5. Templates (format truth)
 
 In `.agents/skills/spec-builder/references/`:
 
-- **`implementation-plan-template.md`** — the 7-section plan: 1 Goal &
-  Context, 2 Architectural Decisions & Trade-offs, 3 Risks & Open Questions,
-  4 Affected Files & Contracts, 5 Task DAG (Task→Subtask, each subtask
-  `Input`/`Output`/`Verify`/`Expect` + the completion-rules block),
-  6 Verification Commands, 7 Rollback Strategy. Lane B uses sections 1, 4, 5
-  only (single task, `Depends On: None`, no Phase Gate). `promote_spec.py
-  check` validates the section-5 structure and statically lints the oracles
-  (rejects no-op `Verify`, empty `Expect`, and `Expect` that is a substring of
-  the `Verify` command).
+- **`implementation-plan-template.md`** — the plan, sections 0–8: 0 Frontmatter
+  (`tags`, `vetting`, `signoff`, `review_revision`), 1 Goal & Context, 2 The
+  Change (thematic subsections), 3 Risks & Open Questions, 4 Affected Files &
+  Contracts, 5 Tasks & Outcomes (each `Task N` carries `Depends On:`,
+  `Outcomes: R#`, and a `Verify:`/`Expect:` pair; subtasks live in the task
+  file, not the spec), 6 Gates, 7 Verification Commands, 8 Rollback Strategy.
+  Lane B uses a single task (`Depends On: None`). `promote_spec.py check`
+  validates the §5 structure and statically lints the oracles (rejects no-op
+  `Verify`, empty `Expect`, and `Expect` that is a substring of the `Verify`
+  command).
+- **`task-file-format.md`** — the task-file contract: a self-contained briefing
+  (Role & rules, Project overview, Owns, Reads / Context, a `### Progress`
+  subtask checklist) generated per task at compile; the `verify.py` evidence
+  block is appended on a green verify (see `docs/task-files.md`).
+- **`todo-checklist-format.md`** — subtasks are the **coder's own checklist**
+  (`- [ ]` → `- [/]` → `- [x]`), not a second verification gate: the task's
+  task-level `Verify` decides pass/fail. Task state is **derived**, not
+  asserted — `MET` (evidence green + owned-file hashes still match) /
+  `NOT MET` / `STALE` (an owned file drifted) / `NO-EVIDENCE` (via
+  `verify.py status`); a task that exhausts its 3 attempts parks `ESCALATED`.
 - **`topic-template.md`** — the topic doc contract: `tags:` frontmatter, H1
   display title, `## Current State`, `## Decision Log` with
   `### <TOPIC>-D<nn> - <title>` subheadings (`Date` / `Why` / `Supersedes` /
   `Affects` / `Ref`) and the per-file / folder-growth rules.
-- **`todo-checklist-format.md`** — state lives on subtasks: `- [ ]` pending →
-  `- [/]` in progress → `- [x]` done. A subtask is `[x]` only when its
-  `Verify` exits 0 AND its `Expect` matches, with evidence recorded in
-  `verify-state.json` (a checkbox without evidence is unmet), after the four
-  passes; `ABANDON: <non-empty reason>` is terminal non-completion (never
-  deleted); revert to `[ ]` when a subtask fails 3 consecutive times.
 
 ## 6. Deterministic TOC rollup + topic index
 
 `python .agents/skills/spec-builder/scripts/promote_spec.py toc [--root
 <root>]` regenerates the `specs/README.md` `## Index` marker block, sorted by
 NNN/sub-ID, showing name + status + version-pin + backlinks. It is hooked into
-`promote` / `topic` / `handoff` so the TOC never drifts, is idempotent
+`compile` / `topic` / `accept` so the TOC never drifts, is idempotent
 (rewrites only the marker block, never surrounding prose), and `--dry-run`
 prints without writing. **Never hand-edit a marker block** — prose outside
 the markers is safe from regeneration.
@@ -254,25 +266,28 @@ the markers is safe from regeneration.
 
 ## 7. Scratchpad lifecycle & garbage collection
 
-`specs/temp/` holds the session's working state: `active-task.md` (working
-memory), `draft-plan.md` (the one running plan per task), `escalation.md`
-(circuit-breaker report), `gate-log.md` (append-only audit), `handoff.md`
-(Phase 1.5 record), `verify-state.json` (verification ledger), plus per-task
-workspaces.
+`specs/temp/` holds only **draft-phase** working state: `draft-plan.md` (the
+one running plan being authored), `active-task.md` (working memory), and any
+draft-phase notes. The durable records that used to live here are now committed
+with the spec group: gate decisions in the spec's `Gates:` section, the
+4-Review report as `NNN-REPORT-<slug>.md`, the failure record as
+`NNN-ESCALATION-<slug>.md`, and per-task evidence inside each `NNN-TASK` file.
 
-`task-cleaner` purges it on human acceptance (the final step of Review):
+`task-cleaner` purges it (default preserves `.gitignore` only; a human may pass
+`--preserve` to keep specific files):
 
 ```text
 python .agents/skills/task-cleaner/scripts/clean.py clean
 ```
 
-- Default: everything purged **except** `gate-log.md` and `.gitignore`;
-  report is `purged: N, preserved: M`.
+- Default: everything purged **except** `.gitignore`; retired scratch
+  artifacts (the old `gate-log.md`, `verify-state.json`, `approvals.json`,
+  `handoff.md`) are purged when present. Report is `purged: N, preserved: M`.
+- **No auto-purge** — the engine only deletes when explicitly invoked; it never
+  sweeps the scratchpad as a side effect of a phase transition.
 - `clean --dry-run` / `status` classify without deleting — use in doubt.
-- `gate-log.md` is purged **only** after an explicit human review via
-  `clean --preserve ""` — a hand-deleted gate-log is a policy violation with
-  no audit trail.
-- Scope is the scratchpad and nothing else: the committed folders are never
-  touched; the engine refuses targets at or above the repo root.
+- Scope is the scratchpad and nothing else: the committed folders (including
+  the spec group) are never touched; the engine refuses targets at or above the
+  repo root.
 - The engine restores no template stubs — the next task's Plan phase creates
   scratchpad files on demand.

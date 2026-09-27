@@ -16,10 +16,10 @@ discipline for the other SKILL.md files. Do not lose any normative rule — move
 don't delete it.
 
 ### Progress
-- [ ] pick the long prose blocks in each SKILL.md
-- [ ] move them to the right docs/ topic; leave a one-line pointer
-- [ ] verify every pointer target exists
-- [ ] keep frontmatter `name`/`description`/`tags` intact
+- [x] pick the long prose blocks in each SKILL.md
+- [x] move them to the right docs/ topic; leave a one-line pointer
+- [x] verify every pointer target exists
+- [x] keep frontmatter `name`/`description`/`tags` intact
 
 ## Owns
 - `.agents/skills/phase-protocol/SKILL.md`

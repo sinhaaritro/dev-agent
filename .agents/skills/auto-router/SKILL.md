@@ -33,13 +33,20 @@ The initial gatekeeper, run at every session start before phase-protocol. You cl
    `python .agents/skills/auto-router/scripts/match_skills.py "<prompt>"`
    Stage 1 is mechanical: the engine ranks MAP.md rows by tag hits, then description hits (4-char prefix), printing a `Match:` column. Stage 2 is your judgment — engine output is candidates only and can never exclude. Thin or zero candidates: re-read the full MAP.md and match by semantic relation; a skill with zero literal hits can still apply. Never treat absence from the engine as proof a skill does not apply.
 4. **Hand off the verdict.** Emit: Lane (A/B/C/D), Session (Interactive/Non-Interactive), candidate skills, optional escalation flag. Phase-protocol consumes these into the `[STATUS: ...]` header and drives phases, gates, autonomy, and the 4-Block schema.
+5. **Resolve the run contract (only on an explicit trigger).** A run never self-starts. When the prompt is an explicit trigger (`implement / execute / complete <spec>`), resolve it into a **run contract** and emit it: **targets** (which specs, each `COMPILED`), **mode** (`supervised` | `unattended`; default from session type — Interactive → `supervised`, Non-Interactive → `unattended`, no signal → `unattended` — the trigger may override either way), **stop point** (`commit` default | `pre-commit`). See `references/lane-matrix.md` §6. Non-trigger requests carry no run contract.
 
 ## Output Contract
 
-Exactly: **Lane**, **Session**, **candidate skills**, optional **escalation flag**. You do not draft plans, write specs, or execute the task — you route it.
+Exactly: **Lane**, **Session**, **candidate skills**, optional **escalation flag**, and — only on an explicit trigger — the **run contract** (targets / mode / stop point). You do not draft plans, write specs, or execute the task — you route it.
 
 ## Notes
 
 - **Escalation is announce-only upward:** reclassify, announce (never ask permission), phase-protocol continues under the new lane. Never silently de-escalate.
 - **Skill discovery goes through `.agents/MAP.md` only** — never hardcode skill names; re-read the index whenever `map-generator` reports `regenerated`.
 - **Never match against a stale index:** if MAP.md is missing or `regenerated` was reported, refresh it first (system.md step 1) before triaging.
+
+## Deep reference (context budget)
+
+The "why" lives in `docs/`, not here — load on demand, never at session start:
+- **run contract** — explicit trigger, mode default (Option A), stop point, opt-in cost gate, unattended pause → `docs/run-contract.md`
+- **flow** — how lane/verdict feeds the build state machine → `docs/flow.md`

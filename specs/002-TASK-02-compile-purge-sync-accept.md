@@ -39,7 +39,7 @@ Contracts: `compile(spec: Path) -> list[Path]`, `purge(spec: Path) -> None`,
 - `tests/test_promote_spec.py`
 
 ## Reads / Context (read-only)
-- `specs/002-subagent-task-files-phase-renumbering-and-full-plan-execution.md`
+- `specs/002-SPEC-subagent-task-files-full-plan.md`
 - `specs/002-TASK-01-new-template-check.md`
 
 ## Skills to use

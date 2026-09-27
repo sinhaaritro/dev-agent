@@ -18,11 +18,11 @@ single `Status:` receipt field. Apply across `.agents/rules/system.md`,
 not do the run-contract or branch work (later tasks).
 
 ### Progress
-- [ ] grep the old names (1.5-Handoff, 2-Build, 3-Review, `Phase:`) across the owned files
-- [ ] replace with the canonical names / a single `Status:`
-- [ ] update phase-protocol reference pointers if renamed
-- [ ] regenerate MAP.md
-- [ ] leave zero `Phase:` occurrences
+- [x] grep the old names (1.5-Handoff, 2-Build, 3-Review, `Phase:`) across the owned files
+- [x] replace with the canonical names / a single `Status:`
+- [x] update phase-protocol reference pointers if renamed
+- [x] regenerate MAP.md
+- [x] leave zero `Phase:` occurrences
 
 ## Owns
 - `.agents/rules/system.md`
@@ -40,7 +40,7 @@ not do the run-contract or branch work (later tasks).
 - `.agents/MAP.md`
 
 ## Reads / Context (read-only)
-- `specs/002-subagent-task-files-phase-renumbering-and-full-plan-execution.md`
+- `specs/002-SPEC-subagent-task-files-full-plan.md`
 
 ## Skills to use
 - phase-protocol

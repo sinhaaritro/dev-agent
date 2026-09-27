@@ -19,10 +19,10 @@ Commands, 8 Rollback Strategy. Rewrite `todo-checklist-format.md` for the new ta
 `compile`/`purge`/`sync`/`accept` subcommands.
 
 ### Progress
-- [ ] rewrite the template sections 0..8
-- [ ] rewrite todo-checklist-format for task-level state (derived MET/STALE; Progress = own steps)
-- [ ] update SKILL.md pointers + subcommand list
-- [ ] keep the `tags:` frontmatter rules
+- [x] rewrite the template sections 0..8
+- [x] rewrite todo-checklist-format for task-level state (derived MET/STALE; Progress = own steps)
+- [x] update SKILL.md pointers + subcommand list
+- [x] keep the `tags:` frontmatter rules
 
 ## Owns
 - `.agents/skills/spec-builder/references/implementation-plan-template.md`
@@ -31,7 +31,7 @@ Commands, 8 Rollback Strategy. Rewrite `todo-checklist-format.md` for the new ta
 - `.agents/skills/spec-builder/SKILL.md`
 
 ## Reads / Context (read-only)
-- `specs/002-subagent-task-files-phase-renumbering-and-full-plan-execution.md`
+- `specs/002-SPEC-subagent-task-files-full-plan.md`
 - `specs/002-TASK-01-new-template-check.md`
 
 ## Skills to use
