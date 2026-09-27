@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""spec-builder engine - draft validation, spec promotion, topic decisions, and handoff.
+"""spec-builder engine - draft validation, spec promotion, topic decisions, and spec compile.
 
 Owns the mechanical parts of the spec lifecycle: template
 enforcement, sequential numbering, promotion mechanics, Topic-Based
-decision recording, and the handoff record. The acceptance
+decision recording, and the task-file compile. The acceptance
 gate itself is the caller's - the agent asserts it via --status
 (APPROVED for human acceptance, PROVISIONAL for a compliant autonomous
 resolution); this script never decides whether the gate passed. Topic
@@ -59,18 +59,6 @@ Modes:
               evals use a sandbox; the real docs/ is never touched by
               verification).
 
-    handoff  promote_spec.py handoff <spec> --lane <B|A>
-                   [--dry-run] [--handoff-dir <dir>]
-               Record the handoff for an approved spec.
-               Validates the spec exists with Status: APPROVED, writes
-               specs/temp/handoff.md (ephemeral record), and stamps
-               "Handoff: <YYYY-MM-DD>" on the spec's status header
-               (durable marker). Idempotent - re-running against an
-               already-handoffed spec reports the existing record and exits
-               0. --dry-run prints what would be written without writing.
-               --handoff-dir overrides the target (tests and evals use a
-               sandbox; the real docs/ are never touched).
-
       toc      promote_spec.py toc [--root <dir>] [--dry-run]
                 Regenerate the deterministic "## Index" marker block in the
                 specs/README.md (specs only).
@@ -103,8 +91,6 @@ Usage:
         promote specs/temp/draft-plan.md --lane A --status APPROVED
     python .agents/skills/spec-builder/scripts/promote_spec.py \
         topic auth --why "Cookies beat JWT here" --title "Session cookies"
-    python .agents/skills/spec-builder/scripts/promote_spec.py \
-        handoff specs/<NNN>-<slug>.md --lane A
 
 Exit codes: 0 = ok; 1 = check failed, exists, or violation/error.
 """
@@ -173,7 +159,7 @@ def find_root() -> Path:
     """The repository root: the nearest AGENTS.md marker.
 
     Walks up from the CWD first so sandboxed runs (``--specs-dir`` /
-    ``--docs-dir`` / ``--handoff-dir`` under /tmp) resolve their docs
+    ``--docs-dir`` / ``--specs-dir`` under /tmp) resolve their docs
     root to the sandbox, not the engine's own repo. Falls back to walking up
     from the script location when the CWD has no marker (e.g. the engine is
     invoked from an unrelated directory with explicit target dirs).
@@ -539,11 +525,11 @@ def _render_task_file(num: int, task: dict, spec_name: str, spec_text: str,
 
 
 def compile_spec(spec: Path, root: Path | None = None) -> list[Path]:
-    """handoff "compile": emit one task file per §5 task + approvals + stamp.
+    """compile: emit one task file per §5 task + approvals + stamp.
 
     Reads the spec's §5 Tasks & Outcomes, renders each task in the canonical
     task-file shape, validates it (refusing to write on violations), writes
-    NNN-APPROVALS-<slug>.json, and stamps 'Handoff: <date>' on the spec.
+    NNN-APPROVALS-<slug>.json, and stamps 'Status: COMPILED' on the spec.
     Returns the list of task-file paths written.
     """
     root = root or find_root()
@@ -572,7 +558,7 @@ def compile_spec(spec: Path, root: Path | None = None) -> list[Path]:
         target.write_text(content, encoding="utf-8")
         written.append(target)
     _write_approvals(specs_dir, num, slug, tasks, root)
-    _stamp_handoff(spec, root)
+    _stamp_compiled(spec, root)
     _refresh_toc_for(root)
     return written
 
@@ -595,18 +581,15 @@ def _task_line_block(text: str, num: int) -> str:
     return "\n".join(lines[start:end])
 
 
-def _stamp_handoff(spec: Path, root: Path) -> None:
-    """Stamp 'Handoff: <date>' on the spec's status header (idempotent)."""
+def _stamp_compiled(spec: Path, root: Path) -> None:
+    """Set the spec's 'Status:' header to COMPILED (idempotent)."""
     text = read_text(spec)
-    if re.search(r"(?m)^Handoff:\s*\d{4}-\d{2}-\d{2}\s*$", text):
+    if status_value(text).startswith("COMPILED"):
         return
-    today = date.today().isoformat()
-    stamped = re.sub(
-        r"(?m)^(Status:\s*.*)$", r"\g<1>\nHandoff: " + today, text, count=1
-    )
-    if stamped == text:
-        raise SystemExit(f"error: cannot stamp Handoff on {spec.name}")
-    spec.write_text(stamped, encoding="utf-8")
+    updated = replace_status(text, "COMPILED")
+    if updated == text:
+        raise SystemExit(f"error: cannot stamp Status: COMPILED on {spec.name}")
+    spec.write_text(updated, encoding="utf-8")
 
 
 def purge_spec(spec: Path, root: Path | None = None) -> None:
@@ -821,94 +804,6 @@ def status_value(text: str) -> str:
     return match.group(1).strip() if match else ""
 
 
-def ensure_scratchpad_guard(handoff_dir: Path) -> None:
-    """Scratchpad guard: a root .gitignore entry for the dir and the inner stub.
-
-    The inner stub (``*`` + ``!.gitignore``) is the effective protection - git
-    refuses to descend into a gitignored directory even without a root
-    .gitignore - while the root entry documents the exclusion for viewers that
-    stop at the top level. Idempotent. Runs only on the DEFAULT handoff dir;
-    sandboxed ``--handoff-dir`` test runs never touch the real repo root.
-    """
-    root = handoff_dir
-    for _ in range(4):
-        if (root / "AGENTS.md").is_file():
-            break
-        root = root.parent
-    root_ignore = root / ".gitignore"
-    if not root_ignore.is_file():
-        root_ignore.write_text("# DEV Agent framework\n", encoding="utf-8")
-    lines = root_ignore.read_text(encoding="utf-8").splitlines()
-    if not any(
-        ln.strip().strip("/") in ("specs", "specs/temp")
-        for ln in lines
-        if ln.strip() and not ln.strip().startswith("#")
-    ):
-        text = root_ignore.read_text(encoding="utf-8")
-        if text and not text.endswith("\n"):
-            text += "\n"
-        root_ignore.write_text(text + "\nspecs/temp\n", encoding="utf-8")
-    inner = handoff_dir / ".gitignore"
-    if not inner.is_file():
-        inner.write_text("*\n!.gitignore\n", encoding="utf-8")
-
-
-def cmd_handoff(args: argparse.Namespace) -> int:
-    """Validate and record the handoff."""
-    try:
-        text = read_text(args.spec)
-    except (OSError, UnicodeDecodeError):
-        print("error: cannot read spec " + str(args.spec))
-        return 1
-
-    if not status_value(text).startswith("APPROVED"):
-        print("error: spec is not Status: APPROVED")
-        return 1
-
-    spec_ref = str(args.spec).replace("\\", "/")
-
-    today = date.today().isoformat()
-    handoff_file = args.handoff_dir / "handoff.md"
-
-    if re.search(r"(?m)^Handoff:\s*\d{4}-\d{2}-\d{2}\s*$", text):
-        print(f"already handed off: {handoff_file}")
-        return 0
-
-    if args.dry_run:
-        print(f"record: {handoff_file}")
-        print(f"stamp: Handoff: {today} on {spec_ref}")
-        return 0
-
-    stamped = re.sub(
-        r"(?m)^(Status:\s*.*)$", r"\g<1>\nHandoff: " + today, text, count=1
-    )
-    if stamped == text:
-        print("error: cannot stamp Handoff on spec header")
-        return 1
-
-    args.handoff_dir.mkdir(parents=True, exist_ok=True)
-    ensure_scratchpad_guard(args.handoff_dir)
-    args.spec.write_text(stamped, encoding="utf-8")
-    _refresh_toc_for(args.root)
-
-    handoff_file.write_text(
-        "# Handoff - Session Ends Here\n\n"
-        f"Date: {today}\n"
-        f"Spec: {spec_ref}\n"
-        f"Lane: {args.lane}\n"
-        "Decisions: topic docs under docs/ (AI index: docs/_topics.md)\n\n"
-        "Implementation runs in a new session that reads the promoted spec. "
-        "The session that recorded this handoff must not open "
-        "references/building.md.\n",
-        encoding="utf-8",
-    )
-    print(f"handoff: {handoff_file}")
-    # the TOC refresh is skipped on sandboxed handoff runs (no repo root)
-    if args.handoff_dir == (find_root() / "specs" / "temp"):
-        _refresh_toc_for(find_root())
-    return 0
-
-
 def _folder_sort_key(folder: str, name: str) -> tuple:
     """Deterministic sort key per folder ID scheme."""
     if folder == "specs":
@@ -1065,7 +960,7 @@ def _ensure_docs_readmes(root: Path) -> None:
 
     ``root`` is the repo root. Creates ``specs/README.md`` with marker
     scaffolding when absent (idempotent - an existing file is never touched)
-    so the first promote/topic/handoff/toc run can roll the index up
+    so the first promote/topic/compile/toc run can roll the index up
     immediately.
     """
     specs_readme = root / SPEC_FOLDER / "README.md"
@@ -1670,7 +1565,7 @@ def cmd_accept(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="spec-builder check, promotion, topic decisions, handoff, TOC & tag governance"
+        description="spec-builder check, promotion, topic decisions, compile, TOC & tag governance"
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -1703,20 +1598,6 @@ def main() -> int:
     promote_p.add_argument("--root", type=Path, default=None,
                            help="repo root for the tag-lint scan + TOC refresh")
     promote_p.set_defaults(func=cmd_promote)
-
-    handoff_p = sub.add_parser(
-        "handoff", help="record the handoff for an approved spec"
-    )
-    handoff_p.add_argument("spec", type=Path, help="promoted spec in specs/")
-    handoff_p.add_argument("--lane", required=True, choices=["B", "A"])
-    handoff_p.add_argument("--dry-run", action="store_true")
-    handoff_p.add_argument(
-        "--handoff-dir",
-        type=Path,
-        default=None,
-        help="target record directory (default <repo-root>/specs/temp; sandbox for tests)",
-    )
-    handoff_p.set_defaults(func=cmd_handoff)
 
     toc_p = sub.add_parser(
         "toc", help="regenerate the deterministic TOC blocks in the docs READMEs"
@@ -1785,7 +1666,7 @@ def main() -> int:
     tag_ren_p.set_defaults(func=_tag_rename)
 
     compile_p = sub.add_parser(
-        "compile", help="handoff: emit one task file per §5 task + approvals + stamp"
+        "compile", help="compile: emit one task file per §5 task + approvals + stamp"
     )
     compile_p.add_argument("spec", type=Path, help="promoted spec NNN-SPEC-<slug>.md")
     compile_p.add_argument("--root", type=Path, default=None)
@@ -1821,11 +1702,6 @@ def main() -> int:
             args.root = root_default
         if args.specs_dir is None:
             args.specs_dir = args.root / SPEC_FOLDER
-    if args.command == "handoff":
-        if args.handoff_dir is None:
-            args.handoff_dir = root_default / SPEC_FOLDER / "temp"
-        if getattr(args, "root", None) is None:
-            args.root = find_root()
     if args.command == "toc" and args.root is None:
         args.root = root_default
     if args.command in ("tag-list", "tag-suggest", "tag-lint", "tag-rename",

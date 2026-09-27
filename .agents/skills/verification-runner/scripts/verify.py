@@ -29,7 +29,7 @@ Modes:
               reset to 0. Non-zero exit or marker mismatch = FAIL, counter
               incremented. At the 3rd consecutive failure the circuit breaker
               trips: escalation.md is written and exit 2 - halt, human
-              handoff; further runs on the same task are refused. With no
+              hand-back; further runs on the same task are refused. With no
               --command and no --suggest: exit 3 (command source unresolved).
 
               --lane <A|B|C|D> makes command approval mandatory for lanes A
@@ -70,7 +70,7 @@ Modes:
     doctor   verify.py doctor --spec <NNN> [--root <dir>]
               Run the 9 ordered per-spec preconditions (spec 002, section 2.6):
               repo root resolved; engine scripts importable; state files
-              parseable; the spec is COMPILED and Handoff-stamped; a task file
+              parseable; the spec is Status: COMPILED; a task file
               exists for every task in section 5; Depends On forms a valid DAG;
               every verify command is pre-approved (fingerprint =
               command | expect | cwd); the canonical AGENTS.md commands
@@ -343,7 +343,7 @@ def format_escalation(
             + ' --options "A (Recommended): ...; B: ..."'
         )
     lines.append("")
-    lines.append("## Handoff")
+    lines.append("## Hand-back")
     lines.append(
         "Circuit breaker tripped (%d consecutive failures). Cease all modifications, revert broken dirty edits, halt, and hand off to a human."
         % max_attempts
@@ -561,8 +561,6 @@ def _spec_compiled(path: Path) -> tuple[bool, str]:
     m = re.search(r"(?m)^Status:\s*(\S+)", text)
     if not m or m.group(1) != "COMPILED":
         return False, "spec Status is not COMPILED"
-    if not re.search(r"(?m)^Handoff:", text):
-        return False, "spec has no Handoff: stamp"
     return True, ""
 
 
@@ -912,7 +910,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(
             "circuit breaker already tripped for task "
             + args.task_id
-            + " - halt, human handoff"
+            + " - halt, human hand-back"
         )
         return 2
 

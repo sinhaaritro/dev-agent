@@ -6,7 +6,7 @@ tags: [docs, spec, lifecycle, topic-adr, scratchpad]
 
 The knowledge layer: the `docs/` folder structure, Topic-Based decision
 records, ID and tag conventions, the spec-first lifecycle (draft → vetting →
-compile → handoff → build → review → sign-off → done), the spec **group** file
+compile → build → review → sign-off → done), the spec **group** file
 layout, and the scratchpad's garbage collection.
 
 **Skills covered:** `spec-builder` (templates, compile/promote, task-file
@@ -185,7 +185,7 @@ Incoming requirement
  SESSION STOPS — no build in the spec-producing session
         ▼
  STEP 2: an explicit RUN (a new session / lead agent) reads the COMPILED spec
- group (verified via Status: COMPILED + the Handoff: stamp), runs
+ group (verified via Status: COMPILED), runs
  verify.py doctor (PRECONDITIONS OK), creates one branch per spec off main,
  dispatches unblocked tasks to coders (each ticks its own task file, Verify +
  Expect with content-hash evidence), runs verify.py report at review,
@@ -201,7 +201,7 @@ Rules that make the split real:
   implementation. The engine is mechanics only, so never compile without the
   gate having passed.
 - `COMPILED` is the **only** state a run may start from — it is unreachable
-  without passing the handoff gate. A spec compiled under an autonomous
+  without passing the compile gate. A spec compiled under an autonomous
   resolution keeps its `Gates:` record marked **autonomous** and records **no
   topic decisions** until a human clears that mark.
 - Topic log entries are triggered by **the decision, not the lane**: any
@@ -210,8 +210,8 @@ Rules that make the split real:
   Lane B: only when one surfaces.
 - The compile step validates plan-readiness (the `check` oracles pass).
   Idempotent; `--dry-run` prints without writing.
-- Lanes C/D have no plan or approval step, so **no handoff applies** — never
-  look for or create a handoff record for C/D tasks.
+- Lanes C/D have no plan or approval step, so **no compile applies** — never
+  look for or create a compiled spec for C/D tasks.
 - A session that compiled a spec MUST NOT start a build in the same session —
   a run is an explicit, separately-triggered execution.
 
@@ -280,8 +280,8 @@ python .agents/skills/task-cleaner/scripts/clean.py clean
 ```
 
 - Default: everything purged **except** `.gitignore`; retired scratch
-  artifacts (the old `gate-log.md`, `verify-state.json`, `approvals.json`,
-  `handoff.md`) are purged when present. Report is `purged: N, preserved: M`.
+  artifacts (the old `gate-log.md`, `verify-state.json`, `approvals.json`)
+  are purged when present. Report is `purged: N, preserved: M`.
 - **No auto-purge** — the engine only deletes when explicitly invoked; it never
   sweeps the scratchpad as a side effect of a status transition.
 - `clean --dry-run` / `status` classify without deleting — use in doubt.

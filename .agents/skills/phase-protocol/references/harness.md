@@ -11,6 +11,6 @@ Load when a session involves a harness or model-tier choice (deployment, CI setu
 ## Routing rules
 
 1. When a harness change is possible mid-task, route the **status** to a harness on its tier — never run Planning on a weak local model if SOTA tier is available, and never pay SOTA tokens for mechanical Build steps.
-2. **Status handoff = session handoff:** moving a task between harnesses requires a `specs/temp/handoff-payload.md` so the receiving harness resumes with full state.
+2. **Status hand-back = session hand-back:** moving a task between harnesses requires a `specs/temp/hand-back-payload.md` so the receiving harness resumes with full state.
 3. The orchestration contract is harness-agnostic: AGENTS.md, rules, and skills load identically in every listed harness. Tiering optimizes cost/latency only; it never changes the contract.
 4. Status posture (read-only planning/review, lane-scoped build edits) is enforced by `phase-protocol` regardless of tier; a tier change never relaxes posture or gate behavior.

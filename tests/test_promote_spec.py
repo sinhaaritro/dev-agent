@@ -251,7 +251,7 @@ tags: [sandbox, group]
 
 # 009: Sandbox Group
 
-Status: COMPILED | Date: 2026-09-26
+Status: APPROVED | Date: 2026-09-26
 
 ## 1. Goal & Context
 
@@ -386,21 +386,23 @@ class TestCompilePurgeSyncAccept(unittest.TestCase):
         fp = data["approvals"][0]["fingerprint"]
         self.assertEqual(fp.count("|"), 2)
         self.assertNotIn("executor", fp)
-        # Handoff stamp written on the spec
-        self.assertRegex(self.spec.read_text(encoding="utf-8"), r"(?m)^Handoff: \d{4}-\d{2}-\d{2}\s*$")
+        # compile stamps Status: COMPILED on the spec
+        text = self.spec.read_text(encoding="utf-8")
+        self.assertEqual(promote_spec.status_value(text), "COMPILED")
+        self.assertNotIn("Handoff:", text)
 
-    def test_compile_idempotent_handoff_stamp(self):
+    def test_compile_idempotent_compiled_stamp(self):
         promote_spec.compile_spec(self.spec, self.root)
         text_after_first = self.spec.read_text(encoding="utf-8")
-        # re-compile should not duplicate the Handoff stamp
-        import shutil
+        # re-compile should not duplicate the Status: COMPILED stamp
         for f in (self.root / "specs").glob("009-TASK-*"):
             f.unlink()
         promote_spec.compile_spec(self.spec, self.root)
         text_after_second = self.spec.read_text(encoding="utf-8")
+        self.assertEqual(text_after_first.count("Status:"), 1)
         self.assertEqual(
-            text_after_first.count("Handoff:"),
-            text_after_second.count("Handoff:"),
+            text_after_first.count("COMPILED"),
+            text_after_second.count("COMPILED"),
         )
 
     def test_purge_removes_whole_group(self):

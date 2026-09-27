@@ -22,13 +22,13 @@ ESCALATED / ABORTED`.
 
 The statuses are the only lifecycle names — there are no separate step labels. The
 `[STATUS: …]` header tag always carries one of the canonical statuses above, never a
-step name such as `handoff` or `commit`.
+step name such as `plan` or `review`.
 
 | Status | Lane entry | Tool posture | Exit (status) |
 | :--- | :--- | :--- | :--- |
 | **DRAFTED** (planning) | B, A (C runs a single pass; D is header-only, no lifecycle) | Read-only — no file edits | Validated draft in `specs/temp/` (`Status: DRAFTED`) |
 | **Vetting gate** | B, A — optional, when the spec's `vetting: on` | Read-only | Vetting gate cleared on the draft (a block drops the spec to `PLAN_REVISION_REQUIRED`) |
-| **COMPILED** (handoff) | B, A — mandatory after "approve draft" | Read-only | Spec compiled into one task file per task, `Handoff:` stamp, `Status: COMPILED`, **session stops** |
+| **COMPILED** (compile) | B, A — mandatory after "approve draft" | Read-only | Spec compiled into one task file per task, `Status: COMPILED`, **session stops** |
 | **BUILDING** (build) | B, A — always a *new* session / explicit run, starting from the `COMPILED` spec | Edits within the spec's branch, task scope only | All task files `MET` (`Verify` + `Expect`, content-hash evidence recorded) via `verify.py`; commands pre-approved on lanes A/B → `Status: BUILT` |
 | **REVIEWED** (review) | B, A | Read-only | `verify.py report` green (every `R#` outcome observed); missing outcome fails review → `Status: REVIEWED` (a review block drops it to `REVIEW_REVISION_REQUIRED`) |
 | **Sign-off gate** | B, A — when the spec's `signoff: on` | Read-only | Human signs off; an unattended run **pauses** here (never refused) |
@@ -37,9 +37,9 @@ step name such as `handoff` or `commit`.
 Key invariants:
 
 - **Spec-first two-step lifecycle.** Step 1 (spec production) ends at the
-  "approve handoff" gate, which compiles the draft into `specs/` (spec + one
-  task file per task), records topic decisions, and stamps the spec `COMPILED`
-  with a `Handoff:` date. Step 2 (implementation) is a separate session that
+  approve step, which compiles the draft into `specs/` (spec + one
+  task file per task), records topic decisions, and stamps the spec
+  `Status: COMPILED`. Step 2 (implementation) is a separate session that
   builds from the `COMPILED` spec. A spec-producing session never builds in the
   same session — a run will not start against a spec that is not `COMPILED`.
 - **Status checklists are loaded one at a time.** At each status start the agent
@@ -151,12 +151,12 @@ Every response — including Lane D answers and Lane C micro-edits — carries:
 3. SOCRATIC GATE / DECISION PROPOSAL
    Guided multiple-choice options with recommended defaults (only if ambiguity exists).
 4. NEXT STEP
-   The exact execution step that happens on human reply or autonomous resolution. When a task is ESCALATED or any work is unmet, this block states the halt/handoff — never a silent "done".
+   The exact execution step that happens on human reply or autonomous resolution. When a task is ESCALATED or any work is unmet, this block states the halt/hand-back — never a silent "done".
 ```
 
 The five header tags are **Status**, Task, Lane, Worktree (`main` unless a worktree
 is active), and Session. The `Status:` tag is always a canonical `Status:` value from
-`DRAFTED` … `ABORTED` — never a step label such as `handoff` or `commit`:
+`DRAFTED` … `ABORTED` — never a step label such as `plan` or `review`:
 
 - **Lanes A/B (spec-backed):** the active spec's lifecycle receipt.
 - **Lane C (micro-edit, no spec):** `DRAFTED` while drafting, `BUILDING` while the
@@ -170,7 +170,7 @@ is active), and Session. The `Status:` tag is always a canonical `Status:` value
 | :--- | :--- |
 | DRAFTED (planning) | Read-only: inspect, search, draft in `specs/temp/` |
 | Vetting gate | Read-only: vetting gate on the draft |
-| COMPILED (handoff) | Read-only: engine compile (spec + task files), topic decisions, `COMPILED` stamp |
+| COMPILED (compile) | Read-only: engine compile (spec + task files), topic decisions, `COMPILED` stamp |
 | BUILDING (build) | Edits on the spec's branch within task `Owns` scope; verification through `verify.py` |
 | REVIEWED (review) | Read-only: `verify.py report`, audit |
 | Sign-off gate | Read-only: human sign-off |

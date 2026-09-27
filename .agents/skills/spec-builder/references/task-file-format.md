@@ -8,13 +8,13 @@ coder works through and the **evidence block** (the per-task verification record
 
 ## Generation
 
-`promote_spec.py compile <spec>` (the handoff "compile" step) reads the spec's §5
+`promote_spec.py compile <spec>` (the compile step) reads the spec's §5
 **Tasks & Outcomes** and emits **one self-contained task file per task**, named
 `NNN-TASK-<NN>-<slug>.md` (parent `NNN` prefix + two-digit task number + a short task slug).
 It validates **every file it writes** with `validate_task_file(text)` — a missing or
 misordered heading, or a missing `Verification` fence / `Expect`, is an error and the file
 is not written. It also writes pre-approvals for every task's verify command into
-`NNN-APPROVALS-<slug>.json` (gitignored) and stamps `Handoff: <date>` on the spec.
+`NNN-APPROVALS-<slug>.json` (gitignored) and stamps `Status: COMPILED` on the spec.
 
 A task file is a **self-contained briefing** (copied, not referenced, so the coder never
 needs the full spec). Everything the coder might need is copied in.

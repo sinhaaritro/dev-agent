@@ -33,12 +33,10 @@ CANONICAL_STATUSES = sorted(_promote_spec.CANONICAL_STATUSES)
 OLD_STEP_LABELS = [
     "1-Plan",
     "1.5-Vetting",
-    "2-Handoff",
     "3-Build",
     "4-Review",
     "4.5-Sign-off",
     "5-Done",
-    "1.5-Handoff",
     "1.5-Consensus",
     "4.5-Consensus",
     "2-Build",

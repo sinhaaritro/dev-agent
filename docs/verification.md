@@ -21,7 +21,7 @@ copy of `verify.py`) resolve to itself, not to a parent repo (VERIFY-D01).
 
 ### Pre-approvals & the fingerprint
 
-A verify command is **pre-approved** at handoff: the approval stores a **fingerprint** of
+A verify command is **pre-approved** at compile: the approval stores a **fingerprint** of
 `sha256(command | expect | cwd)`. The `executor` is deliberately **not** part of the fingerprint,
 so a human's pre-approval matches a coder's later run of the same command. A change to the command,
 the `Expect` marker, or the CWD re-arms approval (the engine exits before execution, changing no
@@ -48,7 +48,7 @@ task's completion be *derived* rather than trusted (VERIFY-D03).
 ### The doctor (pre-flight)
 
 `verify.py doctor --spec <spec>` runs, in order: (1) repo root resolved; (2) engine scripts
-parseable; (3) state files parseable; (4) the spec is `Status: COMPILED` and `Handoff:`-stamped;
+parseable; (3) state files parseable; (4) the spec is `Status: COMPILED`;
 (5) a task file exists for every task in §5; (6) `Depends On` forms a valid DAG; (7) every task's
 verify command is pre-approved; (8) the canonical AGENTS.md commands resolve; (9) a branch can be
 created off `main`. Output: `PRECONDITIONS OK` on success, else a **named list of gaps** + non-zero

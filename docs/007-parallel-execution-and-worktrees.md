@@ -76,7 +76,7 @@ Operating rules:
 - **ID conventions.** Spec sub-IDs share the parent `NNN` prefix (005,
   section 2) precisely so a branch can claim the spec group's subtree — a
   parallel branch works spec `00X` while main works spec `00Y`.
-- **Handoff payload.** The spec group itself (spec + task files + report +
+- **Hand-back payload.** The spec group itself (spec + task files + report +
   escalation) is the durable, inter-session transfer document: a fresh session
   resumes from `Status: COMPILED` (or `ESCALATED`) with the task files on
   disk, instead of re-planning.

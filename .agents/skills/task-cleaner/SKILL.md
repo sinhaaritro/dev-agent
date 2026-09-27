@@ -51,4 +51,4 @@ You reset the ephemeral scratchpad (`specs/temp/`) when a task is accepted or co
 ## Deep reference (context budget)
 
 The "why" lives in `docs/`, not here — load on demand, never at session start:
-- **lifecycle** — why the scratchpad is ephemeral vs the durable spec + task files (the handoff save point) → `docs/lifecycle.md`
+- **lifecycle** — why the scratchpad is ephemeral vs the durable spec + task files (the compile save point) → `docs/lifecycle.md`

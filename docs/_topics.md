@@ -132,7 +132,7 @@
 ## lifecycle.md
 
   path: docs/lifecycle.md
-  covers: lifecycle, status, gates, spec, handoff
+  covers: lifecycle, status, gates, spec, compile
   sections:
     - Current State
     - Decision Log

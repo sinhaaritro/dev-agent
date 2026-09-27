@@ -82,8 +82,7 @@ def _spec_file(tmp: Path) -> Path:
     path = tmp / "specs" / "007-SPEC-do-things.md"
     path.write_text(
         "# 007: Do things\n\n"
-        "Status: COMPILED | Date: 2026-09-26\n"
-        "Handoff: 2026-09-26\n\n"
+        "Status: COMPILED | Date: 2026-09-26\n\n"
         "## 1. Goal\nDo things.\n\n"
         "## 5. Tasks & Outcomes\n\n"
         "### Task 1: do things\n"
@@ -257,9 +256,9 @@ class DoctorTest(SandboxCase):
         gaps = verify.doctor(self.spec)
         self.assertTrue(any(g.startswith("7:") for g in gaps))
 
-    def test_doctor_detects_missing_handoff(self):
+    def test_doctor_detects_not_compiled(self):
         text = self.spec.read_text(encoding="utf-8")
-        self.spec.write_text(text.replace("Handoff: 2026-09-26\n", ""), encoding="utf-8")
+        self.spec.write_text(text.replace("Status: COMPILED", "Status: DRAFTED"), encoding="utf-8")
         gaps = verify.doctor(self.spec)
         self.assertTrue(any(g.startswith("4:") for g in gaps))
 

@@ -85,7 +85,7 @@ contract block.
 
 ## 5. Tasks & Outcomes
 
-> This list is the **source** the handoff compiles into one task file per task
+> This list is the **source** the compile step turns into one task file per task
 > (`NNN-TASK-<NN>-<slug>.md`). The global task list lives **only here** (it is not
 > copied into task files). Build order is read from `Depends On`.
 
@@ -132,7 +132,7 @@ selects zero tests — pin the expected count in Expect. This is checked by the 
 (`check`); the judgment "could this fail in the wild?" is yours at authoring time.
 
 **Subtasks are NOT here.** A task's internal step checklist (`### Progress`) lives in
-its own task file, written by the handoff compile — it is the coder's own progress
+its own task file, written by the compile step — it is the coder's own progress
 checklist, not a gate and not a section-5 field. RED→GREEN is still permitted at the
 coder level (a task may open with an `(expect RED)` subtask) but the task's `Verify`
 above is what decides pass/fail.
@@ -168,7 +168,7 @@ Usage: drafted at `specs/temp/draft-plan.md` during plan; validated with
 validates the section-5 Tasks & Outcomes structure, and lints every Verify/Expect
 pair); on acceptance promoted to `specs/<NNN>-<SPEC>-<slug>.md` via
 `promote_spec.py promote <draft> --lane <B|A> --status <APPROVED|PROVISIONAL>`,
-then compiled into task files at handoff via `promote_spec.py compile <spec>`.
+then compiled into task files via `promote_spec.py compile <spec>`.
 Lane A mandates sections 1-8 (plus the 0 Frontmatter); Lane B uses sections 1, 4, 5
 only. The `tags:` field is mandatory on committed docs and lives in the YAML
 frontmatter block at the top of the file (lowercase-kebab, 2-30 chars, max 7); the

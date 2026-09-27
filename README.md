@@ -8,7 +8,7 @@
 
 **Dev Agent** is a drop-in configuration framework for AI-powered code editors (Antigravity, Pi, Cursor, Windsurf, Claude Code, Gemini Code Assist, and others). It provides a composable set of **skills** and a shared documentation system that turn a repository into a workspace where **multiple humans and multiple AI agents work the same codebase as equals**.
 
-**Built for multi-human + multi-AI collaboration.** Humans and agents hand the work to each other — a human delegates to an agent, the agent hands back at a gate, another agent (or another human, on another machine) picks up exactly where it left off. Neither side is the authority: every handoff is recorded, and either side can take over at any pause point.
+**Built for multi-human + multi-AI collaboration.** Humans and agents hand the work to each other — a human delegates to an agent, the agent hands back at a gate, another agent (or another human, on another machine) picks up exactly where it left off. Neither side is the authority: every hand-back is recorded, and either side can take over at any pause point.
 
 **Pause loops everywhere.** The lifecycle (`DRAFTED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED`, with the Vetting and Sign-off gates) is full of deliberate stopping points — Socratic gates on ambiguity, an explicit approval gate before code is written, a verification gate after — so work is never locked behind a single session or a single actor.
 
@@ -16,7 +16,7 @@ Instead of relying on ad-hoc prompts, Dev Agent gives your agent:
 
 - **Persistent memory** in `docs/` that survives across sessions, humans, and agents
 - **Structured workflows** with planning gates, approval checkpoints, and verification
-- **Recorded handoffs** so any human or any agent can resume the task mid-flight
+- **Recorded hand-backs** so any human or any agent can resume the task mid-flight
 
 ---
 

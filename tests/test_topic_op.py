@@ -244,7 +244,6 @@ class TopicOpTests(unittest.TestCase):
             draft.parent.mkdir(parents=True)
             draft.write_text(DRAFT_PLAN, encoding="utf-8")
             specs = root / "specs"
-            handoff_dir = root / "specs" / "temp"
 
             promoted = run(
                 ["promote", str(draft), "--lane", "B", "--status", "APPROVED",
@@ -261,13 +260,6 @@ class TopicOpTests(unittest.TestCase):
             )
             self.assertEqual(topic.returncode, 0, topic.stdout + topic.stderr)
 
-            handed = run(
-                ["handoff", str(spec), "--lane", "B",
-                 "--handoff-dir", str(handoff_dir)],
-                root,
-            )
-            self.assertEqual(handed.returncode, 0, handed.stdout + handed.stderr)
-
             # nothing engine-side may clobber the project's root README
             self.assertEqual(
                 (root / "README.md").read_text(encoding="utf-8"), ROOT_README,
@@ -280,7 +272,6 @@ class TopicOpTests(unittest.TestCase):
                 "### SANDBOX-TOPIC-D01",
                 (docs / "sandbox-topic.md").read_text(encoding="utf-8"),
             )
-            self.assertTrue((handoff_dir / "handoff.md").is_file())
 
 
 if __name__ == "__main__":

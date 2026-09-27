@@ -8,7 +8,7 @@ tags: [task-files, subagent, coder, owns, dag, dispatch, evidence]
 
 A **task file** is the coder's own working file for exactly one task: `NNN-TASK-<NN>-<slug>.md`.
 It is a **self-contained briefing** (copied, not referenced) so a ~32k-context coder never
-needs the full spec. The handoff **compile** step generates one task file per task from the
+needs the full spec. The **compile** step generates one task file per task from the
 spec's §5 Tasks & Outcomes.
 
 ### Shape
@@ -41,7 +41,7 @@ which tasks are done — lives only in the spec's §5 and is written by the orch
 ### Why the spec → task-file split
 
 A long build can be interrupted mid-way (a crash, a context limit, a human stepping away).
-Because the spec + task files are already on disk at the handoff boundary, a fresh session can
+Because the spec + task files are already on disk at the compile boundary, a fresh session can
 pick up exactly where the interrupted one left off instead of re-planning from scratch. The
 task file sized to ~10-30 minutes (≈3-5 file edits + 1 scoped verification) is the unit a
 single 32k agent can hold.

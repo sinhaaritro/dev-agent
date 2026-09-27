@@ -1,5 +1,5 @@
 ---
-tags: [lifecycle, status, gates, spec, handoff]
+tags: [lifecycle, status, gates, spec, compile]
 ---
 
 # Spec Lifecycle
@@ -18,7 +18,7 @@ COMPLETED`, with the Vetting and Sign-off gates attached to the flow. A spec tra
 through them, and its `Status:` reflects the stage it is in. The status boundaries
 are **save points**: at each one you can stop,
 switch session or model, and resume with no information loss — the draft (before
-"approve draft"), the permanent spec + task files (before "approve handoff"), and the
+"approve draft"), the permanent spec + task files (before "compile"), and the
 built diff (before "say ok").
 
 ### The `Status:` receipt set
@@ -30,8 +30,8 @@ never in two states at once.
 
 - **`DRAFTED`** — still being authored (the drafting loop). Nothing is
   published; the draft self-revises until plan-readiness is green.
-- **`COMPILED`** — the "approve draft" gate cleared at handoff. The task list has
-  been compiled into one task file per task and the spec carries a `Handoff:` stamp.
+- **`COMPILED`** — the "approve draft" gate cleared at compile. The task list has
+  been compiled into one task file per task and the spec carries `Status: COMPILED`.
   This is the **only** state a run may start from — `COMPILED` is unreachable without
   passing the gate.
 - **`BUILDING`** / **`BUILT`** — the build in flight / all tasks `MET`.

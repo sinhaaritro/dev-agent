@@ -25,7 +25,7 @@ You execute the plan's verification commands and enforce the per-task attempt li
 - A pre-flight is needed before an unattended run — `verify.py doctor --spec <NNN>` runs the 9 ordered preconditions and prints `PRECONDITIONS OK` or a named list of gaps.
 - A task's completion must be derived, not asserted — `verify.py status --task <id>` reads the evidence block and reports `MET` / `NOT MET` / `STALE` / `NO-EVIDENCE`.
 - A run report must be (re)generated at spec end or on demand — `verify.py report --spec <NNN>` writes `NNN-REPORT-<slug>.md`.
-- A lane A/B command needs its first-run approval (exit 4 without it) — approvals are pre-recorded at handoff into `NNN-APPROVALS-<slug>.json`; ad-hoc commands are approved with `verify.py approve` before their first execution.
+- A lane A/B command needs its first-run approval (exit 4 without it) — approvals are pre-recorded at compile into `NNN-APPROVALS-<slug>.json`; ad-hoc commands are approved with `verify.py approve` before their first execution.
 - A task's verify fails and a fix attempt is made — the retry must go through the engine's ledger so the 3-attempt limit is real, never recalled from memory.
 - No `Verify` on the task, no §7 commands in the plan, and no Commands in `AGENTS.md` — detect the framework and suggest canonical commands.
 - An escalation report needs finalizing (hypothesis + remediation options) after a task exhausts its attempts.
@@ -33,7 +33,7 @@ You execute the plan's verification commands and enforce the per-task attempt li
 ## Instructions
 
 1. **Read the command source, in order.** The task's `Verify` command (spec §5 / task file) is primary, with its `Expect` marker. If absent, the plan's §7 (`- Build Command: ...` / `- Test Command: ...`), then `AGENTS.md`'s Commands block. If both absent, run `detect` to identify the framework and read its page in `references/frameworks/` for canonical commands, then confirm Socratically before the first run (Lane C's only approval gate). When a project uses a non-default environment activator (a venv, conda, nvm use, etc.), the project declares a `Run Prefix` line in `AGENTS.md`; prefix the detected canonical commands with it. No prefix declared and no obvious global toolchain -> ask.
-2. **Approve the command on its first run (lanes A/B).** Approving the plan does not approve its commands. The spec's verify commands are pre-approved at handoff into `NNN-APPROVALS-<slug>.json` (fingerprint = `command | expect | cwd`, no executor). For any ad-hoc command, present the exact command and `Expect` and approve it:
+2. **Approve the command on its first run (lanes A/B).** Approving the plan does not approve its commands. The spec's verify commands are pre-approved at compile into `NNN-APPROVALS-<slug>.json` (fingerprint = `command | expect | cwd`, no executor). For any ad-hoc command, present the exact command and `Expect` and approve it:
    `python .agents/skills/verification-runner/scripts/verify.py approve --command "<cmd>" --expect "<marker>"`
    The fingerprint is `sha256(command | expect | cwd)`, cached in `specs/temp/approvals.json` (per-task lifetime; a new session re-approves). Cached re-runs are free; any change to the command, `Expect`, or CWD re-arms approval. Lanes A and B enforce this; lanes C/D are exempt.
 3. **Run through the engine, never bare:**
@@ -41,7 +41,7 @@ You execute the plan's verification commands and enforce the per-task attempt li
    The command runs with `cwd=<repo root>`. Use the task identifier from the status header (e.g. `007-Task 1`), not a free-form label. 300s default timeout; interactive commands refused. Output is the contract: with `--expect`, `PASS (attempt N)` requires exit 0 AND the marker in the combined output and records evidence (`{command, exit, expect, matched, at, output_sha256}` + a `sha256` of every owned file) into the task file's evidence block and `specs/temp/verify-state.json`; without `--expect` the engine keeps exit-0-only behavior. `FAIL (attempt N/3)` increments the counter; at 3 the task is `FAILED` (exit 2) and its dependents become `BLOCKED`. Exit 4 = approval required (refused before execution, no state change, not an attempt) — approve, then re-run.
 4. **Derive, don't assert.** After a run, `verify.py status --task <id>` re-derives the task's state from the evidence block: `MET` (verify passed and every owned file's hash still matches) / `NOT MET` (no passing evidence) / `STALE` (an owned file changed since the evidence) / `NO-EVIDENCE` (no evidence block). `doctor --spec <NNN>` runs the 9 pre-flight preconditions; `report --spec <NNN>` regenerates `NNN-REPORT-<slug>.md`.
 5. **Plan the fix like a doctor, not a gambler.** On each failure: form a hypothesis, apply the next fix attempt, re-run through the engine. The engine's verbatim failure logs accumulate in the ledger, so the escalation report records all three attempts. Hypothesis and options ready at run time? Pass `--hypothesis` and `--options` (guided format `"A (Recommended): ...; B: ..."`) so a trip report is complete immediately.
-6. **Finalize the escalation on a trip.** Pending sections: complete with `escalate` mode — it merges stored attempt logs with your hypothesis and options into `specs/temp/escalation.md`, then report the handoff in blocks 3/4. A `FAILED` task is terminal: the engine refuses further runs on it.
+6. **Finalize the escalation on a trip.** Pending sections: complete with `escalate` mode — it merges stored attempt logs with your hypothesis and options into `specs/temp/escalation.md`, then report the hand-back in blocks 3/4. A `FAILED` task is terminal: the engine refuses further runs on it.
 7. **Load the framework page on demand.** After `detect` names the stack, read `references/frameworks/<stack>.md` for canonical build/test/lint commands, single-test vs full-suite invocation, and common failure patterns. The workflow above is identical on every stack — the pages only add knowledge. `detect` returns a family (`python`, `node-npm`); the page itself distinguishes the style (e.g. uv-managed vs plain venv) by its own detection rules.
 
 ## Output Contract
@@ -59,7 +59,7 @@ You execute the plan's verification commands and enforce the per-task attempt li
 - **Never run past the threshold:** after a task is `FAILED` the engine refuses it; honoring that refusal is the framework's safety guarantee.
 - **`--state-dir` is for tests/evals only** — real runs target `specs/temp/`; sandbox runs must never point at the real state file.
 - **Interactive commands are refused** (`--interactive`, `--watch`, `--live-reload`) — verification is non-interactive by design.
-- **escalation.md is the audit record** of a halted task: verbatim logs, hypothesis, remediation options, handoff line — engine-generated so every report is reviewable and truthful.
+- **escalation.md is the audit record** of a halted task: verbatim logs, hypothesis, remediation options, hand-back line — engine-generated so every report is reviewable and truthful.
 - Framework pages extend this skill per-project: add a page when a project needs one; never hardcode a stack into this file.
 
 ## Deep reference (context budget)

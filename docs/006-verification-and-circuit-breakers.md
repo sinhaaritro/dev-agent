@@ -7,7 +7,7 @@ tags: [verification, testing, circuit-breaker, escalation]
 The verification authority during build: how verification commands are
 resolved, how per-task content-hash evidence makes completion **derived rather
 than asserted**, how a task is run to exhaustion (3 attempts), and how a
-consolidated escalation report produces a human handoff. A failed spec parks
+consolidated escalation report produces a human hand-back. A failed spec parks
 `ESCALATED` (visible and resumable) — never a silent pass, never `ABORTED`.
 
 **Skills covered:** `verification-runner` (command resolution, per-task
@@ -73,7 +73,7 @@ report is complete immediately.
 A `Verify` command is shell code written by the AI; approving the spec does
 not approve its commands.
 
-- Pre-approvals happen at **handoff**: the spec group carries a
+- Pre-approvals happen at **compile**: the spec group carries a
   `NNN-APPROVALS-<slug>.json` with the fingerprint of each verify command, so
   a human's pre-approval matches a coder's later run. A coder can also approve
   inline (idempotent):
@@ -122,7 +122,7 @@ hand-edited**. The durable completion record is the task file's evidence block
 
 `verify.py doctor --spec <spec>` runs nine ordered preconditions (repo root
 resolved, engine scripts parseable, state files parseable, spec is
-`COMPILED` + `Handoff:`-stamped, a task file exists per §5 task, `Depends On`
+`Status: COMPILED`, a task file exists per §5 task, `Depends On`
 forms a valid DAG, every verify command is pre-approved, canonical AGENTS.md
 commands resolve, a branch can be created off `main`). Output:
 `PRECONDITIONS OK` on success, else a **named list of gaps** + non-zero exit
@@ -153,7 +153,7 @@ When a task exhausts its 3 attempts and no unblocked task remains:
    merges the stored attempt logs with the agent's hypothesis and guided
    remediation options into the report.
 3. The spec is parked **`ESCALATED`** (not `ABORTED`) and that spec's branch
-   stops; the batch **continues** to the next spec. Report the handoff in
+   stops; the batch **continues** to the next spec. Report the hand-back in
    response blocks 3/4: the escalation record, the attempts' verbatim logs,
    the hypothesis, and the options; block 4 states the halt — no further
    modifications without a human.

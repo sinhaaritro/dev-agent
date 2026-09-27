@@ -19,14 +19,14 @@ Load when the build is `BUILT` (all tasks `MET`). **Read-only - no more edits; r
 The spec was promoted at approval; this step finalizes it, not births it.
 
 1. Confirm the implementation matches the spec: no drift from section 4 (affected files & contracts), no dead code, no debug leftovers.
-2. Set the spec header to `Status: REVIEWED`; confirm every task's derived status is `MET` with re-measured evidence (sync any task the build moved). Any `FAILED`/`BLOCKED` task is reported as visible handoff in the final response — never checked off, never silently dropped.
+2. Set the spec header to `Status: REVIEWED`; confirm every task's derived status is `MET` with re-measured evidence (sync any task the build moved). Any `FAILED`/`BLOCKED` task is reported as a visible hand-back in the final response — never checked off, never silently dropped.
 3. Re-run the verification suite (every task's `Verify` + the canonical AGENTS.md commands) if the diff changed since the last run; record the evidence.
 4. Any NEW architectural decision surfaced during build and not yet recorded gets a topic log entry now via `promote_spec.py topic` (spec-builder instruction 5). Entries recorded at approval are never edited here — a change to one is a revision (next ID, `--supersedes`), never an in-place rewrite of history.
 5. The spec carries `Status: REVIEWED` on a green review; the evidence blocks + checked boxes carry the per-task proof.
 
-## 4. Handoff & cleanup
+## 4. Wrap-up & cleanup
 
-1. Summarize outcome + re-measured verification evidence in the final response (fresh re-run per section 1): each task's `Verify` command, the matched `Expect` marker, and attempt count — not memory of what ran. If any task is `FAILED`/`ABANDON`ed or unmet, block 4 states the halt/handoff, never a "done".
+1. Summarize outcome + re-measured verification evidence in the final response (fresh re-run per section 1): each task's `Verify` command, the matched `Expect` marker, and attempt count — not memory of what ran. If any task is `FAILED`/`ABANDON`ed or unmet, block 4 states the halt/hand-back, never a "done".
 2. The Sign-off gate (when `signoff: on`) is the human's "say ok" on the reviewed result; pass -> commit on the spec's branch -> `Status: COMPLETED` (commit is terminal; see building.md §3), block -> `REVIEW_REVISION_REQUIRED` -> re-build. An unresolvable failure parks the spec as `ESCALATED` (not `ABORTED`) and the batch continues to the next spec.
 3. Call `task-cleaner` when the human accepts the task (purges `specs/temp/`; preserves unreviewed `gate-log.md`).
 4. Unresolved issues -> route back to Plan/Build; never silently downgrade the lane.

@@ -14,7 +14,7 @@ Dev Agent is a drop-in configuration framework for AI coding assistants. It
 turns a repository into a structured workspace where humans and AI agents work
 the same codebase as equals: every task is triaged into a scope lane, planned
 behind Socratic gates, built against a compiled spec, verified with
-content-hash evidence, and handed off with a recorded handoff so any human or
+content-hash evidence, and handed back with a compiled spec so any human or
 agent can resume mid-flight.
 
 It is:
@@ -110,7 +110,7 @@ Defined in `.agents/rules/system.md`, in order:
    → BUILDING → BUILT → REVIEWED → COMPLETED` (Vetting and Sign-off gates); emit
    the 5-tag status header and 4-block
    schema; resolve every gate through `resolve_gate.py`; at "approve draft" the
-   spec is compiled into task files and stamped `COMPILED`, at "approve handoff"
+   spec is compiled into task files and stamped `COMPILED`, at compile
    the session stops — build never follows in the same session.
 4. **Load matching on-demand skills** and obey their engines (spec-builder for
    plans, verification-runner for verification, task-cleaner for cleanup).

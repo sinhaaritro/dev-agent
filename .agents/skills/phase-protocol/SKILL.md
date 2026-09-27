@@ -31,8 +31,8 @@ The process-governance meta-skill, run after auto-router's verdict. You drive ev
 
 ## Instructions
 
-1. **Route the status from the verdict.** Lanes B and A start `DRAFTED` and MUST end it at `COMPILED` (references/compiled.md) — the optional Vetting gate runs on the draft first (when `vetting: on`), then the "approve draft" step promotes the spec, writes the task files, records the handoff, and the session stops there; **build never follows approval in the same session**. Lane C is a single pass; Lane D is informational (header only, no lifecycle). C/D have no approval step, so no handoff. At each status start, load ONLY `references/<name>.md` — never preload all references — and follow its checklist exactly; a status completes only when its checklist is green. On an escalation flag, continue under the announced lane: re-plan under the new lane's artifact requirements, never ask permission, never silently de-escalate.
-2. **Enforce tool posture.** Plan, Handoff, and Review are read-only — no file edits. Build allows edits within lane scope only (per auto-router's `references/lane-matrix.md`). Scope creep toward a higher lane stops the build: the router re-classifies and announces the escalation before you continue.
+1. **Route the status from the verdict.** Lanes B and A start `DRAFTED` and MUST end it at `COMPILED` (references/compiled.md) — the optional Vetting gate runs on the draft first (when `vetting: on`), then the "approve draft" step promotes the spec, compiles the task files, and the session stops there; **build never follows approval in the same session**. Lane C is a single pass; Lane D is informational (header only, no lifecycle). C/D have no approval step, so no compile. At each status start, load ONLY `references/<name>.md` — never preload all references — and follow its checklist exactly; a status completes only when its checklist is green. On an escalation flag, continue under the announced lane: re-plan under the new lane's artifact requirements, never ask permission, never silently de-escalate.
+2. **Enforce tool posture.** Planning, Compile, and Review are read-only — no file edits. Build allows edits within lane scope only (per auto-router's `references/lane-matrix.md`). Scope creep toward a higher lane stops the build: the router re-classifies and announces the escalation before you continue.
 3. **Resolve every gate through the engine.** Classify first: **blocking** (security, database schemas, public APIs, Lane A criteria) vs **non-blocking** (minor internal scope). Then run:
    `python .agents/skills/phase-protocol/scripts/resolve_gate.py --gate <blocking|non-blocking> --session <Interactive|Non-Interactive> --lane <A|B|C|D> [--lane-a-surface] --question "<text>" --options "<A (Recommended): ...; B: ...>"`
    Autonomy is read from `AGENTS.md` (`autonomy_level`, supervised by default). Exit code is the contract: **0** proceed/resolved (non-blocking: state the default and proceed; autonomous: apply the Recommended Option, gate-log.md appended verbatim); **1** halt (interactive blocking: await the human's answer); **2** fail-closed (supervised non-interactive blocking, or any Lane-A surface gate — escalation.md written, no changes made). The Lane-A exception is encoded in the engine, never advisory: schema/auth/public-API gates always fail closed even under autonomous.
@@ -52,10 +52,10 @@ Every response uses exactly this schema, inherited by every other skill:
 3. SOCRATIC GATE / DECISION PROPOSAL
    Guided multiple-choice options with recommended defaults (only if ambiguity exists).
 4. NEXT STEP
-   The exact execution step that happens on human reply or autonomous resolution. When a subtask is ABANDONed or any work is unmet, this block states the halt/handoff (escalation.md) — never a silent "done".
+   The exact execution step that happens on human reply or autonomous resolution. When a subtask is ABANDONed or any work is unmet, this block states the halt/hand-back (escalation.md) — never a silent "done".
 ```
 
-Set `Worktree:` to `main` unless a worktree is active. The `Status:` tag is always a canonical `Status:` value (`DRAFTED` … `ABORTED`) — never a step label such as `handoff` or `commit`: lanes A/B carry the active spec's receipt; Lane C uses `DRAFTED` → `BUILDING` → `BUILT` → `COMPLETED`; Lane D uses `COMPLETED`. Lane D answers carry the header without steps or gates.
+Set `Worktree:` to `main` unless a worktree is active. The `Status:` tag is always a canonical `Status:` value (`DRAFTED` … `ABORTED`) — never a step label such as `plan` or `review`: lanes A/B carry the active spec's receipt; Lane C uses `DRAFTED` → `BUILDING` → `BUILT` → `COMPLETED`; Lane D uses `COMPLETED`. Lane D answers carry the header without steps or gates.
 
 ## Notes
 

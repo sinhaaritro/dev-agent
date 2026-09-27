@@ -21,7 +21,7 @@ has the 3-cycle repair loop; build red exits straight to `ESCALATED`.
 flowchart TD
     S((start)) --> DRAFTED
     DRAFTED[DRAFTED] -->|authoring loop: re-draft until plan-readiness is green| DRAFTED
-    DRAFTED -->|handoff · approve draft — vetting off or passed| COMPILED[COMPILED]
+    DRAFTED -->|compile · approve draft — vetting off or passed| COMPILED[COMPILED]
     DRAFTED -->|vetting on · Vetting blocks| PRR[PLAN_REVISION_REQUIRED]
     PRR -->|fix · re-enter authoring loop · re-vet — 3-try cap| DRAFTED
     PRR -->|accept-as-is| COMPILED
