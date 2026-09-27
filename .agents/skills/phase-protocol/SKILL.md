@@ -1,8 +1,9 @@
 ---
 name: phase-protocol
-description: Meta-skill driving SDLC phases 1-Plan -> 1.5-Vetting -> 2-Handoff -> 3-Build -> 4-Review -> 4.5-Sign-off -> 5-Done, Socratic gates, autonomy policy, and the 4-Block response schema
+description: Meta-skill driving the single Status lifecycle DRAFTED -> COMPILED -> BUILDING -> BUILT -> REVIEWED -> COMPLETED (Vetting and Sign-off gates), Socratic gates, autonomy policy, and the 4-Block response schema
 tags:
-  - phase
+  - status
+  - lifecycle
   - plan
   - build
   - review
@@ -16,21 +17,21 @@ metadata:
 scope: always
 ---
 
-# Phase Protocol
+# Status Protocol
 
 ## Overview
 
-The process-governance meta-skill, run after auto-router's verdict. You drive every task through the SDLC phases (1-Plan → 1.5-Vetting → 2-Handoff → 3-Build → 4-Review → 4.5-Sign-off → 5-Done), enforce tool posture per phase, resolve Socratic gates through the autonomy policy, and emit the 5-tag header with the 4-Block schema in every response. You consume auto-router's verdict — you own gates, never lane triage.
+The process-governance meta-skill, run after auto-router's verdict. You drive every task through the single `Status:` lifecycle (`DRAFTED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED`, with the Vetting and Sign-off gates), enforce tool posture per status, resolve Socratic gates through the autonomy policy, and emit the 5-tag header with the 4-Block schema in every response. You consume auto-router's verdict — you own gates, never lane triage.
 
 ## When to Use
 
 - Every session and every incoming prompt (mandatory third step of the boot chain).
-- Every phase transition — load ONLY that phase's reference checklist (never all references) and complete it before moving on.
+- Every status transition — load ONLY that status's reference checklist (never all references) and complete it before moving on.
 - Every gate (blocking or non-blocking, any session type) — resolve through the engine, never by judgment alone.
 
 ## Instructions
 
-1. **Route the phase from the verdict.** Lanes B and A start in 1-Plan and MUST end it at 2-Handoff (references/handoff.md) — the optional 1.5-Vetting gate runs on the draft first (when `vetting: on`), then the "approve draft" step promotes the spec, writes the task files, records the handoff, and the session stops there; **build never follows approval in the same session**. Lane C is a single pass; Lane D is informational (header only, no phases); C/D have no approval step, so no handoff. At each phase start, load ONLY `references/<phase>.md` — never preload all references — and follow its checklist exactly; a phase completes only when its checklist is green. On an escalation flag, continue under the announced lane: re-plan under the new lane's artifact requirements, never ask permission, never silently de-escalate.
+1. **Route the status from the verdict.** Lanes B and A start `DRAFTED` and MUST end it at `COMPILED` (references/compiled.md) — the optional Vetting gate runs on the draft first (when `vetting: on`), then the "approve draft" step promotes the spec, writes the task files, records the handoff, and the session stops there; **build never follows approval in the same session**. Lane C is a single pass; Lane D is informational (header only, no lifecycle). C/D have no approval step, so no handoff. At each status start, load ONLY `references/<name>.md` — never preload all references — and follow its checklist exactly; a status completes only when its checklist is green. On an escalation flag, continue under the announced lane: re-plan under the new lane's artifact requirements, never ask permission, never silently de-escalate.
 2. **Enforce tool posture.** Plan, Handoff, and Review are read-only — no file edits. Build allows edits within lane scope only (per auto-router's `references/lane-matrix.md`). Scope creep toward a higher lane stops the build: the router re-classifies and announces the escalation before you continue.
 3. **Resolve every gate through the engine.** Classify first: **blocking** (security, database schemas, public APIs, Lane A criteria) vs **non-blocking** (minor internal scope). Then run:
    `python .agents/skills/phase-protocol/scripts/resolve_gate.py --gate <blocking|non-blocking> --session <Interactive|Non-Interactive> --lane <A|B|C|D> [--lane-a-surface] --question "<text>" --options "<A (Recommended): ...; B: ...>"`
@@ -47,18 +48,19 @@ Every response uses exactly this schema, inherited by every other skill:
 1. SUMMARY OF UNDERSTANDING
    One-sentence recap of the user input or processed state.
 2. ACTIONS TAKEN / DISCOVERY
-    Files inspected, searches run, draft plans written to specs/temp/. Verification claims carry re-measured evidence: each task's Verify command, the matched Expect marker, and attempt count — from a fresh re-run, never memory of what ran.
+    Files inspected, searches run, draft plans written to specs/temp/ — cited by path, never pasted. Verification claims carry re-measured evidence: each task's Verify command, the matched Expect marker, and attempt count — from a fresh re-run, never memory of what ran.
 3. SOCRATIC GATE / DECISION PROPOSAL
    Guided multiple-choice options with recommended defaults (only if ambiguity exists).
 4. NEXT STEP
    The exact execution step that happens on human reply or autonomous resolution. When a subtask is ABANDONed or any work is unmet, this block states the halt/handoff (escalation.md) — never a silent "done".
 ```
 
-Set `Worktree:` to `main` unless a worktree is active. Lane D answers carry the header without phases or gates.
+Set `Worktree:` to `main` unless a worktree is active. The `Status:` tag is always a canonical `Status:` value (`DRAFTED` … `ABORTED`) — never a step label such as `handoff` or `commit`: lanes A/B carry the active spec's receipt; Lane C uses `DRAFTED` → `BUILDING` → `BUILT` → `COMPLETED`; Lane D uses `COMPLETED`. Lane D answers carry the header without steps or gates.
 
 ## Notes
 
 - **You own gates, autonomy, and the response schema exclusively.** Auto-router never halts for a gate and never applies autonomy policy; you never re-triage the lane.
+- **Never echo file bodies in chat.** Report every artifact by path plus a one-line summary; a plan/spec's §5 Tasks & Outcomes table and its `### Task N:` list stay in the file and are never reproduced in the response.
 - **Never decide a blocking gate by judgment.** The engine is the single decision path — its outcome (append-only gate-log entry, fail-closed escalation report) is the audit record.
 - **gate-log.md is append-only, never purged** until a human explicitly reviews it (system.md §3). Never truncate, edit, or delete it.
 - **Autonomous resolution never applies to Lane A surfaces** (database schema, authentication, public APIs) — those always fail closed, and a spec promoted under autonomous resolution keeps `Status: PROVISIONAL - AUTONOMOUS DEFAULT` until a human clears it.
@@ -67,7 +69,7 @@ Set `Worktree:` to `main` unless a worktree is active. Lane D answers carry the 
 ## Deep reference (context budget)
 
 The "why" lives in `docs/`, not here — load a topic doc on demand, never at session start:
-- **lifecycle** — the single `Status:` receipt, phase save points, `ESCALATED` vs `ABORTED` → `docs/lifecycle.md`
+- **lifecycle** — the single `Status:` receipt, status save points, `ESCALATED` vs `ABORTED` → `docs/lifecycle.md`
 - **run contract** — explicit trigger, mode default (Option A), stop point, opt-in cost gate → `docs/run-contract.md`
 - **branch & commit** — branch-per-spec, commit-terminal, never-merge guardrail → `docs/branching.md`
 - **task files** — the 1:1 coder contract, subtasks vs task verify → `docs/task-files.md`

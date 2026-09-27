@@ -1,4 +1,4 @@
-# PHASE 4 - REVIEW (reference checklist)
+# REVIEWED - REVIEW (reference checklist)
 
 Load when the build is `BUILT` (all tasks `MET`). **Read-only - no more edits; review and finalize.**
 
@@ -16,7 +16,7 @@ Load when the build is `BUILT` (all tasks `MET`). **Read-only - no more edits; r
 
 ## 3. Finalize the spec (spec-builder)
 
-The spec was promoted at approval; this phase finalizes it, not births it.
+The spec was promoted at approval; this step finalizes it, not births it.
 
 1. Confirm the implementation matches the spec: no drift from section 4 (affected files & contracts), no dead code, no debug leftovers.
 2. Set the spec header to `Status: REVIEWED`; confirm every task's derived status is `MET` with re-measured evidence (sync any task the build moved). Any `FAILED`/`BLOCKED` task is reported as visible handoff in the final response — never checked off, never silently dropped.
@@ -27,6 +27,6 @@ The spec was promoted at approval; this phase finalizes it, not births it.
 ## 4. Handoff & cleanup
 
 1. Summarize outcome + re-measured verification evidence in the final response (fresh re-run per section 1): each task's `Verify` command, the matched `Expect` marker, and attempt count — not memory of what ran. If any task is `FAILED`/`ABANDON`ed or unmet, block 4 states the halt/handoff, never a "done".
-2. The 4.5-Sign-off gate (when `signoff: on`) is the human's "say ok" on the reviewed result; pass -> commit on the spec's branch -> `Status: COMPLETED` (commit is terminal; see build.md §3), block -> `REVIEW_REVISION_REQUIRED` -> re-build. An unresolvable failure parks the spec as `ESCALATED` (not `ABORTED`) and the batch continues to the next spec.
+2. The Sign-off gate (when `signoff: on`) is the human's "say ok" on the reviewed result; pass -> commit on the spec's branch -> `Status: COMPLETED` (commit is terminal; see building.md §3), block -> `REVIEW_REVISION_REQUIRED` -> re-build. An unresolvable failure parks the spec as `ESCALATED` (not `ABORTED`) and the batch continues to the next spec.
 3. Call `task-cleaner` when the human accepts the task (purges `specs/temp/`; preserves unreviewed `gate-log.md`).
 4. Unresolved issues -> route back to Plan/Build; never silently downgrade the lane.

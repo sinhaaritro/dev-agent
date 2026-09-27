@@ -3,7 +3,7 @@
 
 Owns the mechanical parts of the spec lifecycle: template
 enforcement, sequential numbering, promotion mechanics, Topic-Based
-decision recording, and the Phase 1.5 handoff record. The acceptance
+decision recording, and the handoff record. The acceptance
 gate itself is the caller's - the agent asserts it via --status
 (APPROVED for human acceptance, PROVISIONAL for a compliant autonomous
 resolution); this script never decides whether the gate passed. Topic
@@ -61,7 +61,7 @@ Modes:
 
     handoff  promote_spec.py handoff <spec> --lane <B|A>
                    [--dry-run] [--handoff-dir <dir>]
-               Record the Phase 1.5 handoff for an approved spec.
+               Record the handoff for an approved spec.
                Validates the spec exists with Status: APPROVED, writes
                specs/temp/handoff.md (ephemeral record), and stamps
                "Handoff: <YYYY-MM-DD>" on the spec's status header
@@ -119,8 +119,8 @@ LANE_SECTIONS = {"B": {1, 4, 5}, "A": {1, 2, 3, 4, 5, 6, 7, 8}}
 PROVISIONAL_STATUS = "PROVISIONAL - AUTONOMOUS DEFAULT"
 
 # Canonical Status: receipt set (spec 002, §2.1) - past-tense receipts of the
-# last completed engine action, one per integer phase plus the gate/failure
-# receipts. The two decimal consensus gates (1.5-Vetting, 4.5-Sign-off) carry
+# last completed engine action, one per lifecycle status plus the gate/failure
+# receipts. The two decimal consensus gates (Vetting, Sign-off) carry
 # no receipt of their own.
 CANONICAL_STATUSES = frozenset((
     "DRAFTED",
@@ -539,7 +539,7 @@ def _render_task_file(num: int, task: dict, spec_name: str, spec_text: str,
 
 
 def compile_spec(spec: Path, root: Path | None = None) -> list[Path]:
-    """2-Handoff "compile": emit one task file per §5 task + approvals + stamp.
+    """handoff "compile": emit one task file per §5 task + approvals + stamp.
 
     Reads the spec's §5 Tasks & Outcomes, renders each task in the canonical
     task-file shape, validates it (refusing to write on violations), writes
@@ -854,7 +854,7 @@ def ensure_scratchpad_guard(handoff_dir: Path) -> None:
 
 
 def cmd_handoff(args: argparse.Namespace) -> int:
-    """Validate and record the Phase 1.5 handoff."""
+    """Validate and record the handoff."""
     try:
         text = read_text(args.spec)
     except (OSError, UnicodeDecodeError):
@@ -899,7 +899,7 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         "Decisions: topic docs under docs/ (AI index: docs/_topics.md)\n\n"
         "Implementation runs in a new session that reads the promoted spec. "
         "The session that recorded this handoff must not open "
-        "references/build.md.\n",
+        "references/building.md.\n",
         encoding="utf-8",
     )
     print(f"handoff: {handoff_file}")
@@ -1705,7 +1705,7 @@ def main() -> int:
     promote_p.set_defaults(func=cmd_promote)
 
     handoff_p = sub.add_parser(
-        "handoff", help="record the Phase 1.5 handoff for an approved spec"
+        "handoff", help="record the handoff for an approved spec"
     )
     handoff_p.add_argument("spec", type=Path, help="promoted spec in specs/")
     handoff_p.add_argument("--lane", required=True, choices=["B", "A"])
@@ -1785,7 +1785,7 @@ def main() -> int:
     tag_ren_p.set_defaults(func=_tag_rename)
 
     compile_p = sub.add_parser(
-        "compile", help="2-Handoff: emit one task file per §5 task + approvals + stamp"
+        "compile", help="handoff: emit one task file per §5 task + approvals + stamp"
     )
     compile_p.add_argument("spec", type=Path, help="promoted spec NNN-SPEC-<slug>.md")
     compile_p.add_argument("--root", type=Path, default=None)

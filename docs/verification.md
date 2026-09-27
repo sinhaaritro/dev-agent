@@ -21,7 +21,7 @@ copy of `verify.py`) resolve to itself, not to a parent repo (VERIFY-D01).
 
 ### Pre-approvals & the fingerprint
 
-A verify command is **pre-approved** at 2-Handoff: the approval stores a **fingerprint** of
+A verify command is **pre-approved** at handoff: the approval stores a **fingerprint** of
 `sha256(command | expect | cwd)`. The `executor` is deliberately **not** part of the fingerprint,
 so a human's pre-approval matches a coder's later run of the same command. A change to the command,
 the `Expect` marker, or the CWD re-arms approval (the engine exits before execution, changing no
@@ -58,7 +58,7 @@ at the moment instead of halting (VERIFY-D04).
 ### The report
 
 `verify.py report --spec <spec>` writes `NNN-REPORT-<slug>.md`: the per-task status + evidence, the
-`R#` outcome observations (one line each — a missing observation **fails** 4-Review), and the 4-Review
+`R#` outcome observations (one line each — a missing observation **fails** review), and the review
 summary. Reports are **per spec only**; there is no combined batch file (VERIFY-D05).
 
 ## Decision Log

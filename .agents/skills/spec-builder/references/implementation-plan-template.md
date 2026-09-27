@@ -1,7 +1,7 @@
 ---
 tags: [lowercase-kebab, ...]
-vetting: off          # 1.5-Vetting gate (plan review): on | off
-signoff: off          # 4.5-Sign-off gate: on | off (on => pauses for a human when unattended)
+vetting: off          # Vetting gate (plan review): on | off
+signoff: off          # Sign-off gate: on | off (on => pauses for a human when unattended)
 review_revision: auto # review failure: auto (<=3 re-build cycles) | halt (straight to human)
 ---
 
@@ -15,9 +15,9 @@ The YAML block above the title is the single, easy-to-flip home for the per-spec
 flow flags (set at draft time; §2.1 of the plan spec):
 
 - `tags:` — lowercase-kebab, 2-30 chars, max 7 (mandatory on committed docs).
-- `vetting: on|off` — the 1.5-Vetting (plan review) gate. Default `on` for a
+- `vetting: on|off` — the Vetting (plan review) gate. Default `on` for a
   Lane-A surface, `off` otherwise (token cost).
-- `signoff: on|off` — the 4.5-Sign-off (human "say ok") gate. The **one spec-level
+- `signoff: on|off` — the Sign-off (human "say ok") gate. The **one spec-level
   human point**: in an unattended run `signoff: on` **pauses at 4.5** until a human
   signs off.
 - `review_revision: auto|halt` — on a `REVIEWED` failure, `auto` allows up to 3
@@ -85,12 +85,12 @@ contract block.
 
 ## 5. Tasks & Outcomes
 
-> This list is the **source** the 2-Handoff compiles into one task file per task
+> This list is the **source** the handoff compiles into one task file per task
 > (`NNN-TASK-<NN>-<slug>.md`). The global task list lives **only here** (it is not
 > copied into task files). Build order is read from `Depends On`.
 
 **Outcomes:** each task delivers one or more `R#` outcomes; every `R#` must have a
-recorded observation by 4-Review (reconciliation).
+recorded observation by review (reconciliation).
 
 | ID | Outcome (what the user gets) |
 |----|------------------------------|
@@ -132,7 +132,7 @@ selects zero tests — pin the expected count in Expect. This is checked by the 
 (`check`); the judgment "could this fail in the wild?" is yours at authoring time.
 
 **Subtasks are NOT here.** A task's internal step checklist (`### Progress`) lives in
-its own task file, written by the 2-Handoff compile — it is the coder's own progress
+its own task file, written by the handoff compile — it is the coder's own progress
 checklist, not a gate and not a section-5 field. RED→GREEN is still permitted at the
 coder level (a task may open with an `(expect RED)` subtask) but the task's `Verify`
 above is what decides pass/fail.
@@ -140,7 +140,7 @@ above is what decides pass/fail.
 ## 6. Gates
 
 _(empty until a gate runs — §2.1. One entry per gate that ran: which gate
-(1.5-Vetting / 4.5-Sign-off / blocking), when, the note, pass/block. A blocked entry
+(Vetting / Sign-off / blocking), when, the note, pass/block. A blocked entry
 records the issues that triggered `PLAN_REVISION_REQUIRED` / `REVIEW_REVISION_REQUIRED`.
 A gate that is off writes nothing.)_
 
@@ -163,12 +163,12 @@ its own `Owns` set). Once a spec's commit lands on its branch, any task reverts 
 touches another.
 
 ---
-Usage: drafted at `specs/temp/draft-plan.md` during 1-Plan; validated with
+Usage: drafted at `specs/temp/draft-plan.md` during plan; validated with
 `promote_spec.py check <draft> --lane <B|A>` (the check lints the `tags:` field,
 validates the section-5 Tasks & Outcomes structure, and lints every Verify/Expect
 pair); on acceptance promoted to `specs/<NNN>-<SPEC>-<slug>.md` via
 `promote_spec.py promote <draft> --lane <B|A> --status <APPROVED|PROVISIONAL>`,
-then compiled into task files at 2-Handoff via `promote_spec.py compile <spec>`.
+then compiled into task files at handoff via `promote_spec.py compile <spec>`.
 Lane A mandates sections 1-8 (plus the 0 Frontmatter); Lane B uses sections 1, 4, 5
 only. The `tags:` field is mandatory on committed docs and lives in the YAML
 frontmatter block at the top of the file (lowercase-kebab, 2-30 chars, max 7); the

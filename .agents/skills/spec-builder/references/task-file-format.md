@@ -8,7 +8,7 @@ coder works through and the **evidence block** (the per-task verification record
 
 ## Generation
 
-`promote_spec.py compile <spec>` (the 2-Handoff "compile" step) reads the spec's §5
+`promote_spec.py compile <spec>` (the handoff "compile" step) reads the spec's §5
 **Tasks & Outcomes** and emits **one self-contained task file per task**, named
 `NNN-TASK-<NN>-<slug>.md` (parent `NNN` prefix + two-digit task number + a short task slug).
 It validates **every file it writes** with `validate_task_file(text)` — a missing or
@@ -49,7 +49,7 @@ Implement ONLY this task. Obey the given signatures. Do not plan, do not touch f
 don't Own, do not commit.
 
 ## Project overview
-Dev-agent: a meta-framework that drives coding tasks through a phase protocol.
+Dev-agent: a meta-framework that drives coding tasks through a status protocol.
 (the global task list lives in the spec §5 — not copied here)
 
 ## Task

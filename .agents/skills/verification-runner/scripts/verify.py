@@ -80,7 +80,7 @@ Modes:
     report   verify.py report --spec <NNN> [--root <dir>]
               Regenerate NNN-REPORT-<slug>.md: run state, per-task verify
               status (derived from each task file's evidence block), and the
-              4-Review re-run result. Exit 0.
+              Review re-run result. Exit 0.
 
     escalate verify.py escalate --task <id> --hypothesis "<text>"
                   --options "A (Recommended): ...; B: ..." [--state-dir <dir>]
@@ -777,7 +777,7 @@ def _task_verify_command(task_file: Path) -> str:
 
 
 def _rereun_verify(root: Path, num: int, text: str) -> list[str]:
-    """4-Review: fresh re-run of every task's verify command (pass/fail lines).
+    """Review: fresh re-run of every task's verify command (pass/fail lines).
 
     The command source is the task file's '## Verification' fenced block (the
     canonical, possibly revised oracle) - not the spec's section-5 copy, which
@@ -852,7 +852,7 @@ def report(spec: Path) -> Path:
         lines.append("- Task %d: %s (%s)" % (task["num"], derived, tf.name))
     lines += [
         "",
-        "## 4-Review (fresh re-run of verify commands)",
+        "## Review (fresh re-run of verify commands)",
     ]
     lines.extend(_rereun_verify(root, num, text))
     lines.append("")

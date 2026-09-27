@@ -47,6 +47,6 @@ Completion rules:
    independent tasks keep running to exhaustion (no "3 consecutive failures" breaker).
 4. An `ABANDON`ed subtask means its task never closes; the spec ends in visible
    handoff (escalation) — never silent completion.
-5. The spec is done only when every task is `MET` (a fresh re-run at 4-Review, since
+5. The spec is done only when every task is `MET` (a fresh re-run at review, since
    old evidence is not re-execution) or the spec parks as `ESCALATED` with a
    consolidated halt report.

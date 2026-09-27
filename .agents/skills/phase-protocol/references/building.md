@@ -1,12 +1,12 @@
-# PHASE 3 - BUILD (reference checklist)
+# BUILDING - BUILD (reference checklist)
 
-Load when the compiled spec + task files exist (Step 1 complete; plan.md section 5). **Edits allowed within lane scope only.**
+Load when the compiled spec + task files exist (Step 1 complete; drafted.md section 5). **Edits allowed within lane scope only.**
 
-**Session gate:** this phase runs ONLY in a new session that did NOT produce the spec. Before building, verify the spec header carries `Handoff: <date>` + `Status: COMPILED` (recorded at 2-Handoff). Absent -> go back to plan.md section 5 and run the handoff. Never build in the spec-producing session.
+**Session gate:** this step runs ONLY in a new session that did NOT produce the spec. Before building, verify the spec header carries `Handoff: <date>` + `Status: COMPILED` (recorded at handoff). Absent -> go back to drafted.md section 5 and run the handoff. Never build in the spec-producing session.
 
 ## 1. Execute the task list (the DAG) in order
 
-1. Work strictly from the compiled spec at `specs/<NNN>-<SPEC>-<slug>.md` and its task files — never add scope silently. (The spec replaced the draft at 2-Handoff.)
+1. Work strictly from the compiled spec at `specs/<NNN>-<SPEC>-<slug>.md` and its task files — never add scope silently. (The spec replaced the draft at handoff.)
 2. Stamp the spec `Status: BUILDING` in its header when work starts.
 3. The execution unit is the **task**, dispatched to a coder subagent that owns exactly one task file. Read build order from `Depends On`: start a task only when every task in its `Depends On` is `MET`. Within a task, the coder works its `### Progress` checklist one subtask at a time.
 4. Update subtask state in real time (inside the task file): `- [ ]` pending -> `- [/]` in progress -> `- [x]` done. A subtask is `[x]` ONLY when its `Verify` passes with recorded evidence (section 2) — never exit-0 alone, never without evidence.
@@ -16,7 +16,7 @@ Load when the compiled spec + task files exist (Step 1 complete; plan.md section
 
 ## 2. Verify each task via verification-runner
 
-1. Approvals are pre-recorded at 2-Handoff into `NNN-APPROVALS-<slug>.json` (fingerprint = `command | expect | cwd`). First-run approval is still available for ad-hoc commands: `verify.py approve --command "<cmd>" --expect "<marker>"`. Approving the spec does NOT approve its commands. Cached re-runs are free; any change to the command, `Expect`, or CWD re-arms approval (exit 4 before execution — no state change, not an attempt). Lanes A and B enforce this; Lane C is exempt.
+1. Approvals are pre-recorded at handoff into `NNN-APPROVALS-<slug>.json` (fingerprint = `command | expect | cwd`). First-run approval is still available for ad-hoc commands: `verify.py approve --command "<cmd>" --expect "<marker>"`. Approving the spec does NOT approve its commands. Cached re-runs are free; any change to the command, `Expect`, or CWD re-arms approval (exit 4 before execution — no state change, not an attempt). Lanes A and B enforce this; Lane C is exempt.
 2. Run the task's `Verify` through the engine (from the repo root): `verify.py run --command "<cmd>" --expect "<marker>" --task <id> --lane <A|B|C>`. PASS = exit 0 AND the `Expect` marker present in the combined output; on PASS the engine records evidence (`{command, exit, expect, matched, at, output_sha256}` + a `sha256` of every owned file) into the task file's evidence block and `specs/temp/verify-state.json`.
 3. Failure -> max **3 total attempts** on the task (first try + 2 retries), then the task is `FAILED` and its dependents become `BLOCKED`; independent tasks keep running to exhaustion. A task is done only on a green PASS with evidence.
 4. A task's completion is **derived, not asserted**: `verify.py status --task <id>` reads the evidence block and reports `MET` (every owned file's hash still matches) / `NOT MET` / `STALE` (an owned file changed) / `NO-EVIDENCE`.
@@ -35,4 +35,4 @@ Load when the compiled spec + task files exist (Step 1 complete; plan.md section
 - [ ] Any NEW architectural decision surfaced during build recorded as a topic log entry (spec-builder instruction 5)
 - [ ] If any task is `FAILED` or unmet, the response halts for handoff — never reports "done"
 
-Proceed to `references/review.md`.
+Proceed to `references/reviewed.md`.

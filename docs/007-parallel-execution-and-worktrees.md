@@ -27,7 +27,7 @@ a spec:
 
 - **Branch-per-spec.** Planning happens on `main`; a run creates **one branch
   per spec off `main` (+ worktree)** and does all coding there. It never edits
-  `main`. Each spec runs through 4-Review on its branch and commits on that
+  `main`. Each spec runs through review on its branch and commits on that
   branch before the next spec starts, so nothing crosses between specs
   (BRANCH-D01). See `docs/branching.md`.
 - **Sole-writer ownership lease.** Within a spec, each task file is owned by

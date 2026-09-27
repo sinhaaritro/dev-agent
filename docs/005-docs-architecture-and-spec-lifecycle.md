@@ -115,7 +115,7 @@ python .agents/skills/map-generator/scripts/generate_map.py sync-docs
 - **`specs/`:** a **group** of companions sharing one `NNN` prefix:
   `NNN-SPEC-<slug>.md` (the spec), `NNN-TASK-<NN>-<slug>.md` (one per §5 task),
   `NNN-APPROVALS-<slug>.json` (gitignored; pre-approved verify fingerprints),
-  `NNN-REPORT-<slug>.md` (the 4-Review report, `verify.py report`), and
+  `NNN-REPORT-<slug>.md` (the review report, `verify.py report`), and
   `NNN-ESCALATION-<slug>.md` (the consolidated failure record, when a run
   parks the spec `ESCALATED`). Sub-IDs `NNN-<letter><NN>` (e.g. `001-A01`),
   deeper `NNN-<letter><NN>-<letter><NN>` (e.g. `001-A01-B01`); a sub-ID child
@@ -172,7 +172,7 @@ Incoming requirement
  specs/temp/draft-plan.md          (Lane B: sections 1,4,5 / Lane A: sections 0-8)
         │  validated: promote_spec.py check <draft> --lane <B|A>
         ▼
- [ 1.5-Vetting gate — optional, when the spec's vetting: on ]
+ [ Vetting gate — optional, when the spec's vetting: on ]
         │  a block drops the spec to PLAN_REVISION_REQUIRED (re-plan)
         ▼
  [ "approve draft" gate — human acceptance or compliant autonomous resolution ]
@@ -188,7 +188,7 @@ Incoming requirement
  group (verified via Status: COMPILED + the Handoff: stamp), runs
  verify.py doctor (PRECONDITIONS OK), creates one branch per spec off main,
  dispatches unblocked tasks to coders (each ticks its own task file, Verify +
- Expect with content-hash evidence), runs verify.py report at 4-Review,
+ Expect with content-hash evidence), runs verify.py report at review,
  commits on the branch at the run's stop point (commit → COMPLETED,
  pre-commit → stop at REVIEWED), then task-cleaner purges the scratchpad on
  acceptance. A failure parks the spec ESCALATED (NNN-ESCALATION-<slug>.md)
@@ -265,11 +265,11 @@ the markers is safe from regeneration.
 
 ## 7. Scratchpad lifecycle & garbage collection
 
-`specs/temp/` holds only **draft-phase** working state: `draft-plan.md` (the
+`specs/temp/` holds only **draft-stage** working state: `draft-plan.md` (the
 one running plan being authored), `active-task.md` (working memory), and any
-draft-phase notes. The durable records that used to live here are now committed
+draft-stage notes. The durable records that used to live here are now committed
 with the spec group: gate decisions in the spec's `Gates:` section, the
-4-Review report as `NNN-REPORT-<slug>.md`, the failure record as
+Review report as `NNN-REPORT-<slug>.md`, the failure record as
 `NNN-ESCALATION-<slug>.md`, and per-task evidence inside each `NNN-TASK` file.
 
 `task-cleaner` purges it (default preserves `.gitignore` only; a human may pass
@@ -283,10 +283,10 @@ python .agents/skills/task-cleaner/scripts/clean.py clean
   artifacts (the old `gate-log.md`, `verify-state.json`, `approvals.json`,
   `handoff.md`) are purged when present. Report is `purged: N, preserved: M`.
 - **No auto-purge** — the engine only deletes when explicitly invoked; it never
-  sweeps the scratchpad as a side effect of a phase transition.
+  sweeps the scratchpad as a side effect of a status transition.
 - `clean --dry-run` / `status` classify without deleting — use in doubt.
 - Scope is the scratchpad and nothing else: the committed folders (including
   the spec group) are never touched; the engine refuses targets at or above the
   repo root.
-- The engine restores no template stubs — the next task's Plan phase creates
-  scratchpad files on demand.
+- The engine restores no template stubs — the next task's planning status
+  (`DRAFTED`) creates scratchpad files on demand.

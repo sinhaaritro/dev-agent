@@ -29,7 +29,7 @@ You install the Dev Agent framework into a target repository by copying the cano
 
 The two dotfiles are IDE pointer files — one line each, telling Cursor and Windsurf to load `.agents/rules/system.md` as the gateway.
 
-`reference/agents/coder.md` is the **portable coder subagent contract** (role, input = the task file only, fetch context on demand, search/replace blocks for large files, run the task's verification, never commit / never plan / never expand scope / never touch files it does not Own, sole writer of its own task file, the trivial direct-fix exception). Bootstrap seeds it so every target repo has the contract the Build phase's coder dispatch relies on.
+`reference/agents/coder.md` is the **portable coder subagent contract** (role, input = the task file only, fetch context on demand, search/replace blocks for large files, run the task's verification, never commit / never plan / never expand scope / never touch files it does not Own, sole writer of its own task file, the trivial direct-fix exception). Bootstrap seeds it so every target repo has the contract the build status's coder dispatch relies on.
 
 Copy mechanics belong to `scripts/bootstrap.py`; you decide WHERE the target repo is and confirm the overwrite policy. The engine never guesses a target: you pass `--target` explicitly, and the engine refuses to run against this framework's own source tree.
 

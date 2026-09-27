@@ -1,16 +1,13 @@
-"""Drift test: the canonical phase + status sets appear, the old ones are gone.
+"""Drift test: the framework uses a single `Status:` lifecycle, not phases.
 
-Covers spec 002 TASK-14. The framework renumbered the phases and collapsed the
-lifecycle to a single `Status:` receipt; this test guards against drift back to
-the old model in the files that are already migrated (`.agents`, `README.md`,
-`AGENTS.md`). The `docs/` reference series is updated by TASK-15 and is checked
-by a dedicated assertion there, so it is excluded here.
+The lifecycle is one receipt — `Status:` — whose value set is owned by the engine
+(`promote_spec.CANONICAL_STATUSES`). This test guards the migrated files
+(`.agents`, `README.md`, `AGENTS.md`, `docs/`) against drift back to a parallel
+"phase" vocabulary or the retired numbered step labels.
 
-Canonical sets (the single source of truth is `promote_spec.CANONICAL_STATUSES`
-and the phase flow documented in phase-protocol):
-    phases   = 1-Plan, 1.5-Vetting, 2-Handoff, 3-Build, 4-Review, 4.5-Sign-off, 5-Done
-    statuses = DRAFTED, COMPILED, BUILDING, BUILT, REVIEWED, COMPLETED,
-               PLAN_REVISION_REQUIRED, REVIEW_REVISION_REQUIRED, ESCALATED, ABORTED
+Canonical statuses (single source of truth: `promote_spec.CANONICAL_STATUSES`):
+    DRAFTED, COMPILED, BUILDING, BUILT, REVIEWED, COMPLETED,
+    PLAN_REVISION_REQUIRED, REVIEW_REVISION_REQUIRED, ESCALATED, ABORTED
 """
 
 import importlib.util
@@ -30,7 +27,10 @@ _promote_spec = importlib.util.module_from_spec(_spec)
 sys.modules.setdefault("promote_spec", _promote_spec)
 _spec.loader.exec_module(_promote_spec)
 
-CANONICAL_PHASES = [
+CANONICAL_STATUSES = sorted(_promote_spec.CANONICAL_STATUSES)
+# The retired numbered step labels (current and older generations) — a parallel
+# vocabulary that must not return to the living files.
+OLD_STEP_LABELS = [
     "1-Plan",
     "1.5-Vetting",
     "2-Handoff",
@@ -38,10 +38,15 @@ CANONICAL_PHASES = [
     "4-Review",
     "4.5-Sign-off",
     "5-Done",
+    "1.5-Handoff",
+    "1.5-Consensus",
+    "4.5-Consensus",
+    "2-Build",
+    "3-Review",
 ]
-CANONICAL_STATUSES = sorted(_promote_spec.CANONICAL_STATUSES)
-# The old phase names that must be gone (superseded by the canonical set).
-OLD_PHASES = ["1.5-Handoff", "1.5-Consensus", "4.5-Consensus", "2-Build", "3-Review"]
+# The skill identifier `phase-protocol` is the only place the word "phase" survives.
+_PHASE_WORD = re.compile(r"phase", re.IGNORECASE)
+_PHASE_ALLOWED = re.compile(r"phase-protocol", re.IGNORECASE)
 
 
 def _read(path: Path) -> str:
@@ -52,12 +57,13 @@ def _read(path: Path) -> str:
 
 
 def _agent_sources() -> list[tuple[str, str]]:
-    """(label, text) for every markdown file under .agents/ (rules + skills)."""
+    """(label, text) for every markdown and Python file under .agents/."""
     agents = REPO / ".agents"
     out = []
     if agents.is_dir():
-        for f in sorted(agents.rglob("*.md")):
-            out.append((str(f.relative_to(REPO)), _read(f)))
+        for pattern in ("*.md", "*.py"):
+            for f in sorted(agents.rglob(pattern)):
+                out.append((str(f.relative_to(REPO)), _read(f)))
     return out
 
 
@@ -67,10 +73,20 @@ def _root_sources() -> list[tuple[str, str]]:
         p = REPO / name
         if p.is_file():
             out.append((name, _read(p)))
+    docs = REPO / "docs"
+    if docs.is_dir():
+        for f in sorted(docs.rglob("*.md")):
+            if f.name == "_topics.md":  # generated index, not hand-maintained
+                continue
+            out.append((str(f.relative_to(REPO)), _read(f)))
     return out
 
 
-class CanonicalPhaseSetTest(unittest.TestCase):
+def _sources() -> list[tuple[str, str]]:
+    return _agent_sources() + _root_sources()
+
+
+class CanonicalStatusSetTest(unittest.TestCase):
     def test_canonical_statuses_match_engine(self):
         """The test's status set is exactly the engine's canonical set."""
         expected = {
@@ -87,23 +103,48 @@ class CanonicalPhaseSetTest(unittest.TestCase):
         }
         self.assertEqual(set(CANONICAL_STATUSES), expected)
 
-    def test_each_canonical_phase_appears_somewhere(self):
-        """Every canonical phase name is documented in .agents or AGENTS.md."""
-        sources = _agent_sources() + _root_sources()
-        for phase in CANONICAL_PHASES:
-            self.assertTrue(
-                any(phase in text for _, text in sources),
-                f"canonical phase {phase!r} not found in .agents / AGENTS.md",
-            )
-
     def test_each_canonical_status_appears_somewhere(self):
-        """Every canonical status is referenced (the engine knows all of them)."""
-        sources = _agent_sources() + _root_sources()
+        """Every canonical status is referenced in .agents, README.md, AGENTS.md, docs/."""
+        sources = _sources()
         for status in CANONICAL_STATUSES:
             self.assertTrue(
                 any(status in text for _, text in sources),
-                f"canonical status {status!r} not found in .agents / AGENTS.md",
+                f"canonical status {status!r} not found in .agents / README.md / AGENTS.md / docs",
             )
+
+
+class NoStepLabelTest(unittest.TestCase):
+    """The retired numbered step labels (1-Plan … 5-Done) are gone."""
+
+    def test_no_step_labels(self):
+        hits = []
+        for label, text in _sources():
+            for old in OLD_STEP_LABELS:
+                if re.search(r"\b" + re.escape(old) + r"\b", text):
+                    hits.append(f"{label}: {old!r}")
+        self.assertEqual(
+            hits, [],
+            "retired step label(s) still present:\n" + "\n".join(hits),
+        )
+
+
+class NoPhaseWordTest(unittest.TestCase):
+    """The word "phase" survives only inside the skill identifier `phase-protocol`."""
+
+    def _violations(self) -> list[str]:
+        hits = []
+        for label, text in _sources():
+            for i, line in enumerate(text.splitlines(), start=1):
+                stripped = _PHASE_ALLOWED.sub("", line)
+                if _PHASE_WORD.search(stripped):
+                    hits.append(f"{label}:{i}: {line.strip()}")
+        return hits
+
+    def test_no_phase_word(self):
+        self.assertEqual(
+            self._violations(), [],
+            "the word 'phase' survives outside `phase-protocol`:\n" + "\n".join(self._violations()),
+        )
 
 
 class NoPhaseFieldTest(unittest.TestCase):
@@ -111,32 +152,14 @@ class NoPhaseFieldTest(unittest.TestCase):
 
     def _violations(self) -> list[str]:
         hits = []
-        for label, text in _agent_sources() + _root_sources():
+        for label, text in _sources():
             for i, line in enumerate(text.splitlines(), start=1):
-                # A `Phase:` used as a field/header (line-start or ` <Phase>`),
-                # not a `Status:` or prose mention of the word "phase".
                 if re.match(r"^\s*Phase\s*:", line) or re.search(r"<Phase\s*>", line):
                     hits.append(f"{label}:{i}: {line.strip()}")
         return hits
 
-    def test_no_phase_field_in_agents_or_root(self):
+    def test_no_phase_field(self):
         self.assertEqual(self._violations(), [], "a `Phase:` field still exists:\n" + "\n".join(self._violations()))
-
-
-class NoOldPhasesTest(unittest.TestCase):
-    """The old phase names are gone from .agents, README.md, AGENTS.md."""
-
-    def test_no_old_phase_names(self):
-        hits = []
-        for label, text in _agent_sources() + _root_sources():
-            for old in OLD_PHASES:
-                # Word-boundary match so "3-Review" does not hit "3-Build" etc.
-                if re.search(r"\b" + re.escape(old) + r"\b", text):
-                    hits.append(f"{label}: {old!r}")
-        self.assertEqual(
-            hits, [],
-            "old phase name(s) still present in .agents / AGENTS.md:\n" + "\n".join(hits),
-        )
 
 
 class AgCommandsTest(unittest.TestCase):

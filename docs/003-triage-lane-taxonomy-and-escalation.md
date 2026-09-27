@@ -22,7 +22,7 @@ Single source of truth:
 | **D** | Read-Only / Informational | No file mutations. Explanations, comparisons, code Q&A. | None | None — informational | None |
 | **C** | Micro-Edit | Single file; no schema/public-API/auth/dependency changes; diff under ~30 lines | None (inline diff output) | Non-blocking only | Single pass with `Verify` + `Expect` via `verify.py` (PASS = exit 0 + marker); 3 fails escalate to B |
 | **B** | Scoped Multi-File Edit | 2–5 files; no schema/API/auth/security surface; no new external dependencies | Abbreviated plan (sections 1, 4, 5), compiled into a spec group on approval | Non-blocking by default; blocking only if scope creeps toward A | Task verify with 3-attempt run-to-exhaustion, then `ESCALATED` |
-| **A** | Full SDLC | >5 files, OR database schema, public API contracts, auth/security, OR a new architectural dependency | Full implementation plan, compiled on approval, topic decision per architectural decision | Blocking mandatory at every decision point | Task verify + 4-Review, run-to-exhaustion, then `ESCALATED` |
+| **A** | Full SDLC | >5 files, OR database schema, public API contracts, auth/security, OR a new architectural dependency | Full implementation plan, compiled on approval, topic decision per architectural decision | Blocking mandatory at every decision point | Task verify + review, run-to-exhaustion, then `ESCALATED` |
 
 **Surface triggers outrank file count.** File count is a heuristic: a
 single-file edit that touches an auth middleware is Lane A; a wide but
@@ -107,8 +107,8 @@ auto-router's output contract is exactly:
 - **candidate skills** (from the two-stage recall — 002, sections 4–5)
 - optional **escalation flag**
 
-Phase-protocol consumes the verdict into the `[STATUS: ...]` header and drives
-phases, gates, autonomy, and the 4-block schema. The division is strict:
+phase-protocol consumes the verdict into the `[STATUS: ...]` header and drives
+the status lifecycle, gates, autonomy, and the 4-block schema. The division is strict:
 auto-router owns triage and holds **no gate authority**; phase-protocol owns
 gates and **never re-triages the lane**. auto-router never drafts plans, writes
 specs, or executes the task — it routes it.

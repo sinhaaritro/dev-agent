@@ -4,7 +4,7 @@ tags: [verification, testing, circuit-breaker, escalation]
 
 # 006 - Verification & Escalation
 
-The verification authority during 3-Build: how verification commands are
+The verification authority during build: how verification commands are
 resolved, how per-task content-hash evidence makes completion **derived rather
 than asserted**, how a task is run to exhaustion (3 attempts), and how a
 consolidated escalation report produces a human handoff. A failed spec parks
@@ -73,7 +73,7 @@ report is complete immediately.
 A `Verify` command is shell code written by the AI; approving the spec does
 not approve its commands.
 
-- Pre-approvals happen at **2-Handoff**: the spec group carries a
+- Pre-approvals happen at **handoff**: the spec group carries a
   `NNN-APPROVALS-<slug>.json` with the fingerprint of each verify command, so
   a human's pre-approval matches a coder's later run. A coder can also approve
   inline (idempotent):
@@ -160,7 +160,7 @@ When a task exhausts its 3 attempts and no unblocked task remains:
 
 `verify.py report --spec <spec>` writes the per-spec `NNN-REPORT-<slug>.md`:
 the per-task derived status + evidence, the `R#` outcome observations (a
-missing observation **fails** 4-Review), and the 4-Review summary. Reports are
+missing observation **fails** review), and the review summary. Reports are
 **per spec only** — there is no combined batch file (VERIFY-D05).
 
 ## 8. Guardrails context

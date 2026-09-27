@@ -43,16 +43,16 @@
     - 5. The routing verdict
     - 6. Recall stage 2 (judgment)
 
-## 004-phases-gates-and-autonomy.md
+## 004-statuses-gates-and-autonomy.md
 
-  path: docs/004-phases-gates-and-autonomy.md
-  covers: phases, gates, autonomy, socratic, protocol
+  path: docs/004-statuses-gates-and-autonomy.md
+  covers: statuses, gates, autonomy, socratic, protocol
   sections:
-    - 1. The SDLC phases
+    - 1. The status lifecycle
     - 2. The Socratic gate
     - 3. Session detection & autonomy policy
     - 4. The 4-block response schema (5-tag header)
-    - 5. Tool posture per phase
+    - 5. Tool posture per status
 
 ## 005-docs-architecture-and-spec-lifecycle.md
 
@@ -99,11 +99,8 @@
   path: docs/README.md
   covers: (none)
   sections:
-    - Index
-    - Index
     - Status board
     - Frontmatter conventions
-    - Tag Index
 
 ## branching.md
 
@@ -135,7 +132,7 @@
 ## lifecycle.md
 
   path: docs/lifecycle.md
-  covers: lifecycle, status, phases, gates, spec, handoff, phases-protocol
+  covers: lifecycle, status, gates, spec, handoff
   sections:
     - Current State
     - Decision Log

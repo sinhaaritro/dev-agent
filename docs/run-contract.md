@@ -7,7 +7,7 @@ tags: [run-contract, trigger, mode, unattended, supervised, stop-point, opt-in]
 ## Current State
 
 A **run** is a full-plan execution: it takes one or more `COMPILED` specs and drives them through
-3-Build → 4-Review → commit. A run has **three fields**, resolved by the lead agent from an explicit
+Build → review → commit. A run has **three fields**, resolved by the lead agent from an explicit
 trigger:
 
 - **targets** — which specs (`this`, a list, or `all`), each already `COMPILED`.

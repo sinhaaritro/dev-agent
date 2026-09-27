@@ -275,7 +275,7 @@ class ReportTest(SandboxCase):
         text = path.read_text(encoding="utf-8")
         self.assertIn("## Task Status", text)
         self.assertIn("Task 1: MET", text)
-        self.assertIn("## 4-Review", text)
+        self.assertIn("## Review", text)
         self.assertIn("Task 1: PASS", text)
 
 
@@ -320,10 +320,10 @@ class ShellCommandTest(SandboxCase):
         # The TASK-15 verify shape: a grep whose output feeds a test via a
         # command substitution — only a shell resolves the "$(...)".
         (self.tmp / "docs").mkdir()
-        (self.tmp / "docs" / "001-x.md").write_text("1-Plan is real\n", encoding="utf-8")
+        (self.tmp / "docs" / "001-x.md").write_text("plan is real\n", encoding="utf-8")
         cmd = (
-            'grep -q "1-Plan" docs/001-x.md && '
-            'test -z "$(grep -rln "OLD-PHASE" docs/)" && echo REFDOCS-OK'
+            'grep -q "plan" docs/001-x.md && '
+            'test -z "$(grep -rln "OLD-STEP" docs/)" && echo REFDOCS-OK'
         )
         state_dir = self.tmp / "specs" / "temp"
         rc = verify.cmd_run(

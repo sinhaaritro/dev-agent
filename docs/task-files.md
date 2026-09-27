@@ -8,7 +8,7 @@ tags: [task-files, subagent, coder, owns, dag, dispatch, evidence]
 
 A **task file** is the coder's own working file for exactly one task: `NNN-TASK-<NN>-<slug>.md`.
 It is a **self-contained briefing** (copied, not referenced) so a ~32k-context coder never
-needs the full spec. The 2-Handoff **compile** step generates one task file per task from the
+needs the full spec. The handoff **compile** step generates one task file per task from the
 spec's §5 Tasks & Outcomes.
 
 ### Shape

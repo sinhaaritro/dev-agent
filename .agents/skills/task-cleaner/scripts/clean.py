@@ -3,14 +3,14 @@
 
 Owns the mechanical parts of the framework's cleanup contract: purging the
 ephemeral specs/temp/ scratchpad on human acceptance. In the new world the
-scratchpad holds ONLY draft-phase scratch (draft-plan.md, active-task.md, flow
+scratchpad holds ONLY draft-stage scratch (draft-plan.md, active-task.md, flow
 diagrams): per-task verification evidence lives in the task files under
 specs/, the gate log lives in the spec's `Gates:` section, and approvals are a
 gitignored per-spec file (NNN-APPROVALS-<slug>.json). So the scratchpad is
 safe to purge on approval - there is no append-only audit file to preserve.
 
 The engine never decides whether the task was accepted - the agent calls it when
-the acceptance gate has passed (phase-protocol review.md section 4). It never
+the acceptance gate has passed (phase-protocol reviewed.md section 4). It never
 touches specs/ group files, docs/, or BACKLOG.md: those are durable and live
 outside specs/temp/.
 
@@ -174,7 +174,7 @@ def cmd_status(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="task-cleaner: scratchpad purge (draft-phase scratch only)"
+        description="task-cleaner: scratchpad purge (draft-stage scratch only)"
     )
     sub = parser.add_subparsers(dest="command", required=True)
 

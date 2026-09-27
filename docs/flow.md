@@ -21,8 +21,8 @@ has the 3-cycle repair loop; build red exits straight to `ESCALATED`.
 flowchart TD
     S((start)) --> DRAFTED
     DRAFTED[DRAFTED] -->|authoring loop: re-draft until plan-readiness is green| DRAFTED
-    DRAFTED -->|2-Handoff · approve draft — vetting off or passed| COMPILED[COMPILED]
-    DRAFTED -->|vetting on · 1.5-Vetting blocks| PRR[PLAN_REVISION_REQUIRED]
+    DRAFTED -->|handoff · approve draft — vetting off or passed| COMPILED[COMPILED]
+    DRAFTED -->|vetting on · Vetting blocks| PRR[PLAN_REVISION_REQUIRED]
     PRR -->|fix · re-enter authoring loop · re-vet — 3-try cap| DRAFTED
     PRR -->|accept-as-is| COMPILED
     PRR -->|human abort| ABORTED([ABORTED])
@@ -30,7 +30,7 @@ flowchart TD
     COMPILED -->|build trigger| BUILDING[BUILDING]
     BUILDING -->|all tasks MET| BUILT[BUILT]
     BUILDING -->|run to exhaustion · any task FAILED — kind: build| ESCALATED
-    BUILT -->|4-Review green| REVIEWED[REVIEWED]
+    BUILT -->|review green| REVIEWED[REVIEWED]
     BUILT -->|review_revision auto · fails · reopen tasks the failure points to| BUILDING
     BUILT -->|review_revision auto · fails after 3 cycles — kind: review| ESCALATED
     BUILT -->|review_revision halt · fails — kind: review| ESCALATED
@@ -79,13 +79,13 @@ A review failure is a **plan-level signal**: `review_revision: auto` allows up t
 re-build cycles, `halt` goes straight to the human; either way the terminal state is
 `ESCALATED` + human intervention. `signoff: on` makes the human decide at `REVIEWED`;
 in `unattended` mode it **pauses at 4.5**. The verification ladder is two levels:
-per-task verify (3-attempt limit) inside the build, then 4-Review (fresh re-run of
+per-task verify (3-attempt limit) inside the build, then review (fresh re-run of
 every task + canonical commands + diff audit) — only level 2 sees the tasks combined.
 
 ```mermaid
 %%{init: {"flowchart": {"curve": "linear"}}}%%
 flowchart TD
-    B[BUILT] --> R[4-Review: diff audit + fresh final verify]
+    B[BUILT] --> R[review: diff audit + fresh final verify]
     R --> Q{green?}
     Q -- no --> RR{review_revision}
     RR -- auto --> RC{cycles < 3?}

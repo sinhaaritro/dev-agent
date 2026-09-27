@@ -14,7 +14,7 @@ makes the commit **terminal**.
 Planning artifacts — the spec, its task files, the report — are authored on `main`. When a run
 starts, the orchestrator creates **one branch per spec off `main` (+ worktree)** and does all
 coding there. It **never edits `main`**: code changes live only on the spec's branch. Because each
-spec runs on its own branch, nothing crosses between specs: spec N runs through 4-Review on its
+spec runs on its own branch, nothing crosses between specs: spec N runs through review on its
 branch, and only once its final verification is green does it commit **on that branch** before spec
 N+1 starts (BRANCH-D01).
 

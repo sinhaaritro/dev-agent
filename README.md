@@ -10,7 +10,7 @@
 
 **Built for multi-human + multi-AI collaboration.** Humans and agents hand the work to each other — a human delegates to an agent, the agent hands back at a gate, another agent (or another human, on another machine) picks up exactly where it left off. Neither side is the authority: every handoff is recorded, and either side can take over at any pause point.
 
-**Pause loops everywhere.** The lifecycle (1-Plan → 1.5-Vetting → 2-Handoff → 3-Build → 4-Review → 4.5-Sign-off → 5-Done) is full of deliberate stopping points — Socratic gates on ambiguity, an explicit approval gate before code is written, a verification gate after — so work is never locked behind a single session or a single actor.
+**Pause loops everywhere.** The lifecycle (`DRAFTED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED`, with the Vetting and Sign-off gates) is full of deliberate stopping points — Socratic gates on ambiguity, an explicit approval gate before code is written, a verification gate after — so work is never locked behind a single session or a single actor.
 
 Instead of relying on ad-hoc prompts, Dev Agent gives your agent:
 
@@ -98,12 +98,12 @@ dev-agent/
 │       ├── bootstrap/          #   installs AGENTS.md + system.md into a target repo
 │       ├── auto-router/        #   lane triage + skill recall (always on)
 │       ├── map-generator/      #   builds the local skill index (MAP.md)
-│       ├── phase-protocol/     #   1-Plan → 1.5-Vetting → 2-Handoff → 3-Build → 4-Review → 4.5-Sign-off → 5-Done + gates (always on)
+│       ├── phase-protocol/     #   the Status lifecycle (DRAFTED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED) + gates (always on)
 │       ├── spec-builder/       #   spec drafts, promotion, task files, docs TOC
 │       ├── task-cleaner/       #   purges the scratchpad on acceptance
 │       └── verification-runner/#   test execution, retries, circuit breaker
 ├── specs/                      # What to build — spec groups with a lifecycle (NNN-SPEC + NNN-TASK + approvals + report)
-│   └── temp/                   #   ephemeral draft-phase scratchpad (gitignored)
+│   └── temp/                   #   ephemeral draft-stage scratchpad (gitignored)
 └── docs/                       # What is + why we chose — reference series, topic docs (per-subsystem decision log), flow
 ```
 

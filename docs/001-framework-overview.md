@@ -24,7 +24,7 @@ It is:
   `.agents/skills/<name>/SKILL.md`) guided by explicit paths — the same files
   work in Cursor, Windsurf, Claude Code, OpenCode, Aider, Gemini CLI, Roo Code,
   Antigravity, and others.
-- **Model-agnostic.** Per-phase model tiering (SOTA for planning/review, local
+- **Model-agnostic.** Per-status model tiering (SOTA for planning/review, local
   or SOTA for building) is an optimization only; it never changes the
   contract.
 - **Spec-driven.** Code is built from a `COMPILED`, committed spec — never
@@ -73,7 +73,7 @@ Memory is strictly split:
 
 | Tier | Location | Lifecycle | Examples |
 | :--- | :--- | :--- | :--- |
-| Ephemeral working memory | `specs/temp/` (gitignored) | Purged by `task-cleaner` (default preserves `.gitignore` only) | `draft-plan.md`, `active-task.md`, draft-phase notes |
+| Ephemeral working memory | `specs/temp/` (gitignored) | Purged by `task-cleaner` (default preserves `.gitignore` only) | `draft-plan.md`, `active-task.md`, draft-stage notes |
 | Persistent memory | topic docs + reference series under `docs/`, specs under `specs/` (committed) | Never purged; specs have a `Status:` lifecycle; topic docs and reference docs are living (decisions revised in place, never deleted) | topic docs, `NNN-SPEC`/`NNN-TASK` files, this series |
 
 There is no longer a preserved append-only gate log in the scratchpad: gate
@@ -86,7 +86,7 @@ decisions are recorded in the spec's own `Gates:` section, and the per-spec
 | :--- | :--- | :--- |
 | `auto-router` | Triage: lane assignment (D/C/B/A), session detection, skill recall, escalation monitoring | `match_skills.py` |
 | `map-generator` | Keeps `.agents/MAP.md` fresh (snapshot-hash freshness check) | `generate_map.py` |
-| `phase-protocol` | Meta-skill: SDLC phases (1-Plan…5-Done), Socratic gates, autonomy policy, 4-block response schema | `resolve_gate.py` |
+| `phase-protocol` | Meta-skill: the Status lifecycle (`DRAFTED`…`COMPLETED`), Socratic gates, autonomy policy, 4-block response schema | `resolve_gate.py` |
 | `spec-builder` | Plan drafting, spec compile + promotion, task-file generation, topic decision recording, tag governance, TOC rollup | `promote_spec.py` |
 | `verification-runner` | Verification command execution, content-hash evidence, `doctor`/`status`/`report`, consolidated escalation | `verify.py` |
 | `task-cleaner` | Scratchpad garbage collection on acceptance (preserves `.gitignore` only) | `clean.py` |
@@ -106,8 +106,9 @@ Defined in `.agents/rules/system.md`, in order:
 2. **Route (auto-router).** Classify the lane (D/C/B/A), detect session type
    (Interactive / Non-Interactive), run `match_skills.py "<prompt>"` for
    candidate skills (candidates only, never a filter).
-3. **Gover (phase-protocol).** Drive 1-Plan → 1.5-Vetting → 2-Handoff → 3-Build
-   → 4-Review → 4.5-Sign-off → 5-Done; emit the 5-tag status header and 4-block
+3. **Gover (phase-protocol).** Drive the Status lifecycle `DRAFTED → COMPILED
+   → BUILDING → BUILT → REVIEWED → COMPLETED` (Vetting and Sign-off gates); emit
+   the 5-tag status header and 4-block
    schema; resolve every gate through `resolve_gate.py`; at "approve draft" the
    spec is compiled into task files and stamped `COMPILED`, at "approve handoff"
    the session stops — build never follows in the same session.
@@ -137,7 +138,7 @@ Defined in `.agents/rules/system.md`, in order:
 | :--- | :--- | :--- |
 | 002 | Skill discovery & indexing | map-generator, auto-router (recall) |
 | 003 | Triage, lane taxonomy & escalation | auto-router |
-| 004 | Phases, gates & autonomy | phase-protocol |
+| 004 | Statuses, gates & autonomy | phase-protocol |
 | 005 | Docs architecture & spec lifecycle | spec-builder, task-cleaner |
 | 006 | Verification & escalation | verification-runner |
 | 007 | Branch-per-spec & worktrees | (branching.md) + none yet |
