@@ -25,11 +25,11 @@ generation, topic decisions, tag governance, TOC), `map-generator`
 Topic docs live **directly** under `docs/` (never inside the committed
 folders), one per subsystem: `docs/auth.md`, or `docs/auth/` once grown. The
 AI routing index for them is the generated `docs/_topics.md` (underscore
-prefix = generated; rebuilt by `sync-docs`); `docs/README.md` stays the human
-landing page and points to it.
+prefix = generated; rebuilt by `sync-docs`); humans read the topic docs
+directly (a human-maintained `docs/` index page may point at them).
 
-Each committed folder has a `README.md` carrying a generated `## Index`
-section between `<!-- TOC:START -->` / `<!-- TOC:END -->` markers;
+`specs/README.md` is the only committed README carrying a generated `## Index`
+section, between `<!-- TOC:START -->` / `<!-- TOC:END -->` markers;
 `specs/temp/` gets no TOC (ephemeral — a generated index there is just churn).
 
 ## Topic-Based Decision Records
@@ -162,7 +162,6 @@ Governance subcommands of `promote_spec.py`:
 | `tag-suggest` | Advisory near-dup candidates only — never blocks |
 | `tag-lint` | Normative; exit 1 on violations; also runs inside `check` |
 | `tag-rename <old> <new>` | The only writer; frontmatter tags only |
-| `tag-index` | Writes the `<!-- TAG-INDEX:* -->` block into `docs/README.md` |
 
 ## 4. The spec-first lifecycle (two steps)
 

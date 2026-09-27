@@ -5,8 +5,8 @@ This is a framework for a agent setup. This repo, has the skills that will help 
 
 ## Tech Stack
 
-- [STACK_1]
-- [STACK_2]
+- Python
+- Javascript
 
 ## Repo map
 

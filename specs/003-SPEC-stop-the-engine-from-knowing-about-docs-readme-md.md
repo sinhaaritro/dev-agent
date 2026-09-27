@@ -7,7 +7,7 @@ review_revision: auto
 
 # 003-SPEC: Stop the engine from knowing about docs/README.md
 
-Status: BUILDING | Date: 2026-09-27
+Status: COMPLETED | Date: 2026-09-27
 Handoff: 2026-09-27
 
 ## 1. Goal & Context

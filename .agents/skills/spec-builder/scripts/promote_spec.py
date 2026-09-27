@@ -961,8 +961,8 @@ def _scan_docs(root: Path) -> dict:
     ``root`` is the repo root. Returns a dict keyed by section:
     ``"specs"`` -> ``root/specs/*.md`` and ``"reference"`` -> the numbered
     ``root/docs/NNN-*.md`` series (topic docs live directly under ``docs/``
-    and are indexed separately by ``sync-docs``). Shared by the TOC roll-up,
-    tag-index, and every tag-governance function - one frontmatter parse, no
+    and are indexed separately by ``sync-docs``). Shared by the TOC roll-up
+    and every tag-governance function - one frontmatter parse, no
     cross-subcommand drift.
     """
     def collect(paths: list[Path]) -> list[dict]:
@@ -1185,16 +1185,18 @@ def _tag_rename(args: argparse.Namespace) -> int:
 
 
 def substitute_spec_id(text: str, num: int) -> str:
-    """Replace the title's leading ID placeholder with the computed NNN.
+    """Replace the title's leading ID placeholder with the computed NNN-SPEC.
 
     The template title is '# [SPEC-ID]: Feature Title'; promotion must stamp the
     engine-derived number onto it so the committed title matches the filename
-    ('001-feature-title.md' -> '# 001: Feature Title'). Accepts the bracket
-    placeholder, a bare 3-digit number, or a sub-ID prefix, and rewrites only the
-    leading token of the first '#' heading. Text with no such token is returned
-    unchanged.
+    ('001-SPEC-feature-title.md' -> '# 001-SPEC: Feature Title'). Accepts the
+    bracket placeholder, a bare 3-digit number, a sub-ID prefix, or an existing
+    NNN-SPEC token, and rewrites only the leading token of the first '#' heading.
+    Text with no such token is returned unchanged.
     """
-    id_token = re.compile(r"^(\[\S+\]|\d{3}-[A-Z]\d{2}(?:-[A-Z]\d{2})?|\d{3})(?=:|\s)")
+    id_token = re.compile(
+        r"^(\[\S+\]|\d{3}-SPEC|\d{3}-[A-Z]\d{2}(?:-[A-Z]\d{2})?|\d{3})(?=:|\s)"
+    )
     lines = text.splitlines()
     for i, line in enumerate(lines):
         stripped = line.strip()
@@ -1203,7 +1205,7 @@ def substitute_spec_id(text: str, num: int) -> str:
             m = id_token.match(body)
             if not m:
                 return text
-            new_title = "# " + f"{num:03d}" + body[m.end():]
+            new_title = "# " + f"{num:03d}-SPEC" + body[m.end():]
             indent = line[: len(line) - len(line.lstrip())]
             lines[i] = indent + new_title
             return "\n".join(lines)
@@ -1610,7 +1612,7 @@ def cmd_promote(args: argparse.Namespace) -> int:
 
     num = next_number(args.specs_dir)
     slug = args.slug or slug_from_title(text)
-    target = args.specs_dir / f"{num:03d}-{slug}.md"
+    target = args.specs_dir / f"{num:03d}-SPEC-{slug}.md"
     print(f"next: {num:03d}")
     if target.exists():
         print(f"already exists: {target}")
@@ -1826,7 +1828,7 @@ def main() -> int:
             args.root = find_root()
     if args.command == "toc" and args.root is None:
         args.root = root_default
-    if args.command in ("tag-list", "tag-suggest", "tag-lint", "tag-rename", "tag-index",
+    if args.command in ("tag-list", "tag-suggest", "tag-lint", "tag-rename",
                         "compile", "purge", "sync", "accept") and args.root is None:
         args.root = root_default
     if args.command == "topic" and args.docs_dir is None:

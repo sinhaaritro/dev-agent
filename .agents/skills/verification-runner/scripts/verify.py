@@ -766,11 +766,28 @@ def doctor(spec: Path) -> list[str]:
     return gaps
 
 
+def _task_verify_command(task_file: Path) -> str:
+    """The task file's '## Verification' fenced command block (the canonical oracle)."""
+    body = re.search(r"(?ms)^##\s+Verification\s*$(.*?)(?=^##\s|\Z)",
+                     task_file.read_text(encoding="utf-8"))
+    if not body:
+        return ""
+    fence = re.search(r"```[a-z]*\s*\n(.*?)```", body.group(1), re.DOTALL)
+    return fence.group(1).strip() if fence else ""
+
+
 def _rereun_verify(root: Path, num: int, text: str) -> list[str]:
-    """4-Review: fresh re-run of every task's verify command (pass/fail lines)."""
+    """4-Review: fresh re-run of every task's verify command (pass/fail lines).
+
+    The command source is the task file's '## Verification' fenced block (the
+    canonical, possibly revised oracle) - not the spec's section-5 copy, which
+    can lag when a task's oracle is rewritten mid-build. The Expect marker
+    still comes from section 5.
+    """
     lines: list[str] = []
     for task in _section5_tasks(text):
-        verify = _clean(task.get("verify") or "")
+        tf = task_file_for(root, num, "Task %d" % task["num"])
+        verify = _task_verify_command(tf) if tf is not None else _clean(task.get("verify") or "")
         expect = _clean(task.get("expect") or "")
         label = "Task %d" % task["num"]
         if not verify or _is_noop_verify(verify):
