@@ -1,0 +1,7 @@
+# DEV Agent framework
+
+specs/temp
+.agents/MAP.md
+__pycache__/
+.venv/
+.ruff_cache/

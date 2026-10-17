@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "skills": [
+    "auto-router",
+    "bootstrap",
+    "map-generator",
+    "phase-protocol",
+    "spec-builder",
+    "task-cleaner",
+    "verification-runner"
+  ]
+}

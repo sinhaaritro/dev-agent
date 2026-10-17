@@ -1,6 +1,6 @@
 # PLAN - `skills/` product tree with a hidden `.agents/skills/` dogfood mirror
 
-Status: IN PROGRESS - W1 done, W2 done, next W3
+Status: IN PROGRESS - W1-W3 done, next W4
 Owner: framework maintainer
 Related: `docs/002-skill-discovery-and-indexing.md`, `README.md`, `AGENTS.md`
 
@@ -10,7 +10,8 @@ Related: `docs/002-skill-discovery-and-indexing.md`, `README.md`, `AGENTS.md`
 
 - W1 - DONE (commit 5114d4c): the 7 shipped skills moved to `skills/`; `.agents/skills/` now holds only `skill-creator`.
 - W2 - DONE: `skill-creator` marked `metadata.internal: true`.
-- W3..W9 - TODO.
+- W3 - DONE: `tools/promote.py` implemented; 7 skills mirrored into `.agents/skills/` with `internal: true` injected; `--check` detects drift.
+- W4..W9 - TODO.
 
 ## 1. Problem
 
@@ -136,7 +137,7 @@ Move the 7 shipped skill folders from `.agents/skills/` into `skills/`:
 - Add an invariant test (W7) that fails if any `.agents/skills/*/SKILL.md` lacks
   `internal: true`.
 
-### W3. `tools/promote.py` - the mirror engine
+### W3. `tools/promote.py` - the mirror engine - DONE
 
 Stdlib-only, no dependencies, mirroring the report vocabulary of
 `bootstrap.py` (`new:` / `ok:` / `overwrite:` / `remove:`).
