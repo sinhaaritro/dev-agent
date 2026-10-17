@@ -25,6 +25,14 @@ You own plan drafting, spec promotion, topic decision recording, and spec compil
 - Review finalization (`reviewed.md` section 3): confirm the build matches the promoted spec and sync its checkboxes.
 - Any request to "draft a plan", "write a spec", "promote", "record a decision", or check an implementation plan's format — even if the user does not name the skill.
 
+## When NOT to Use
+
+- **Lanes C/D** — they have no approval or compile step; do not draft, promote, or compile for them.
+- **Editing or running the build** — that is phase-protocol/`building.md`, not this skill; a session that compiled task files must not build in the same session.
+- **Purging the scratchpad** — `specs/temp/` cleanup after acceptance is `task-cleaner`, not here.
+- **Verifying tasks or reporting status** — running `Verify`, deriving `MET`/`STALE`, or writing run reports is `verification-runner`.
+- **Silent or unrequested changes** — never edit a promoted spec or topic doc without the matching request (system.md §3).
+
 ## Instructions
 
 1. **Draft per lane into the running plan.** Lane B: sections **1 (Goal & Context), 4 (Affected Files & Contracts), 5 (Tasks & Outcomes)** of `references/implementation-plan-template.md` only. Lane A: the full set — 0 Frontmatter (`tags`, `vetting`, `signoff`, `review_revision`), 1 Goal & Context, 2 The Change (thematic subsections), 3 Risks & Open Questions, 4 Affected Files & Contracts, 5 Tasks & Outcomes (task → `Depends On` + `Verify`/`Expect`, with `R#` outcomes), 6 Gates, 7 Verification Commands, 8 Rollback Strategy. Write to `specs/temp/draft-plan.md` and reuse that one running file — never multiple plan files per task. Drafts live in `specs/temp/` (gitignored), never committed. The task-level `### Progress` subtask checklist lives in each task's own file (compiled at the `COMPILED` status), not in the draft.

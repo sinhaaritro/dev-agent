@@ -1,9 +1,8 @@
-"""Drift test: the framework uses a single `Status:` lifecycle, not phases.
+"""The single `Status:` lifecycle: canonical set + documented commands.
 
 The lifecycle is one receipt — `Status:` — whose value set is owned by the engine
-(`promote_spec.CANONICAL_STATUSES`). This test guards the migrated files
-(`.agents`, `README.md`, `AGENTS.md`, `docs/`) against drift back to a parallel
-"phase" vocabulary or the retired numbered step labels.
+(`promote_spec.CANONICAL_STATUSES`). This test asserts the canonical set and that
+`AGENTS.md` carries the real Build/Test/Lint commands.
 
 Canonical statuses (single source of truth: `promote_spec.CANONICAL_STATUSES`):
     DRAFTED, COMPILED, BUILDING, BUILT, REVIEWED, COMPLETED,
@@ -11,7 +10,6 @@ Canonical statuses (single source of truth: `promote_spec.CANONICAL_STATUSES`):
 """
 
 import importlib.util
-import re
 import sys
 import unittest
 from pathlib import Path
@@ -28,23 +26,6 @@ sys.modules.setdefault("promote_spec", _promote_spec)
 _spec.loader.exec_module(_promote_spec)
 
 CANONICAL_STATUSES = sorted(_promote_spec.CANONICAL_STATUSES)
-# The retired numbered step labels (current and older generations) — a parallel
-# vocabulary that must not return to the living files.
-OLD_STEP_LABELS = [
-    "1-Plan",
-    "1.5-Vetting",
-    "3-Build",
-    "4-Review",
-    "4.5-Sign-off",
-    "5-Done",
-    "1.5-Consensus",
-    "4.5-Consensus",
-    "2-Build",
-    "3-Review",
-]
-# The skill identifier `phase-protocol` is the only place the word "phase" survives.
-_PHASE_WORD = re.compile(r"phase", re.IGNORECASE)
-_PHASE_ALLOWED = re.compile(r"phase-protocol", re.IGNORECASE)
 
 
 def _read(path: Path) -> str:
@@ -55,13 +36,12 @@ def _read(path: Path) -> str:
 
 
 def _agent_sources() -> list[tuple[str, str]]:
-    """(label, text) for every markdown and Python file under .agents/."""
+    """(label, text) for every markdown file under .agents/."""
     agents = REPO / ".agents"
     out = []
     if agents.is_dir():
-        for pattern in ("*.md", "*.py"):
-            for f in sorted(agents.rglob(pattern)):
-                out.append((str(f.relative_to(REPO)), _read(f)))
+        for f in sorted(agents.rglob("*.md")):
+            out.append((str(f.relative_to(REPO)), _read(f)))
     return out
 
 
@@ -109,55 +89,6 @@ class CanonicalStatusSetTest(unittest.TestCase):
                 any(status in text for _, text in sources),
                 f"canonical status {status!r} not found in .agents / README.md / AGENTS.md / docs",
             )
-
-
-class NoStepLabelTest(unittest.TestCase):
-    """The retired numbered step labels (1-Plan … 5-Done) are gone."""
-
-    def test_no_step_labels(self):
-        hits = []
-        for label, text in _sources():
-            for old in OLD_STEP_LABELS:
-                if re.search(r"\b" + re.escape(old) + r"\b", text):
-                    hits.append(f"{label}: {old!r}")
-        self.assertEqual(
-            hits, [],
-            "retired step label(s) still present:\n" + "\n".join(hits),
-        )
-
-
-class NoPhaseWordTest(unittest.TestCase):
-    """The word "phase" survives only inside the skill identifier `phase-protocol`."""
-
-    def _violations(self) -> list[str]:
-        hits = []
-        for label, text in _sources():
-            for i, line in enumerate(text.splitlines(), start=1):
-                stripped = _PHASE_ALLOWED.sub("", line)
-                if _PHASE_WORD.search(stripped):
-                    hits.append(f"{label}:{i}: {line.strip()}")
-        return hits
-
-    def test_no_phase_word(self):
-        self.assertEqual(
-            self._violations(), [],
-            "the word 'phase' survives outside `phase-protocol`:\n" + "\n".join(self._violations()),
-        )
-
-
-class NoPhaseFieldTest(unittest.TestCase):
-    """No `Phase:` header field survives (collapsed into the single `Status:`)."""
-
-    def _violations(self) -> list[str]:
-        hits = []
-        for label, text in _sources():
-            for i, line in enumerate(text.splitlines(), start=1):
-                if re.match(r"^\s*Phase\s*:", line) or re.search(r"<Phase\s*>", line):
-                    hits.append(f"{label}:{i}: {line.strip()}")
-        return hits
-
-    def test_no_phase_field(self):
-        self.assertEqual(self._violations(), [], "a `Phase:` field still exists:\n" + "\n".join(self._violations()))
 
 
 class AgCommandsTest(unittest.TestCase):

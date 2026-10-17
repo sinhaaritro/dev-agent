@@ -227,8 +227,9 @@ In `.agents/skills/spec-builder/references/`:
   file, not the spec), 6 Gates, 7 Verification Commands, 8 Rollback Strategy.
   Lane B uses a single task (`Depends On: None`). `promote_spec.py check`
   validates the §5 structure and statically lints the oracles (rejects no-op
-  `Verify`, empty `Expect`, and `Expect` that is a substring of the `Verify`
-  command).
+  `Verify`, empty `Expect`, and a trivially-satisfied `Expect` — the whole
+  command or a bare `echo`/`printf`; a marker the command emits from real state
+  is allowed).
 - **`task-file-format.md`** — the task-file contract: a self-contained briefing
   (Role & rules, Project overview, Owns, Reads / Context, a `### Progress`
   subtask checklist) generated per task at compile; the `verify.py` evidence

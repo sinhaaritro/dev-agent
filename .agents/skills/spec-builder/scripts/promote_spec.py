@@ -17,10 +17,11 @@ Modes:
               Also validate the new section-5 "Tasks & Outcomes" shape:
               every "### Task N:" block carries a Depends On: line (may be
               None, or a "Task N" reference list for Lane B) and a
-              Verify:/Expect: pair; the plan has >=1 task. A static oracle
-              lint rejects no-op Verify commands (true, :, exit, echo) and
-              Expect markers that are a substring of the Verify command
-              line (unconditionally-present oracle). The canonical Status:
+               Verify:/Expect: pair; the plan has >=1 task. A static oracle
+               lint rejects no-op Verify commands (true, :, exit, echo) and
+               trivially-satisfied Expect markers (the whole command, or a bare
+               echo/printf); a marker the command emits from real state (e.g.
+               grep -o MARKER) is allowed. The canonical Status:
               receipt set is DRAFTED, COMPILED, BUILDING, BUILT, REVIEWED,
               COMPLETED, PLAN_REVISION_REQUIRED, REVIEW_REVISION_REQUIRED,
               ESCALATED, ABORTED. Prints "structure: ok" on success. Exit 0
@@ -244,6 +245,25 @@ def _is_noop_verify(cmd: str) -> bool:
     return c.split()[0] == "echo"
 
 
+def _unfailable_expect(verify: str, expect: str) -> str:
+    """A static hint that a Verify/Expect oracle is trivially satisfied.
+
+    Returns '' when the pair can fail. The marker appearing in the command is
+    NOT itself a violation: a command that emits the marker from real state
+    (``grep -o MARKER file``, a test runner's ``OK`` line) is a valid oracle.
+    Only trivially satisfied markers are flagged — the whole command is the
+    marker, or the command is a bare literal emitter (``echo``/``printf``).
+    """
+    if not expect:
+        return ""
+    if expect == verify:
+        return "'Expect:' is the whole 'Verify:' command (oracle can never fail)"
+    first = verify.split()[0] if verify.split() else ""
+    if first in ("echo", "printf"):
+        return "'Expect:' is emitted unconditionally by a bare '%s'" % first
+    return ""
+
+
 def _parse_tasks(body: str) -> list[dict]:
     """Parse '### Task N:' blocks of a section-5 body into structured task dicts.
 
@@ -309,10 +329,10 @@ def _validate_tasks(tasks: list[dict], lane: str) -> list[str]:
             expect = task["expect"].strip().strip('"').strip()
             if not task["expect"]:
                 violations.append(tlabel + ": missing/empty 'Expect:'")
-            elif expect and verify and expect in verify:
-                violations.append(
-                    tlabel + ": 'Expect:' is a substring of the 'Verify:' command (oracle can never fail)"
-                )
+            else:
+                msg = _unfailable_expect(verify, expect)
+                if msg:
+                    violations.append(tlabel + ": " + msg)
     return violations
 
 

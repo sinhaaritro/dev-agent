@@ -24,7 +24,7 @@ Load when a task starts (Lanes B and A; Lane C runs a single pass). **Read-only 
 
 - [ ] Lane assigned and announced in the `[STATUS:]` header
 - [ ] `draft-plan.md` written (abbreviated for B, full for A)
-- [ ] U2 authoring lint passed: every Task DAG `Verify`/`Expect` pair can fail — no no-op `Verify` (`true`/`:`/`exit 0`/bare `echo`), no empty `Expect`, no `Expect` that matches unconditionally (a substring of the `Verify` command, or a marker that passes when the command selects zero tests); `promote_spec.py check` reports no structure/oracle violations before the plan is presented
+- [ ] U2 authoring lint passed: every Task DAG `Verify`/`Expect` pair can fail — no no-op `Verify` (`true`/`:`/`exit 0`/bare `echo`), no empty `Expect`, no trivially-satisfied `Expect` (the whole command, or a bare `echo`/`printf`; a marker the command emits from real state is allowed), and no command that selects zero tests; `promote_spec.py check` reports no structure/oracle violations before the plan is presented
 - [ ] Blocking gates resolved or escalated (fail-closed for `supervised` non-interactive)
 - [ ] A blocking gate that cannot resolve -> `specs/temp/escalation.md` and stop
 

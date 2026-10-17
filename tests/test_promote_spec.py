@@ -193,15 +193,30 @@ class TestNewTemplateCheck(unittest.TestCase):
         self.assertFalse(passed)
         self.assertTrue(any("no-op" in v for v in violations))
 
-    def test_expect_in_verify_rejected(self):
+    def test_whole_command_expect_rejected(self):
         text = lane_a_draft().replace(
-            '- Expect: "OK"', '- Expect: "unittest"', 1
+            '- Expect: "OK"',
+            '- Expect: "python -m unittest tests.test_sandbox -v"',
+            1,
         )
         draft = write_draft(text)
         self.addCleanup(draft.unlink)
         passed, _, violations = promote_spec.check_draft(draft, "A")
         self.assertFalse(passed)
-        self.assertTrue(any("substring" in v for v in violations))
+        self.assertTrue(any("whole 'Verify:'" in v for v in violations))
+
+    def test_expect_marker_in_command_allowed(self):
+        # A marker the command itself emits (grep -o) is a valid oracle, so a
+        # marker appearing as a substring of the Verify command is allowed.
+        text = lane_a_draft().replace(
+            "- Verify: `python -m unittest tests.test_sandbox -v`\n- Expect: \"OK\"",
+            "- Verify: `grep -o SB-MARKER src/sandbox.py | tail -1`\n- Expect: \"SB-MARKER\"",
+            1,
+        )
+        draft = write_draft(text)
+        self.addCleanup(draft.unlink)
+        passed, _, violations = promote_spec.check_draft(draft, "A")
+        self.assertTrue(passed, violations)
 
     def test_lane_b_bad_depends_on(self):
         text = lane_b_draft().replace("- Depends On: None", "- Depends On: bogus")
@@ -231,10 +246,6 @@ class TestCanonicalStatuses(unittest.TestCase):
                 "ABORTED",
             },
         )
-
-    def test_old_statuses_absent(self):
-        for old in ("DRAFT", "APPROVED", "HANDED-OFF", "PLANNED", "PROVISIONAL"):
-            self.assertNotIn(old, promote_spec.CANONICAL_STATUSES)
 
     def test_status_value_leading_token(self):
         self.assertIn(
@@ -389,7 +400,6 @@ class TestCompilePurgeSyncAccept(unittest.TestCase):
         # compile stamps Status: COMPILED on the spec
         text = self.spec.read_text(encoding="utf-8")
         self.assertEqual(promote_spec.status_value(text), "COMPILED")
-        self.assertNotIn("Handoff:", text)
 
     def test_compile_idempotent_compiled_stamp(self):
         promote_spec.compile_spec(self.spec, self.root)

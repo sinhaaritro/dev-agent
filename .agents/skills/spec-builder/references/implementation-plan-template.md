@@ -126,9 +126,11 @@ recorded observation by review (reconciliation).
   `sha256` of every owned file) into the task file.
 
 **Authoring rule (both lanes):** every `Verify`/`Expect` pair must be able to fail —
-no no-op commands (`true`, `:`, `exit 0`, bare `echo`), no expectation that matches
-unconditionally (Expect must not appear in the Verify command line), no command that
-selects zero tests — pin the expected count in Expect. This is checked by the engine
+no no-op commands (`true`, `:`, `exit 0`, bare `echo`), no trivially-satisfied
+`Expect` (the whole command, or a bare `echo`/`printf`), no command that
+selects zero tests — pin the expected count in Expect. A marker the command emits
+from real state (`grep -o MARKER`, a runner's `OK` line) is fine — it appears in the
+command and in the output. This is checked by the engine
 (`check`); the judgment "could this fail in the wild?" is yours at authoring time.
 
 **Subtasks are NOT here.** A task's internal step checklist (`### Progress`) lives in
@@ -192,6 +194,7 @@ task (no subtasks here; the task-level `Verify` is the gate; Lane B has no secti
 reference when a B plan splits into multiple tasks.
 
 Authoring rule (both lanes): every `Verify`/`Expect` pair must be able to fail —
-no no-op commands, no unconditional Expect, no command that selects zero tests.
+no no-op commands, no trivially-satisfied `Expect`, no command that selects zero
+tests. A marker the command emits from real state is fine.
 This is checked by the engine (`check`), but the judgment "could this fail in the
 wild?" is yours at authoring time.
