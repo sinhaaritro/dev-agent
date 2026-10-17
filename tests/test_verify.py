@@ -297,11 +297,12 @@ class ShellCommandTest(SandboxCase):
     def test_run_executes_shell_command(self):
         _task_file(self.tmp)
         state_dir = self.tmp / "specs" / "temp"
-        # "true && echo SHELLMARKER" needs a shell: as argv, `true && echo`
-        # would try to run an executable literally named "&&".
+        # "echo A && echo SHELLMARKER" needs a shell: as argv, `echo A && echo`
+        # would try to run an executable literally named "&&". The command is
+        # portable across POSIX shells and Windows cmd.
         rc = verify.cmd_run(
             _ns(
-                command="true && echo SHELLMARKER",
+                command="echo A && echo SHELLMARKER",
                 task_id="007-Task 1",
                 expect="SHELLMARKER",
                 lane=None,
@@ -315,9 +316,10 @@ class ShellCommandTest(SandboxCase):
         self.assertEqual(rc, 0)
         self.assertEqual(verify.status(self.tmp / "specs" / "007-TASK-01-do-things.md"), "MET")
 
+    @unittest.skipUnless(os.name == "posix", "POSIX shell command substitution")
     def test_run_executes_command_substitution(self):
         # The TASK-15 verify shape: a grep whose output feeds a test via a
-        # command substitution — only a shell resolves the "$(...)".
+        # command substitution — only a POSIX shell resolves the "$(...)".
         (self.tmp / "docs").mkdir()
         (self.tmp / "docs" / "001-x.md").write_text("plan is real\n", encoding="utf-8")
         cmd = (

@@ -110,7 +110,6 @@ not a retry attempt).
 
 import argparse
 import hashlib
-import importlib.util
 import json
 import os
 import re
@@ -312,14 +311,14 @@ def format_escalation(
         "",
         "Date: " + time.strftime("%Y-%m-%d %H:%M"),
         "Task: " + task_id,
-        "Attempts: %d/%d" % (attempts, max_attempts),
+        f"Attempts: {attempts}/{max_attempts}",
         "",
         "## Attempts (verbatim logs)",
     ]
     if failures:
         for idx, log in enumerate(failures, start=1):
             lines.append("")
-            lines.append("### Attempt %d" % idx)
+            lines.append(f"### Attempt {idx}")
             lines.append(log.strip() or "(no output captured)")
     else:
         lines.append("(no attempt logs recorded)")
@@ -345,8 +344,7 @@ def format_escalation(
     lines.append("")
     lines.append("## Hand-back")
     lines.append(
-        "Circuit breaker tripped (%d consecutive failures). Cease all modifications, revert broken dirty edits, halt, and hand off to a human."
-        % max_attempts
+        f"Circuit breaker tripped ({max_attempts} consecutive failures). Cease all modifications, revert broken dirty edits, halt, and hand off to a human."
     )
     return "\n".join(lines)
 
@@ -378,7 +376,7 @@ def spec_path(root: Path, num: int) -> Path:
             m = SPEC_KIND.match(entry.name)
             if m and int(m.group(1)) == num:
                 return entry
-    return specs_dir / ("%03d-SPEC-unknown.md" % num)
+    return specs_dir / f"{num:03d}-SPEC-unknown.md"
 
 
 def spec_group_files(root: Path, num: int) -> list[Path]:
@@ -410,14 +408,14 @@ def task_file_for(root: Path, num: int, task_id: str) -> Path | None:
     """
     m = re.match(r"^Task\s+(\d+)$", task_id) or re.match(r"^(\d+)$", task_id)
     if m:
-        target = "%03d-TASK-%02d-" % (num, int(m.group(1)))
+        target = f"{num:03d}-TASK-{int(m.group(1)):02d}-"
         for path in spec_group_files(root, num):
             if path.name.startswith(target):
                 return path
     # Fallback: a NNN-TASK-NN-* file whose NN matches a trailing number in the
     # task id (run passes task ids like '007-Task 1' or 'Task 1').
     for path in spec_group_files(root, num):
-        if not path.name.startswith("%03d-TASK-" % num):
+        if not path.name.startswith(f"{num:03d}-TASK-"):
             continue
         tm = TASK_KIND.match(path.name)
         if tm:
@@ -537,7 +535,7 @@ def _engine_importable(root: Path) -> tuple[bool, str]:
             try:
                 py_compile.compile(str(script), doraise=True)
             except py_compile.PyCompileError as exc:
-                return False, "%s (%s)" % (script, exc.msg)
+                return False, f"{script} ({exc.msg})"
     return True, ""
 
 
@@ -612,10 +610,7 @@ def _dag_ok(tasks: list[dict]) -> tuple[bool, str]:
             continue
         for m in re.finditer(r"Task\s+(\d+)", deps):
             if int(m.group(1)) not in nums:
-                return False, "Task %d depends on missing Task %s" % (
-                    task["num"],
-                    m.group(0),
-                )
+                return False, f"Task {task['num']} depends on missing Task {m.group(0)}"
     seen: set[int] = set()
     done: set[int] = set()
     while done != nums:
@@ -650,7 +645,7 @@ def _clean(value: str) -> str:
 
 def _verify_preapproved(root: Path, num: int, text: str) -> tuple[bool, str]:
     candidates = [
-        p for p in (root / "specs").glob("%03d-APPROVALS-*.json" % num) if p.is_file()
+        p for p in (root / "specs").glob(f"{num:03d}-APPROVALS-*.json") if p.is_file()
     ]
     if not candidates:
         return True, ""  # no pre-approval store yet; approvals are recorded at compile
@@ -667,7 +662,7 @@ def _verify_preapproved(root: Path, num: int, text: str) -> tuple[bool, str]:
                 continue
             fp = command_fingerprint(verify, expect, str(find_root()))
             if fp not in approved:
-                return False, "Task %d verify command not pre-approved" % task["num"]
+                return False, f"Task {task['num']} verify command not pre-approved"
         break
     return True, ""
 
@@ -692,6 +687,7 @@ def _branch_possible(root: Path) -> tuple[bool, str]:
         proc = subprocess.run(
             ["git", "rev-parse", "--git-dir"],
             cwd=str(root),
+            check=False,
             capture_output=True,
             text=True,
             timeout=10,
@@ -702,6 +698,7 @@ def _branch_possible(root: Path) -> tuple[bool, str]:
         proc = subprocess.run(
             ["git", "rev-parse", "--verify", "refs/heads/main"],
             cwd=str(root),
+            check=False,
             capture_output=True,
             text=True,
             timeout=10,
@@ -710,7 +707,7 @@ def _branch_possible(root: Path) -> tuple[bool, str]:
         if proc.returncode != 0:
             return False, "no 'main' branch to branch from"
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return False, "git unavailable (%s)" % exc
+        return False, f"git unavailable ({exc})"
     return True, ""
 
 
@@ -742,7 +739,7 @@ def doctor(spec: Path) -> list[str]:
     missing_tasks = [
         t["num"]
         for t in tasks
-        if task_file_for(root, int(spec.name[:3]), "Task %d" % t["num"]) is None
+        if task_file_for(root, int(spec.name[:3]), f"Task {t['num']}") is None
     ]
     if missing_tasks:
         gaps.append(
@@ -784,10 +781,10 @@ def _rereun_verify(root: Path, num: int, text: str) -> list[str]:
     """
     lines: list[str] = []
     for task in _section5_tasks(text):
-        tf = task_file_for(root, num, "Task %d" % task["num"])
+        tf = task_file_for(root, num, f"Task {task['num']}")
         verify = _task_verify_command(tf) if tf is not None else _clean(task.get("verify") or "")
         expect = _clean(task.get("expect") or "")
-        label = "Task %d" % task["num"]
+        label = f"Task {task['num']}"
         if not verify or _is_noop_verify(verify):
             lines.append("- " + label + ": SKIPPED (no verify command)")
             continue
@@ -798,6 +795,7 @@ def _rereun_verify(root: Path, num: int, text: str) -> list[str]:
                     verify,
                     shell=True,
                     cwd=str(root),
+                    check=False,
                     capture_output=True,
                     text=True,
                     timeout=DEFAULT_TIMEOUT,
@@ -807,6 +805,7 @@ def _rereun_verify(root: Path, num: int, text: str) -> list[str]:
                 proc = subprocess.run(
                     split_command(verify),
                     cwd=str(root),
+                    check=False,
                     capture_output=True,
                     text=True,
                     timeout=DEFAULT_TIMEOUT,
@@ -833,7 +832,7 @@ def report(spec: Path) -> Path:
     tasks = _section5_tasks(text)
     status_m = re.search(r"(?m)^Status:\s*(\S+)", text)
     lines = [
-        "# REPORT - %03d - %s" % (num, slug),
+        f"# REPORT - {num:03d} - {slug}",
         "",
         "Date: " + time.strftime("%Y-%m-%d %H:%M"),
         "Spec: " + spec.name,
@@ -842,19 +841,19 @@ def report(spec: Path) -> Path:
         "## Task Status (derived from evidence blocks)",
     ]
     for task in tasks:
-        tf = task_file_for(root, num, "Task %d" % task["num"])
+        tf = task_file_for(root, num, f"Task {task['num']}")
         if tf is None:
-            lines.append("- Task %d: NO TASK FILE" % task["num"])
+            lines.append(f"- Task {task['num']}: NO TASK FILE")
             continue
         derived = status(tf)
-        lines.append("- Task %d: %s (%s)" % (task["num"], derived, tf.name))
+        lines.append(f"- Task {task['num']}: {derived} ({tf.name})")
     lines += [
         "",
         "## Review (fresh re-run of verify commands)",
     ]
     lines.extend(_rereun_verify(root, num, text))
     lines.append("")
-    target = spec.parent / ("%03d-REPORT-%s.md" % (num, slug))
+    target = spec.parent / f"{num:03d}-REPORT-{slug}.md"
     target.write_text("\n".join(lines), encoding="utf-8")
     return target
 
@@ -922,6 +921,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 args.command,
                 shell=True,
                 cwd=str(root),
+                check=False,
                 capture_output=True,
                 text=True,
                 timeout=args.timeout,
@@ -931,6 +931,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             proc = subprocess.run(
                 split_command(args.command),
                 cwd=str(root),
+                check=False,
                 capture_output=True,
                 text=True,
                 timeout=args.timeout,
@@ -945,10 +946,10 @@ def cmd_run(args: argparse.Namespace) -> int:
         else:
             ok = exit_code == 0
     except subprocess.TimeoutExpired:
-        log = "TIMEOUT after %ds" % args.timeout
+        log = f"TIMEOUT after {args.timeout}s"
         ok = False
     except OSError as exc:
-        log = "cannot execute: %s" % exc
+        log = f"cannot execute: {exc}"
         ok = False
 
     if ok:
@@ -977,7 +978,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                     evidence["files"] = files
                     _write_evidence(tf, evidence)
         write_state(args.state_dir, state)
-        print("PASS (attempt %d)" % attempt)
+        print(f"PASS (attempt {attempt})")
         return 0
 
     task["attempts"] = attempt
@@ -994,12 +995,12 @@ def cmd_run(args: argparse.Namespace) -> int:
             MAX_ATTEMPTS,
         )
         path = write_escalation(args.state_dir, content)
-        print("CIRCUIT BREAKER TRIPPED - attempt %d/%d" % (attempt, MAX_ATTEMPTS))
+        print(f"CIRCUIT BREAKER TRIPPED - attempt {attempt}/{MAX_ATTEMPTS}")
         print("escalation: " + str(path))
         return 2
 
     write_state(args.state_dir, state)
-    print("FAIL (attempt %d/%d)" % (attempt, MAX_ATTEMPTS))
+    print(f"FAIL (attempt {attempt}/{MAX_ATTEMPTS})")
     return 1
 
 
@@ -1035,7 +1036,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     )
     label = "escalated" if task["tripped"] else "green"
     print("task: " + args.task_id)
-    print("attempts: %d" % task["attempts"])
+    print(f"attempts: {task['attempts']}")
     print("state: " + label)
     return 0
 

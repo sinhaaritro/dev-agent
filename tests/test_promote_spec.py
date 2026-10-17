@@ -7,6 +7,7 @@ canonical Status: receipt set.
 """
 
 import importlib.util
+import os
 import re
 import sys
 import tempfile
@@ -106,7 +107,9 @@ Lane B sandbox plan.
 
 
 def write_draft(body: str) -> Path:
-    path = Path(tempfile.mkstemp(suffix=".md", prefix="draft-")[1])
+    fd, name = tempfile.mkstemp(suffix=".md", prefix="draft-")
+    os.close(fd)
+    path = Path(name)
     path.write_text(body, encoding="utf-8")
     return path
 
@@ -116,17 +119,17 @@ class TestNewTemplateCheck(unittest.TestCase):
 
     def test_lane_a_full_template_passes(self):
         draft = write_draft(lane_a_draft())
-        self.addCleanup(draft.unlink)
+        self.addCleanup(draft.unlink, missing_ok=True)
         passed, missing, violations = promote_spec.check_draft(draft, "A")
-        self.assertTrue(passed, "missing=%r violations=%r" % (missing, violations))
+        self.assertTrue(passed, f"missing={missing!r} violations={violations!r}")
         self.assertEqual(missing, [])
         self.assertEqual(violations, [])
 
     def test_lane_b_sections_pass(self):
         draft = write_draft(lane_b_draft())
-        self.addCleanup(draft.unlink)
+        self.addCleanup(draft.unlink, missing_ok=True)
         passed, missing, violations = promote_spec.check_draft(draft, "B")
-        self.assertTrue(passed, "missing=%r violations=%r" % (missing, violations))
+        self.assertTrue(passed, f"missing={missing!r} violations={violations!r}")
 
     def test_lane_a_missing_sections_reported(self):
         text = lane_a_draft()
@@ -134,7 +137,7 @@ class TestNewTemplateCheck(unittest.TestCase):
             lines = []
             skip = False
             for line in text.splitlines():
-                if re.match(r"^##\s+%d\." % n, line.strip()):
+                if re.match(rf"^##\s+{n}\.", line.strip()):
                     skip = True
                     continue
                 if line.strip().startswith("## "):
@@ -142,7 +145,7 @@ class TestNewTemplateCheck(unittest.TestCase):
                 if not skip:
                     lines.append(line)
             draft = write_draft("\n".join(lines))
-            self.addCleanup(draft.unlink)
+            self.addCleanup(draft.unlink, missing_ok=True)
             passed, missing, _ = promote_spec.check_draft(draft, "A")
             self.assertFalse(passed)
             self.assertIn(n, missing)
@@ -152,7 +155,7 @@ class TestNewTemplateCheck(unittest.TestCase):
         start = text.index("### Task 1:")
         end = text.index("## 6. Gates")
         draft = write_draft(text[:start] + text[end:])
-        self.addCleanup(draft.unlink)
+        self.addCleanup(draft.unlink, missing_ok=True)
         passed, _, violations = promote_spec.check_draft(draft, "A")
         self.assertFalse(passed)
         self.assertTrue(any("no '### Task N:' blocks" in v for v in violations))
@@ -160,7 +163,7 @@ class TestNewTemplateCheck(unittest.TestCase):
     def test_missing_depends_on(self):
         text = lane_a_draft().replace("- Depends On: None\n", "", 1)
         draft = write_draft(text)
-        self.addCleanup(draft.unlink)
+        self.addCleanup(draft.unlink, missing_ok=True)
         passed, _, violations = promote_spec.check_draft(draft, "A")
         self.assertFalse(passed)
         self.assertTrue(any("'Depends On:'" in v for v in violations))
@@ -168,7 +171,7 @@ class TestNewTemplateCheck(unittest.TestCase):
     def test_missing_verify(self):
         text = lane_a_draft().replace("- Verify: `python -m unittest tests.test_sandbox -v`\n", "", 1)
         draft = write_draft(text)
-        self.addCleanup(draft.unlink)
+        self.addCleanup(draft.unlink, missing_ok=True)
         passed, _, violations = promote_spec.check_draft(draft, "A")
         self.assertFalse(passed)
         self.assertTrue(any("'Verify:'" in v for v in violations))
@@ -176,7 +179,7 @@ class TestNewTemplateCheck(unittest.TestCase):
     def test_missing_expect(self):
         text = lane_a_draft().replace("- Expect: \"OK\"\n", "", 1)
         draft = write_draft(text)
-        self.addCleanup(draft.unlink)
+        self.addCleanup(draft.unlink, missing_ok=True)
         passed, _, violations = promote_spec.check_draft(draft, "A")
         self.assertFalse(passed)
         self.assertTrue(any("'Expect:'" in v for v in violations))
@@ -188,7 +191,7 @@ class TestNewTemplateCheck(unittest.TestCase):
             1,
         )
         draft = write_draft(text)
-        self.addCleanup(draft.unlink)
+        self.addCleanup(draft.unlink, missing_ok=True)
         passed, _, violations = promote_spec.check_draft(draft, "A")
         self.assertFalse(passed)
         self.assertTrue(any("no-op" in v for v in violations))
@@ -200,7 +203,7 @@ class TestNewTemplateCheck(unittest.TestCase):
             1,
         )
         draft = write_draft(text)
-        self.addCleanup(draft.unlink)
+        self.addCleanup(draft.unlink, missing_ok=True)
         passed, _, violations = promote_spec.check_draft(draft, "A")
         self.assertFalse(passed)
         self.assertTrue(any("whole 'Verify:'" in v for v in violations))
@@ -214,14 +217,14 @@ class TestNewTemplateCheck(unittest.TestCase):
             1,
         )
         draft = write_draft(text)
-        self.addCleanup(draft.unlink)
+        self.addCleanup(draft.unlink, missing_ok=True)
         passed, _, violations = promote_spec.check_draft(draft, "A")
         self.assertTrue(passed, violations)
 
     def test_lane_b_bad_depends_on(self):
         text = lane_b_draft().replace("- Depends On: None", "- Depends On: bogus")
         draft = write_draft(text)
-        self.addCleanup(draft.unlink)
+        self.addCleanup(draft.unlink, missing_ok=True)
         passed, _, violations = promote_spec.check_draft(draft, "B")
         self.assertFalse(passed)
         self.assertTrue(any("Task N" in v for v in violations))

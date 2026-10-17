@@ -28,6 +28,7 @@ def run(args, cwd):
         cwd=str(cwd),
         capture_output=True,
         text=True,
+        check=False,
     )
 
 

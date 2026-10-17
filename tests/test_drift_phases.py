@@ -107,7 +107,7 @@ class AgCommandsTest(unittest.TestCase):
         import subprocess
         proc = subprocess.run(
             [sys.executable, "-m", "compileall", "-q", ".agents", "tests"],
-            cwd=REPO, capture_output=True, text=True,
+            cwd=REPO, capture_output=True, text=True, check=False,
         )
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 

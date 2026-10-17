@@ -155,6 +155,7 @@ class ScratchpadGuardTest(unittest.TestCase):
              "clean", "--temp-dir", str(sandbox)],
             capture_output=True,
             text=True,
+            check=False,
         )
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn("refusing to purge", proc.stdout + proc.stderr)
@@ -176,6 +177,7 @@ class CliTest(unittest.TestCase):
             capture_output=True,
             text=True,
             cwd=self._tmp,
+            check=False,
         )
 
     def test_clean_reports_purged_preserved(self):

@@ -137,6 +137,39 @@ The `system.md` file acts as the universal gateway — it loads mandatory startu
 
 ---
 
+## Development Setup (maintainers)
+
+The shipped skills are stdlib-only: there are **no runtime dependencies**.
+Python 3.10+ is required; Ruff is the only dev tool.
+
+```bash
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# macOS / Linux
+source .venv/bin/activate
+
+python -m pip install --group dev
+```
+
+If pip is older than 25.1 (no `--group` support), install the pinned tool
+directly: `python -m pip install ruff==0.17.1`.
+
+Canonical commands (from the repo root):
+
+```bash
+python -m compileall -q .agents skills tools tests   # Build
+python -m unittest discover -s tests -v              # Test
+python -m ruff check skills tools tests              # Lint
+python tools/promote.py --check                      # Skill mirror guard
+```
+
+`pyproject.toml` holds the Ruff policy (target Python 3.10). `.agents/skills/`
+is excluded from lint because it is the derived mirror and contains the
+vendored `skill-creator`.
+
+---
+
 ## License
 
 This project is provided as a workspace template. Feel free to fork, customize, and adapt it to your development workflow.

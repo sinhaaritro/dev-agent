@@ -25,7 +25,8 @@ memory-aware development team.
 
 ## Tech Stack
 
-- Python (stdlib-only engines; no runtime dependencies)
+- Python 3.10+ (stdlib-only engines; no runtime dependencies)
+- Ruff 0.17.1 as the only dev dependency (`pyproject.toml` dependency group)
 - JavaScript (`skills.sh.json` catalog grouping only)
 
 ## Repo map
@@ -58,7 +59,7 @@ memory-aware development team.
 
 - Build: `python -m compileall -q .agents skills tools tests`
 - Test: `python -m unittest discover -s tests -v`
-- Lint: `python -m ruff check .agents skills tools tests`
+- Lint: `python -m ruff check skills tools tests` (`.agents/skills/` is the derived mirror + vendored `skill-creator`; it is excluded from lint)
 - Skill sync (guard): `python tools/promote.py --check`
 
 ## Hard rules

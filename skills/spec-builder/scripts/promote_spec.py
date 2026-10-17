@@ -260,7 +260,7 @@ def _unfailable_expect(verify: str, expect: str) -> str:
         return "'Expect:' is the whole 'Verify:' command (oracle can never fail)"
     first = verify.split()[0] if verify.split() else ""
     if first in ("echo", "printf"):
-        return "'Expect:' is emitted unconditionally by a bare '%s'" % first
+        return f"'Expect:' is emitted unconditionally by a bare '{first}'"
     return ""
 
 
@@ -306,15 +306,15 @@ def _validate_tasks(tasks: list[dict], lane: str) -> list[str]:
         return ["section 5: no '### Task N:' blocks found (zero-gate plan rejected)"]
     violations: list[str] = []
     for task in tasks:
-        tlabel = "Task %d" % task["num"]
+        tlabel = f"Task {task['num']}"
         if not task["depends_on"]:
             violations.append(tlabel + ": missing 'Depends On:'")
         elif lane == "B" and task["depends_on"] != "None" and not re.match(
             r"^Task\s+\d+(\s*,\s*Task\s+\d+)*$", task["depends_on"]
         ):
             violations.append(
-                tlabel + ": 'Depends On:' must be 'None' or a 'Task N' reference (got '%s')"
-                % task["depends_on"]
+                tlabel
+                + f": 'Depends On:' must be 'None' or a 'Task N' reference (got '{task['depends_on']}')"
             )
         verify = task["verify"].strip()
         if len(verify) >= 2 and verify.startswith("`") and verify.endswith("`"):
@@ -324,7 +324,7 @@ def _validate_tasks(tasks: list[dict], lane: str) -> list[str]:
         else:
             if _is_noop_verify(verify):
                 violations.append(
-                    tlabel + ": 'Verify:' is a no-op command ('%s')" % verify
+                    tlabel + f": 'Verify:' is a no-op command ('{verify}')"
                 )
             expect = task["expect"].strip().strip('"').strip()
             if not task["expect"]:
@@ -383,15 +383,13 @@ def validate_task_file(text: str) -> list[str]:
             seen.append(match.group(1).strip())
     for heading in TASK_FILE_HEADINGS:
         if heading not in seen:
-            violations.append("missing heading '## %s'" % heading)
+            violations.append(f"missing heading '## {heading}'")
     ordered = [h for h in seen if h in TASK_FILE_HEADINGS]
     if ordered != [h for h in TASK_FILE_HEADINGS if h in ordered]:
-        violations.append(
-            "headings out of order (got %s)" % " -> ".join(ordered)
-        )
+        violations.append(f"headings out of order (got {' -> '.join(ordered)})")
     for heading in TASK_FILE_HEADINGS:
         if seen.count(heading) > 1:
-            violations.append("duplicate heading '## %s'" % heading)
+            violations.append(f"duplicate heading '## {heading}'")
 
     if "Task" in seen:
         task_body = _section_body_by_name(text, "Task")
@@ -474,7 +472,7 @@ def _write_approvals(specs_dir: Path, num: int, slug: str,
         "spec": f"{num:03d}",
         "approvals": [
             {
-                "task": "Task %d" % t["num"],
+                "task": f"Task {t['num']}",
                 "fingerprint": _fingerprint(t["verify"].strip("`"), t["expect"].strip('"').strip(), root),
                 "command": t["verify"].strip("`"),
                 "expect": t["expect"].strip('"').strip(),
@@ -491,7 +489,6 @@ def _write_approvals(specs_dir: Path, num: int, slug: str,
 def _render_task_file(num: int, task: dict, spec_name: str, spec_text: str,
                       root: Path) -> str:
     """Render one task file in the canonical shape (task-file-format.md)."""
-    slug = _slug_from_title_or_name(spec_name, spec_text)
     title = task["title"] or f"Task {task['num']}"
     # Project overview: the spec's section 1 body (trimmed), or a fallback.
     overview = _section_body(spec_text, 1).strip() or "_(project overview)_"
@@ -1549,7 +1546,7 @@ def cmd_compile(args: argparse.Namespace) -> int:
     try:
         written = compile_spec(args.spec, args.root)
     except SystemExit as e:
-        print(str(e) if not str(e).startswith("error:") else str(e))
+        print(str(e))
         return 1
     for f in written:
         print(f"task-file: {f.name}")
@@ -1714,9 +1711,8 @@ def main() -> int:
 
     args = parser.parse_args()
     root_default = find_root()
-    if args.command == "check":
-        if args.root is None:
-            args.root = root_default
+    if args.command == "check" and args.root is None:
+        args.root = root_default
     if args.command == "promote":
         if args.root is None:
             args.root = root_default
