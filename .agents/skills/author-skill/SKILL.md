@@ -43,7 +43,10 @@ that does not match this repo.
 2. **Workspaces go to a gitignored folder.** Put eval workspaces under
    `skill-workspaces/<name>/` and pass that path explicitly to skill-creator's
    scripts. Do NOT let it create `skills/<name>-workspace/` (a duplicate of the
-   shipped folder) and do not copy a skill to `/tmp` to edit it.
+   shipped folder) and do not copy a skill to `/tmp` to edit it. For
+   skill-creator's own evals, use `python tools/skill_eval.py` (canonical
+   `skill-workspaces/skill-creator/<case>/<run-id>/`); the workflow runs on
+   OpenCode, so skip the Claude-only Description Optimization section.
 3. **Skip packaging.** Do not run `.skill` packaging
    (`skill-creator/scripts/package_skill.py`); this repo ships folders, not
    archives.

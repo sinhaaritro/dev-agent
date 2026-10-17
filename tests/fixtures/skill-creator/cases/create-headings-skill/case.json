@@ -1,0 +1,18 @@
+{
+  "name": "create-headings-skill",
+  "mode": "create",
+  "skill_name": "heading-index",
+  "prompt": "Create a new skill named heading-index that extracts a hierarchical heading index from a Markdown file. Follow the skill-creator workflow in .agents/skills/skill-creator/SKILL.md. Put the skill in skill/, its eval cases in evals/evals.json, and run the evals with with_skill and without_skill baselines into iteration-1/. Stop after generating review.html; skip Description Optimization.",
+  "expectations": [
+    "skill/SKILL.md has name and description frontmatter",
+    "evals/evals.json contains at least two realistic eval prompts",
+    "iteration-1 contains with_skill and without_skill outputs",
+    "grading.json uses text, passed, and evidence fields"
+  ],
+  "expected_artifacts": [
+    "skill/SKILL.md",
+    "evals/evals.json",
+    "iteration-1"
+  ],
+  "skip_description_optimization": true
+}

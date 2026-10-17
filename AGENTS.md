@@ -42,7 +42,8 @@ memory-aware development team.
     `author-skill`) and vendored third-party `skill-creator`
   - `.agents/MAP.md` - generated skill index (gitignored)
 - `tools/` - maintainer engines, not skills. `tools/promote.py` mirrors `skills/`
-  into `.agents/skills/`.
+  into `.agents/skills/`; `tools/skill_eval.py` runs the skill-creator golden
+  evals.
 - `specs/` - what to build: approved specs with a single `Status:` lifecycle
   (`DRAFTED -> COMPILED -> BUILDING -> BUILT -> REVIEWED -> COMPLETED`) plus
   `specs/temp/` (gitignored scratchpad)
@@ -61,6 +62,20 @@ memory-aware development team.
 - Test: `python -m unittest discover -s tests -v`
 - Lint: `python -m ruff check skills tools tests` (`.agents/skills/` is the derived mirror + vendored `skill-creator`; it is excluded from lint)
 - Skill sync (guard): `python tools/promote.py --check`
+
+## Skill-creator evals (maintainers)
+
+The vendored `skill-creator` workflow runs on OpenCode. Do not run its
+Claude-specific description-optimization scripts (`run_eval.py`,
+`run_loop.py`, `improve_description.py`) - they hardcode `claude -p`.
+
+- Cases: `tests/fixtures/skill-creator/cases/`
+- Runs: `skill-workspaces/skill-creator/<case>/<run-id>/` (gitignored)
+- `python tools/skill_eval.py init|run|check|iterate|accept --case <case>`
+- Review `review.html`; put the viewer's `feedback.json` in the run dir, then
+  `iterate`. `accept` records the case's golden baseline.
+- Live test: `SKILL_EVAL=1 python -m unittest tests.test_skill_creator_live -v`
+  (uses OpenCode and costs tokens).
 
 ## Hard rules
 

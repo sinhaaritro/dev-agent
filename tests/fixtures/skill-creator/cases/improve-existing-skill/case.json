@@ -1,0 +1,18 @@
+{
+  "name": "improve-existing-skill",
+  "mode": "improve",
+  "skill_name": "heading-index",
+  "baseline": "skills/heading-index",
+  "prompt": "Improve the skill in skill/ using the baseline in skill-snapshot/ as the old version. Follow the skill-creator workflow in .agents/skills/skill-creator/SKILL.md. Keep the evals in evals/evals.json, run iteration-1 with with_skill and old_skill baselines, and stop after generating review.html; skip Description Optimization.",
+  "expectations": [
+    "skill/SKILL.md keeps the name heading-index",
+    "iteration-1 compares with_skill against old_skill",
+    "the review HTML shows the new and old outputs"
+  ],
+  "expected_artifacts": [
+    "skill/SKILL.md",
+    "evals/evals.json",
+    "iteration-1"
+  ],
+  "skip_description_optimization": true
+}
