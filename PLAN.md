@@ -1,6 +1,6 @@
 # PLAN - `skills/` product tree with a hidden `.agents/skills/` dogfood mirror
 
-Status: IN PROGRESS - W1-W3 done, next W4
+Status: IN PROGRESS - W1-W5 done, next W6
 Owner: framework maintainer
 Related: `docs/002-skill-discovery-and-indexing.md`, `README.md`, `AGENTS.md`
 
@@ -11,7 +11,9 @@ Related: `docs/002-skill-discovery-and-indexing.md`, `README.md`, `AGENTS.md`
 - W1 - DONE (commit 5114d4c): the 7 shipped skills moved to `skills/`; `.agents/skills/` now holds only `skill-creator`.
 - W2 - DONE: `skill-creator` marked `metadata.internal: true`.
 - W3 - DONE: `tools/promote.py` implemented; 7 skills mirrored into `.agents/skills/` with `internal: true` injected; `--check` detects drift.
-- W4..W9 - TODO.
+- W4 - DONE: repo-only `promote` skill wraps the engine (commit 7b1146e).
+- W5 - DONE: repo-only `author-skill` wraps `skill-creator` with repo overrides.
+- W6..W9 - TODO.
 
 ## 1. Problem
 
@@ -173,7 +175,7 @@ Behaviour:
 - **Exit codes.** `apply`/`--dry-run` -> 0 on success; `--check` -> 0 clean,
   1 drift, 2 error.
 
-### W4. `.agents/skills/promote/` - thin skill wrapper (internal)
+### W4. `.agents/skills/promote/` - thin skill wrapper (internal) - DONE
 
 A repo-only skill (internal) whose `SKILL.md` tells agents to run
 `python tools/promote.py`. Triggers when skills change. Description should make
@@ -181,7 +183,7 @@ it the default action for "skills changed / sync the skills". Body: run
 `--check`; on drift run `apply`, run the fixture install (W7), then tell the
 human to start a new session.
 
-### W5. `.agents/skills/author-skill/` - skill-creator override (internal)
+### W5. `.agents/skills/author-skill/` - skill-creator override (internal) - DONE
 
 Repo-only skill (internal) that claims any create/edit/fix/optimize of a skill in
 this repo and takes precedence over `skill-creator`. It says: load
