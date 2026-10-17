@@ -15,7 +15,7 @@ Related: `docs/002-skill-discovery-and-indexing.md`, `README.md`, `AGENTS.md`
 - W5 - DONE: repo-only `author-skill` wraps `skill-creator` with repo overrides.
 - W6 - DONE: root `AGENTS.md` rewritten as the maintainer briefing.
 - W7 - DONE: `tests/test_promote.py`, `tests/test_no_leak.py`, `tests/test_shipping_set.py`.
-- W8 - DONE: `.gitattributes` (LF for skills/mirror/tools), `.gitignore` `skill-workspaces/`, Guard CI workflow.
+- W8 - DONE: `.gitattributes` (LF for skills/mirror/tools), `.gitignore` `skill-workspaces/`; guard is a local command (no CI).
 - W9 - TODO.
 
 ## 1. Problem
@@ -238,7 +238,8 @@ Rewrite the root `AGENTS.md` to be maintainer-facing:
 - Add `.gitattributes` with `skills/** text eol=lf` (and `.agents/skills/**`) so
   `--check` does not false-positive across machines.
 - `.gitignore`: add `skill-workspaces/`.
-- CI job: `python tools/promote.py --check` + `tests/` (the "Guard" job).
+- Guard is run locally (no CI job): `python tools/promote.py --check` plus the
+  test suite, then committed by hand.
 
 ### W9. Reconcile third-party bookkeeping
 
