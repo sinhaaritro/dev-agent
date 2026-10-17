@@ -1,10 +1,16 @@
 # PLAN - `skills/` product tree with a hidden `.agents/skills/` dogfood mirror
 
-Status: PROPOSED (not started)
+Status: IN PROGRESS - W1 done, W2 done, next W3
 Owner: framework maintainer
 Related: `docs/002-skill-discovery-and-indexing.md`, `README.md`, `AGENTS.md`
 
 ---
+
+## Progress
+
+- W1 - DONE (commit 5114d4c): the 7 shipped skills moved to `skills/`; `.agents/skills/` now holds only `skill-creator`.
+- W2 - DONE: `skill-creator` marked `metadata.internal: true`.
+- W3..W9 - TODO.
 
 ## 1. Problem
 
@@ -26,8 +32,12 @@ Evidence already in the tree:
   author."
 - `.agents/skills/` is simultaneously the shipped payload and the locally
   executed engine set, with nothing declaring which is which.
-- Third-party `skill-creator` is committed under `.agents/skills/` and is **not**
-  hidden, so it currently ships to users.
+- Third-party `skill-creator` is committed under `.agents/skills/`. NOTE
+  (corrected during W2): it was **not** actually shipping - the repo-root
+  `skills-lock.json` entry for `skill-creator` suppresses it from discovery by
+  name (verified with the CLI; see W9). It still needs the durable
+  `metadata.internal: true` guard, because that lock is stale and is slated for
+  reconciliation in W9.
 
 ## 2. Hard facts (verified with skills CLI v1.7.2)
 
@@ -103,7 +113,7 @@ Rules that fall out of this:
 
 ## 5. Work items
 
-### W1. Create `skills/` (move the shipped set)
+### W1. Create `skills/` (move the shipped set) - DONE
 
 Move the 7 shipped skill folders from `.agents/skills/` into `skills/`:
 `bootstrap`, `auto-router`, `map-generator`, `phase-protocol`, `spec-builder`,
@@ -113,7 +123,7 @@ Move the 7 shipped skill folders from `.agents/skills/` into `skills/`:
 - `skill-creator` does NOT move (it is third-party/repo-only).
 - Line endings: ensure LF for all skill files (W8).
 
-### W2. Mark every `.agents/skills/` skill internal
+### W2. Mark every `.agents/skills/` skill internal - DONE
 
 - For mirrored skills, W3 injects it.
 - For repo-only / third-party (`promote`, `author-skill`, `skill-creator`),
@@ -227,8 +237,12 @@ Rewrite the root `AGENTS.md` to be maintainer-facing:
 ### W9. Reconcile third-party bookkeeping
 
 - `skills-lock.json` records `skill-creator` at `skills/skill-creator/SKILL.md`,
-  which no longer matches its real location `.agents/skills/skill-creator`. Either
-  update the recorded path or drop the lock; decide and document in `AGENTS.md`.
+  which no longer matches its real location `.agents/skills/skill-creator`. The
+  entry is currently **load-bearing**: it is what actually hides `skill-creator`
+  from discovery today (a `skills-lock.json` entry suppresses a same-named
+  skill even when `INSTALL_INTERNAL_SKILLS=1`). Decide whether to update the
+  recorded path or drop the lock; either way keep `metadata.internal: true` as
+  the durable guard. Document the choice in `AGENTS.md`.
 - `skills.sh.json`: groups list 6 of the 7 shipped skills (`bootstrap` missing).
   Align the groupings with the real `skills/` set.
 - `README.md`: update the Architecture tree and the install examples to describe
