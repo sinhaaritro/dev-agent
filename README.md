@@ -85,29 +85,40 @@ Open the project in your AI-powered editor. The agent reads `AGENTS.md` and `.ag
 
 ## Architecture Overview
 
+This repo *is* the framework source. The **product** is `skills/` — that is what
+users install. Everything under `.agents/` is this repo's own workspace and is
+**never shipped**.
+
 ```
 dev-agent/
-├── AGENTS.md                   # Install guide + agent contract (entry point)
+├── AGENTS.md                   # Maintainer briefing (entry point)
 ├── skills.sh.json              # skills.sh catalog groupings
 ├── .cursorrules                # Cursor IDE → points to .agents/rules/system.md
 ├── .windsurfrules              # Windsurf IDE → points to .agents/rules/system.md
-├── .agents/                    # Machine space — agent configuration
-│   ├── rules/
-│   │   └── system.md           # Gateway rulebook — loaded on every session
-│   └── skills/                 # Modular capability packages
-│       ├── bootstrap/          #   installs AGENTS.md + system.md into a target repo
-│       ├── auto-router/        #   lane triage + skill recall (always on)
-│       ├── map-generator/      #   builds the local skill index (MAP.md)
-│       ├── phase-protocol/     #   the Status lifecycle (DRAFTED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED) + gates (always on)
-│       ├── spec-builder/       #   spec drafts, promotion, task files, docs TOC
-│       ├── task-cleaner/       #   purges the scratchpad on acceptance
-│       └── verification-runner/#   test execution, retries, circuit breaker
+├── skills/                     # PRODUCT — installable skills (this is what ships)
+│   ├── bootstrap/              #   installs AGENTS.md + system.md into a target repo
+│   ├── auto-router/            #   lane triage + skill recall (always on)
+│   ├── map-generator/          #   builds the local skill index (MAP.md)
+│   ├── phase-protocol/         #   the Status lifecycle (DRAFTED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED) + gates (always on)
+│   ├── spec-builder/           #   spec drafts, promotion, task files, docs TOC
+│   ├── task-cleaner/           #   purges the scratchpad on acceptance
+│   └── verification-runner/    #   test execution, retries, circuit breaker
+├── tools/                      # Maintainer engines (never shipped)
+│   └── promote.py              #   mirrors skills/ down into .agents/skills/
+├── .agents/                    # Repo workspace — NEVER shipped
+│   ├── rules/system.md         #   Gateway rulebook — loaded on every session
+│   ├── agents/coder.md         #   coder subagent contract
+│   └── skills/                 #   derived mirror (internal) + repo-only tools
 ├── specs/                      # What to build — spec groups with a lifecycle (NNN-SPEC + NNN-TASK + approvals + report)
 │   └── temp/                   #   ephemeral draft-stage scratchpad (gitignored)
 └── docs/                       # What is + why we chose — reference series, topic docs (per-subsystem decision log), flow
 ```
 
-Every skill is self-contained: a `SKILL.md` (what it does, when to use it) plus `scripts/` (a stdlib-only Python engine) and optional `references/`. `MAP.md` is generated locally at session start and never committed.
+Every skill is self-contained: a `SKILL.md` (what it does, when to use it) plus
+`scripts/` (a stdlib-only Python engine) and optional `references/`. Only
+`skills/` ships — the skills CLI also scans `.agents/skills/`, so every copy
+there carries `metadata.internal: true` and stays hidden from users. `MAP.md` is
+generated locally at session start and never committed.
 
 ---
 

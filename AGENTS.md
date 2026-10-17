@@ -68,7 +68,10 @@ memory-aware development team.
   `author-skill` skill to change a skill, then run `promote`.
 - **Never add `metadata.internal` to a `skills/` SKILL.md** - that would hide a
   shipped skill from users. Only the derived mirror carries it.
-- **Do not hand-edit vendored third-party skills** (`.agents/skills/skill-creator`).
+- **Do not hand-edit vendored third-party skills** (`.agents/skills/skill-creator`)
+  beyond its `metadata.internal: true` hiding header. It is upstream
+  (`anthropics/skills`); never run `npx skills update` on this repo — that would
+  overwrite the vendored copy and drop the internal flag.
 
 # DEV AGENT
 

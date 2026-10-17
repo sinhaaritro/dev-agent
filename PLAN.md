@@ -1,6 +1,6 @@
 # PLAN - `skills/` product tree with a hidden `.agents/skills/` dogfood mirror
 
-Status: IN PROGRESS - W1-W8 done, next W9
+Status: COMPLETE - W1-W9 done
 Owner: framework maintainer
 Related: `docs/002-skill-discovery-and-indexing.md`, `README.md`, `AGENTS.md`
 
@@ -16,7 +16,7 @@ Related: `docs/002-skill-discovery-and-indexing.md`, `README.md`, `AGENTS.md`
 - W6 - DONE: root `AGENTS.md` rewritten as the maintainer briefing.
 - W7 - DONE: `tests/test_promote.py`, `tests/test_no_leak.py`, `tests/test_shipping_set.py`.
 - W8 - DONE: `.gitattributes` (LF for skills/mirror/tools), `.gitignore` `skill-workspaces/`; guard is a local command (no CI).
-- W9 - TODO.
+- W9 - DONE: `skills-lock.json` kept as-is (the "stale path" was a misdiagnosis); `bootstrap` added to `skills.sh.json`; README architecture/install updated.
 
 ## 1. Problem
 
@@ -241,19 +241,22 @@ Rewrite the root `AGENTS.md` to be maintainer-facing:
 - Guard is run locally (no CI job): `python tools/promote.py --check` plus the
   test suite, then committed by hand.
 
-### W9. Reconcile third-party bookkeeping
+### W9. Reconcile third-party bookkeeping - DONE
 
-- `skills-lock.json` records `skill-creator` at `skills/skill-creator/SKILL.md`,
-  which no longer matches its real location `.agents/skills/skill-creator`. The
-  entry is currently **load-bearing**: it is what actually hides `skill-creator`
-  from discovery today (a `skills-lock.json` entry suppresses a same-named
-  skill even when `INSTALL_INTERNAL_SKILLS=1`). Decide whether to update the
-  recorded path or drop the lock; either way keep `metadata.internal: true` as
-  the durable guard. Document the choice in `AGENTS.md`.
-- `skills.sh.json`: groups list 6 of the 7 shipped skills (`bootstrap` missing).
-  Align the groupings with the real `skills/` set.
-- `README.md`: update the Architecture tree and the install examples to describe
-  `skills/` as the product and `.agents/` as non-shipped.
+- `skills-lock.json`: the original claim that its `skillPath` was stale was
+  **wrong**. Verified with a clean upstream install: `skillPath` is the path
+  *inside the source repo* (`anthropics/skills`), not a local install path, and a
+  fresh `npx skills add anthropics/skills -s skill-creator` reproduces
+  `skillPath: "skills/skill-creator/SKILL.md"` verbatim and installs into
+  `.agents/skills/skill-creator` (the default agent folder). So there is nothing
+  to fix. The entry stays as the durable discovery guard; the only real drift is
+  `computedHash`, which no longer matches after W2 added `metadata.internal:
+  true` to the vendored copy. Inert unless someone runs `npx skills update`, so
+  the rule is: never CLI-update the vendored `skill-creator`. Documented in
+  `AGENTS.md`.
+- `skills.sh.json`: `bootstrap` added to the Core group (now 7 of 7).
+- `README.md`: Architecture tree + intro rewritten for the product/workspace
+  split (`skills/` ships; `.agents/` never does).
 
 ## 6. Migration sequence
 
