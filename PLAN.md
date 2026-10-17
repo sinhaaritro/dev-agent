@@ -1,6 +1,6 @@
 # PLAN - `skills/` product tree with a hidden `.agents/skills/` dogfood mirror
 
-Status: IN PROGRESS - W1-W5 done, next W6
+Status: IN PROGRESS - W1-W8 done, next W9
 Owner: framework maintainer
 Related: `docs/002-skill-discovery-and-indexing.md`, `README.md`, `AGENTS.md`
 
@@ -13,7 +13,10 @@ Related: `docs/002-skill-discovery-and-indexing.md`, `README.md`, `AGENTS.md`
 - W3 - DONE: `tools/promote.py` implemented; 7 skills mirrored into `.agents/skills/` with `internal: true` injected; `--check` detects drift.
 - W4 - DONE: repo-only `promote` skill wraps the engine (commit 7b1146e).
 - W5 - DONE: repo-only `author-skill` wraps `skill-creator` with repo overrides.
-- W6..W9 - TODO.
+- W6 - DONE: root `AGENTS.md` rewritten as the maintainer briefing.
+- W7 - DONE: `tests/test_promote.py`, `tests/test_no_leak.py`, `tests/test_shipping_set.py`.
+- W8 - DONE: `.gitattributes` (LF for skills/mirror/tools), `.gitignore` `skill-workspaces/`, Guard CI workflow.
+- W9 - TODO.
 
 ## 1. Problem
 
@@ -230,7 +233,7 @@ Rewrite the root `AGENTS.md` to be maintainer-facing:
   set; with `INSTALL_INTERNAL_SKILLS=1`, the repo-only set additionally appears.
   Skip when `npx`/network is unavailable.
 
-### W8. Hygiene
+### W8. Hygiene - DONE
 
 - Add `.gitattributes` with `skills/** text eol=lf` (and `.agents/skills/**`) so
   `--check` does not false-positive across machines.

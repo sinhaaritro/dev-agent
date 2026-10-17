@@ -40,6 +40,7 @@ def cli_list(internal: bool) -> subprocess.CompletedProcess:
         encoding="utf-8",
         errors="replace",
         env=env,
+        check=False,
     )
 
 
@@ -54,9 +55,9 @@ class ShippingSetTest(unittest.TestCase):
         try:
             result = cli_list(internal)
         except (OSError, subprocess.SubprocessError) as exc:
-            self.skipTest("skills CLI unavailable: %s" % exc)
+            self.skipTest(f"skills CLI unavailable: {exc}")
         if result.returncode != 0:
-            self.skipTest("skills CLI failed (offline?): %s" % ANSI.sub("", result.stderr)[:200])
+            self.skipTest(f"skills CLI failed (offline?): {ANSI.sub('', result.stderr)[:200]}")
         return result
 
     def test_default_list_is_exactly_the_product(self):

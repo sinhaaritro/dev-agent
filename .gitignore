@@ -2,6 +2,7 @@
 
 specs/temp
 .agents/MAP.md
+skill-workspaces/
 __pycache__/
 .venv/
 .ruff_cache/

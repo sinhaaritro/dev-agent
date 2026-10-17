@@ -1,0 +1,23 @@
+name: Guard
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Skill mirror is in sync (skills/ == .agents/skills/)
+        run: python tools/promote.py --check
+
+      - name: Compile
+        run: python -m compileall -q .agents skills tools tests
+
+      - name: Tests
+        run: python -m unittest discover -s tests -v

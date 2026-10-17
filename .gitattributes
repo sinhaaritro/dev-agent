@@ -1,0 +1,5 @@
+# Skill sources and the derived mirror: force LF so `promote --check` is
+# byte-stable across platforms (see PLAN.md W8).
+skills/**         text eol=lf
+.agents/skills/** text eol=lf
+tools/**          text eol=lf

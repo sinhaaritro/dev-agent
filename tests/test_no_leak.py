@@ -26,7 +26,7 @@ class NoLeakTest(unittest.TestCase):
         self.assertEqual(
             offenders,
             [],
-            "workspace skills missing 'metadata.internal: true' (they would ship): %r" % offenders,
+            f"workspace skills missing 'metadata.internal: true' (they would ship): {offenders!r}",
         )
 
     def test_workspace_is_nonempty(self):

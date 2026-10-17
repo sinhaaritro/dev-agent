@@ -65,6 +65,7 @@ def run(root: Path, *args: str) -> subprocess.CompletedProcess:
         cwd=root,
         capture_output=True,
         text=True,
+        check=False,
     )
 
 
@@ -208,6 +209,7 @@ class LiveRepoTest(unittest.TestCase):
             cwd=REPO,
             capture_output=True,
             text=True,
+            check=False,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
