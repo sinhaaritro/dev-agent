@@ -146,11 +146,16 @@ Python 3.10+ is required; Ruff is the only dev tool.
 python -m venv .venv
 # Windows
 .venv\Scripts\activate
-# macOS / Linux
+# macOS / Linux (use `python3` instead of `python` if needed)
 source .venv/bin/activate
 
 python -m pip install --group dev
 ```
+
+`.venv/` is local to the machine and is **not portable between operating
+systems** — Windows and Linux use different interpreter layouts. It is
+gitignored, so when you switch OS just delete it and re-run the commands above;
+each environment is recreated from `pyproject.toml`.
 
 If pip is older than 25.1 (no `--group` support), install the pinned tool
 directly: `python -m pip install ruff==0.17.1`.
