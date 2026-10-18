@@ -141,10 +141,24 @@ above is what decides pass/fail.
 
 ## 6. Gates
 
-_(empty until a gate runs — §2.1. One entry per gate that ran: which gate
-(Vetting / Sign-off / blocking), when, the note, pass/block. A blocked entry
-records the issues that triggered `PLAN_REVISION_REQUIRED` / `REVIEW_REVISION_REQUIRED`.
-A gate that is off writes nothing.)_
+**Decision plan (write at draft time).** List every decision this plan makes and
+label each one so the gate is visible *before* build (never a surprise menu):
+
+- **blocking** — a human must choose before the build starts (interactive: halt;
+  supervised non-interactive: fail closed; unattended autonomous: apply the
+  Recommended option and record it in the gate log below).
+- **non-blocking** — state the default here and proceed; the menu is never
+  reopened later.
+
+Every decision is one `- **D<n> <decision>**` bullet that carries its label —
+`check` rejects an unlabeled decision. Planned decisions:
+
+- **D1 <decision>** — options: <A (Recommended): ...; B: ...>; **non-blocking** (default: A)
+
+_(Gate log: append one entry per gate that ran — Vetting / Sign-off / blocking,
+when, the note, pass/block. A blocked entry records the issues that triggered
+`PLAN_REVISION_REQUIRED` / `REVIEW_REVISION_REQUIRED`. A gate that is off writes
+nothing.)_
 
 ## 7. Verification Commands
 

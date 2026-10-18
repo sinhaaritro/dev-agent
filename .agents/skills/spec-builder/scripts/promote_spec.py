@@ -85,6 +85,13 @@ Modes:
                every doc carrying <old>. Prose outside the frontmatter is
                never touched.
 
+    specs-lint promote_spec.py specs-lint [--root <dir>]
+               Read-only one-way rule: docs/ and source must never reference
+               into ``specs/``. Falls back to failing (exit 1) listing every
+               ``file:line`` hit. A ``specs/`` file pointing *out* to docs/ or
+               source is allowed (the dependency is one-way), and files under
+               ``specs/`` are never scanned.
+
 Usage:
     python .agents/skills/spec-builder/scripts/promote_spec.py \
         check specs/temp/draft-plan.md --lane B
@@ -227,6 +234,29 @@ def _section_body(text: str, number: int) -> str:
 
 NOOP_VERIFY_RE = re.compile(r"^(true|:|exit(\s+0*)?)$")
 
+# Section-6 decision plan (B3.7): every planned decision is a '- **D<n> ...'
+# bullet that MUST carry a blocking / non-blocking label, so the human chooses
+# before build and the build never reopens a settled menu (B3.8).
+DECISION_LINE_RE = re.compile(r"^-+\s+\*\*(D\d+)\b")
+GATE_LABEL_RE = re.compile(r"(?i)\bblocking\b")
+
+# specs-lint: the one-way rule. docs/ and source may not reference into
+# specs/ (which is disposable); a specs/ file may link out to them.
+SPECS_REF_RE = re.compile(r"(?<![\w.-])specs/")
+SPECS_LINT_SUFFIXES = frozenset((
+    ".md", ".markdown", ".rst", ".txt",
+    ".py", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx",
+    ".json", ".yml", ".yaml", ".toml", ".ini",
+    ".sh", ".bash", ".zsh", ".ps1",
+    ".rb", ".go", ".rs", ".java", ".kt", ".cs", ".php", ".sql",
+    ".html", ".htm", ".css", ".scss",
+))
+SPECS_LINT_SKIP_DIRS = frozenset((
+    SPEC_FOLDER, ".git", ".hg", ".svn", ".agents", "node_modules",
+    "__pycache__", ".ruff_cache", ".venv", ".venv-win", ".venv-linux",
+    ".venv-macos", "skill-workspaces", "behavior-workspaces",
+))
+
 
 def _is_noop_verify(cmd: str) -> bool:
     """True when a Verify command cannot fail (tautological oracle).
@@ -336,12 +366,35 @@ def _validate_tasks(tasks: list[dict], lane: str) -> list[str]:
     return violations
 
 
+def _validate_gate_labels(body: str) -> list[str]:
+    """Section-6 decision-plan lint: each '- **D<n>' bullet carries a label.
+
+    The label ('blocking' / 'non-blocking') is what makes the gate visible at
+    spec-creation time (B3.7). Gate-log entries are not decision bullets, so
+    they are unaffected.
+    """
+    violations: list[str] = []
+    for raw in body.splitlines():
+        stripped = raw.strip()
+        match = DECISION_LINE_RE.match(stripped)
+        if not match:
+            continue
+        if not GATE_LABEL_RE.search(stripped):
+            violations.append(
+                "section 6: decision "
+                + match.group(1)
+                + " carries no blocking/non-blocking label"
+            )
+    return violations
+
+
 def check_draft(draft: Path, lane: str) -> tuple[bool, list[int], list[str]]:
     """Return (passed, missing_sections, violations) for the lane's contract.
 
     'missing' is the lane's required '## N.' sections absent from the draft;
-    'violations' are section-5 Task DAG structure problems and static-oracle
-    lint findings. Both fail the gate.
+    'violations' are section-5 Task DAG structure problems, static-oracle
+    lint findings, and (Lane A) unlabeled section-6 decisions. Both fail the
+    gate.
     """
     try:
         text = read_text(draft)
@@ -352,6 +405,8 @@ def check_draft(draft: Path, lane: str) -> tuple[bool, list[int], list[str]]:
     violations = []
     if 5 in found:
         violations = _validate_tasks(_parse_tasks(_section_body(text, 5)), lane)
+    if lane == "A" and 6 in found:
+        violations += _validate_gate_labels(_section_body(text, 6))
     passed = not missing and not violations
     return passed, missing, violations
 
@@ -1480,6 +1535,46 @@ def _draft_tag_violations(draft: Path) -> list[str]:
     return _lint_tags(tags)
 
 
+def scan_specs_references(root: Path) -> list[tuple[str, int, str]]:
+    """Return (relative path, line number, line) for every inbound specs/ ref.
+
+    Files under ``specs/`` and vendored/ignored trees are skipped: the rule is
+    one-way (specs/ may link out; nothing durable may link in).
+    """
+    root = Path(root)
+    hits: list[tuple[str, int, str]] = []
+    if not root.is_dir():
+        return hits
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root)
+        if any(part in SPECS_LINT_SKIP_DIRS for part in rel.parts[:-1]):
+            continue
+        if path.suffix.lower() not in SPECS_LINT_SUFFIXES:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for lineno, line in enumerate(text.splitlines(), 1):
+            if SPECS_REF_RE.search(line):
+                hits.append((rel.as_posix(), lineno, line.strip()))
+    return hits
+
+
+def cmd_specs_lint(args: argparse.Namespace) -> int:
+    root = args.root if args.root is not None else find_root()
+    hits = scan_specs_references(root)
+    if not hits:
+        print("specs-ref: ok (docs/ and source reference nothing under specs/)")
+        return 0
+    for rel, lineno, line in hits:
+        print(f"specs-ref: {rel}:{lineno}: {line}")
+    print(f"specs-ref: {len(hits)} reference(s) into specs/ (specs/ is disposable)")
+    return 1
+
+
 def cmd_check(args: argparse.Namespace) -> int:
     passed, missing, struct_violations = check_draft(args.draft, args.lane)
     tag_violations = _tag_lint(_scan_docs(args.root))
@@ -1682,6 +1777,13 @@ def main() -> int:
     tag_ren_p.add_argument("--root", type=Path, default=None)
     tag_ren_p.set_defaults(func=_tag_rename)
 
+    specs_lint_p = sub.add_parser(
+        "specs-lint",
+        help="fail when docs/ or source references into specs/ (one-way rule)",
+    )
+    specs_lint_p.add_argument("--root", type=Path, default=None)
+    specs_lint_p.set_defaults(func=cmd_specs_lint)
+
     compile_p = sub.add_parser(
         "compile", help="compile: emit one task file per §5 task + approvals + stamp"
     )
@@ -1721,7 +1823,7 @@ def main() -> int:
     if args.command == "toc" and args.root is None:
         args.root = root_default
     if args.command in ("tag-list", "tag-suggest", "tag-lint", "tag-rename",
-                        "compile", "purge", "sync", "accept") and args.root is None:
+                        "compile", "purge", "sync", "accept", "specs-lint") and args.root is None:
         args.root = root_default
     if args.command == "topic" and args.docs_dir is None:
         args.docs_dir = root_default

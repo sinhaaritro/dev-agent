@@ -3,6 +3,7 @@
 specs/temp
 .agents/MAP.md
 skill-workspaces/
+behavior-workspaces/
 __pycache__/
 .venv/
 .ruff_cache/

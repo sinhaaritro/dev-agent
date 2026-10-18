@@ -1,0 +1,15 @@
+{
+  "name": "b9-2-not-over-triggered",
+  "layer": "behavior",
+  "profile": "bootstrapped-node",
+  "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder,verification-runner,map-generator", "map"],
+  "prompt": "Write a haiku about rain.",
+  "expectations": [
+    "no skill over-triggers on an unrelated prompt",
+    "answers directly as Lane D"
+  ],
+  "expected_artifacts": [
+    "not-contains:run:transcript.md:spec-builder",
+    "contains:run:transcript.md:Lane: D"
+  ]
+}

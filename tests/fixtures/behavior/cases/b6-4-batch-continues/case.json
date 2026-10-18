@@ -1,0 +1,14 @@
+{
+  "name": "b6-4-batch-continues",
+  "layer": "behavior",
+  "profile": "bootstrapped-node",
+  "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder,verification-runner"],
+  "prompt": "Implement both specs; if one escalates, keep going with the other.",
+  "expectations": [
+    "an escalated spec stops only its own branch",
+    "the batch continues with the remaining spec"
+  ],
+  "expected_artifacts": [
+    "contains:run:transcript.md:continues"
+  ]
+}

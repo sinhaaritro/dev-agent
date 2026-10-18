@@ -34,6 +34,8 @@ Rules in `.agents/rules/` always load at session start and are the baseline for 
   - Lanes C/D (fix/explain): skip docs entirely — no reads, no writes — unless the fix breaks an existing pattern, which is an escalation trigger (lane C/D cannot record a decision).
   - Every lane: no silent or unrequested topic-doc edits; a decision is a new `## Decision` entry with the next topic-global ID; `## Current State` is rewritten in place only as part of a recorded decision; a reversal is a revision (next ID, `--supersedes <old>`), never "delete + recreate"; after any topic-doc edit, rebuild the index (`generate_map.py sync-docs`).
 - Never commit `specs/temp/` contents; `specs/temp/gate-log.md` is append-only and never purged until a human reviews it.
+- **`specs/` is disposable — the dependency is one-way.** `specs/` is a working record, never a dependency: docs, code, config, and installed skills never reference into `specs/` (no `specs/…` paths or links), so deleting the whole folder breaks nothing. A `specs/` file may link out to `docs/` or source, never the reverse. Enforce with `python .agents/skills/spec-builder/scripts/promote_spec.py specs-lint`.
+- **Gate type is visible at plan time.** Every decision listed in a Lane-A plan's §6 carries an explicit `blocking` / `non-blocking` label before build — the human chooses once, and the build never reopens a settled menu.
 - **Never merge or push to the default/release branch** (`main` or a release branch) — merging is **human-only**, even for headless runs. A run commits on its own spec branch and stops; a human performs the merge.
 
 ## 4. Delegation

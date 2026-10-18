@@ -43,7 +43,8 @@ memory-aware development team.
   - `.agents/MAP.md` - generated skill index (gitignored)
 - `tools/` - maintainer engines, not skills. `tools/promote.py` mirrors `skills/`
   into `.agents/skills/`; `tools/skill_eval.py` runs the skill-creator golden
-  evals.
+  evals; `tools/behavior_eval.py` runs prompt-level behavior cases;
+  `tools/suite_report.py` diffs the unit suite against its golden baseline.
 - `specs/` - what to build: approved specs with a single `Status:` lifecycle
   (`DRAFTED -> COMPILED -> BUILDING -> BUILT -> REVIEWED -> COMPLETED`) plus
   `specs/temp/` (gitignored scratchpad)
@@ -62,6 +63,8 @@ memory-aware development team.
 - Test: `python -m unittest discover -s tests -v`
 - Lint: `python -m ruff check skills tools tests` (`.agents/skills/` is the derived mirror + vendored `skill-creator`; it is excluded from lint)
 - Skill sync (guard): `python tools/promote.py --check`
+- Suite drift report: `python tools/suite_report.py` (`--update` refreshes `tests/.suite-baseline.json`)
+- Behavior evals: `python tools/behavior_eval.py list|init|run|check --case <case>`
 
 ## Skill-creator evals (maintainers)
 

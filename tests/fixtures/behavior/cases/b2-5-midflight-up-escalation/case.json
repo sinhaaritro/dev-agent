@@ -1,0 +1,15 @@
+{
+  "name": "b2-5-midflight-up-escalation",
+  "layer": "behavior",
+  "profile": "bootstrapped-node",
+  "prompt": "Log the request path in src/app.js and also add a config flag for the log level.",
+  "expectations": [
+    "starts as a small Lane C edit",
+    "the config flag widens scope, so it up-escalates C -> B",
+    "escalation is announced, never asks permission to escalate"
+  ],
+  "expected_artifacts": [
+    "contains:run:transcript.md:Lane: B",
+    "contains:run:transcript.md:escalat"
+  ]
+}

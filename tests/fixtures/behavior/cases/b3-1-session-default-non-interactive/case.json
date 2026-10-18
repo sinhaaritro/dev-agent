@@ -1,0 +1,13 @@
+{
+  "name": "b3-1-session-default-non-interactive",
+  "layer": "behavior",
+  "profile": "bootstrapped-node",
+  "prompt": "Add a debug log line to src/app.js.",
+  "expectations": [
+    "with no signal, the session type defaults to Non-Interactive",
+    "the header records it"
+  ],
+  "expected_artifacts": [
+    "contains:run:transcript.md:Session: Non-Interactive"
+  ]
+}

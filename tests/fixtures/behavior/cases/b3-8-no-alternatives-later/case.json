@@ -1,0 +1,14 @@
+{
+  "name": "b3-8-no-alternatives-later",
+  "layer": "behavior",
+  "profile": "bootstrapped-node",
+  "prompt": "The cache storage decision was already settled as in-memory. Continue the build without reopening it.",
+  "expectations": [
+    "a settled non-blocking decision just states the default",
+    "no menu is reopened at build time"
+  ],
+  "expected_artifacts": [
+    "contains:run:transcript.md:default",
+    "not-contains:run:transcript.md:Which option"
+  ]
+}

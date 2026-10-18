@@ -1,0 +1,14 @@
+{
+  "name": "b6-3-signoff-pause",
+  "layer": "behavior",
+  "profile": "bootstrapped-node",
+  "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder,verification-runner"],
+  "prompt": "Run the unattended implementation of the signoff-on cache spec.",
+  "expectations": [
+    "signoff: on is the one spec-level human point",
+    "the unattended run pauses at 4.5 instead of finishing"
+  ],
+  "expected_artifacts": [
+    "contains:run:transcript.md:4.5"
+  ]
+}

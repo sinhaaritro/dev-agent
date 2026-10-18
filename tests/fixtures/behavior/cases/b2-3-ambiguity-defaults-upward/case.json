@@ -1,0 +1,13 @@
+{
+  "name": "b2-3-ambiguity-defaults-upward",
+  "layer": "behavior",
+  "profile": "bootstrapped-node",
+  "prompt": "Clean up the utils.",
+  "expectations": [
+    "the scope is ambiguous",
+    "ambiguity defaults upward to Lane C, not Lane D"
+  ],
+  "expected_artifacts": [
+    "contains:run:transcript.md:Lane: C"
+  ]
+}

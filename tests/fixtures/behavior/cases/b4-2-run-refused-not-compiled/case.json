@@ -1,0 +1,14 @@
+{
+  "name": "b4-2-run-refused-not-compiled",
+  "layer": "behavior",
+  "profile": "bootstrapped-node",
+  "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder"],
+  "prompt": "Implement the cache spec now.",
+  "expectations": [
+    "a run is refused on a spec that is not COMPILED",
+    "the refusal names the required status"
+  ],
+  "expected_artifacts": [
+    "contains:run:transcript.md:COMPILED"
+  ]
+}

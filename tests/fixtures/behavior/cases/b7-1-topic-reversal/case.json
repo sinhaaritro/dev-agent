@@ -1,0 +1,14 @@
+{
+  "name": "b7-1-topic-reversal",
+  "layer": "behavior",
+  "profile": "bootstrapped-node",
+  "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder"],
+  "prompt": "Revise the auth topic: move from session cookies to JWT.",
+  "expectations": [
+    "the plan reverses the topic's Current State",
+    "the reversal is surfaced as a Conflict Surface before approval"
+  ],
+  "expected_artifacts": [
+    "contains:run:transcript.md:Conflict Surface"
+  ]
+}

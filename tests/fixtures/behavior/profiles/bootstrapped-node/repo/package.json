@@ -1,0 +1,6 @@
+{
+  "name": "bootstrapped-node",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Behavior-eval profile: a small consumer repo before Dev Agent is installed."
+}

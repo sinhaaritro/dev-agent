@@ -1,0 +1,16 @@
+{
+  "name": "b1-1-cold-index",
+  "layer": "behavior",
+  "profile": "bootstrapped-node",
+  "setup": ["bootstrap", "skills:auto-router,phase-protocol,map-generator"],
+  "prompt": "Add a helper that formats ISO dates for display.",
+  "expectations": [
+    "runs the map generator first",
+    "re-reads .agents/MAP.md when it reports 'regenerated'",
+    "only then triages the request"
+  ],
+  "expected_artifacts": [
+    "contains:run:transcript.md:[STATUS:",
+    "exists:repo:.agents/MAP.md"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "b6-1-no-trigger-no-run",
+  "layer": "behavior",
+  "profile": "bootstrapped-node",
+  "prompt": "Nice weather today.",
+  "expectations": [
+    "no run trigger means no run starts",
+    "a plain answer is Lane D and creates no specs"
+  ],
+  "expected_artifacts": [
+    "contains:run:transcript.md:Lane: D",
+    "missing:repo:specs/"
+  ]
+}

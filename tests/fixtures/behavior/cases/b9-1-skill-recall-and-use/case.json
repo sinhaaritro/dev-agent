@@ -1,0 +1,15 @@
+{
+  "name": "b9-1-skill-recall-and-use",
+  "layer": "behavior",
+  "profile": "bootstrapped-node",
+  "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder,map-generator", "map"],
+  "prompt": "Create the spec for a cache layer.",
+  "expectations": [
+    "the skill is indexed, then recalled for this prompt",
+    "spec-builder's SKILL.md is opened and followed"
+  ],
+  "expected_artifacts": [
+    "contains:run:transcript.md:spec-builder",
+    "contains:run:transcript.md:[STATUS:"
+  ]
+}

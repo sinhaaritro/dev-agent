@@ -1,0 +1,15 @@
+{
+  "name": "b4-1-compile-then-stop",
+  "layer": "behavior",
+  "profile": "bootstrapped-node",
+  "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder"],
+  "prompt": "Plan and compile a cache layer spec. Stop after compile.",
+  "expectations": [
+    "promotes the draft and compiles task files",
+    "the spec-producing session stops; no build happens"
+  ],
+  "expected_artifacts": [
+    "exists:repo:specs/*-SPEC-*.md",
+    "missing:repo:src/cache.js"
+  ]
+}

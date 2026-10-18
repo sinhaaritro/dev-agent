@@ -1,0 +1,14 @@
+{
+  "name": "b4-3-vetting-gate-revision",
+  "layer": "behavior",
+  "profile": "bootstrapped-node",
+  "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder"],
+  "prompt": "Run the vetting gate on specs/001-SPEC-cache.md. Reject the plan: it has no rollback strategy.",
+  "expectations": [
+    "a failed vetting gate produces PLAN_REVISION_REQUIRED",
+    "the spec is not built"
+  ],
+  "expected_artifacts": [
+    "contains:run:transcript.md:PLAN_REVISION_REQUIRED"
+  ]
+}
