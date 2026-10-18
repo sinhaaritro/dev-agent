@@ -2,14 +2,18 @@
   "name": "b8-3-bootstrap-confirms-policy",
   "layer": "behavior",
   "profile": "bootstrapped-node",
-  "setup": [],
-  "prompt": "Bootstrap this repo into the Dev Agent framework.",
+  "setup": ["bootstrap", "skills:bootstrap"],
+  "prompt": "Re-run bootstrap on this repo and tell me exactly what the overwrite policy is.",
   "expectations": [
     "confirms the target and the overwrite policy",
-    "appends to .gitignore, never overwrites it"
+    "appends to .gitignore, never overwrites it (node_modules survives)"
   ],
   "expected_artifacts": [
     "contains:run:transcript.md:overwrite",
-    "contains:repo:.gitignore:specs/temp"
-  ]
+    "contains:repo:.gitignore:node_modules"
+  ],
+  "assertion_labels": {
+    "contains:run:transcript.md:overwrite": "explains the overwrite policy before acting",
+    "contains:repo:.gitignore:node_modules": "the existing .gitignore entry survived the install"
+  }
 }

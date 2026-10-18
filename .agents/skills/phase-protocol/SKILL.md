@@ -36,7 +36,7 @@ The process-governance meta-skill, run after auto-router's verdict. You drive ev
 2. **Enforce tool posture.** Planning, Compile, and Review are read-only — no file edits. Build allows edits within lane scope only (per auto-router's `references/lane-matrix.md`). Scope creep toward a higher lane stops the build: the router re-classifies and announces the escalation before you continue.
 3. **Resolve every gate through the engine.** Classify first: **blocking** (security, database schemas, public APIs, Lane A criteria) vs **non-blocking** (minor internal scope). Then run:
    `python .agents/skills/phase-protocol/scripts/resolve_gate.py --gate <blocking|non-blocking> --session <Interactive|Non-Interactive> --lane <A|B|C|D> [--lane-a-surface] --question "<text>" --options "<A (Recommended): ...; B: ...>"`
-   Autonomy is read from `AGENTS.md` (`autonomy_level`, supervised by default). Exit code is the contract: **0** proceed/resolved (non-blocking: state the default and proceed; autonomous: apply the Recommended Option, gate-log.md appended verbatim); **1** halt (interactive blocking: await the human's answer); **2** fail-closed (supervised non-interactive blocking, or any Lane-A surface gate — escalation.md written, no changes made). The Lane-A exception is encoded in the engine, never advisory: schema/auth/public-API gates always fail closed even under autonomous.
+   Autonomy is read from `AGENTS.md` (`autonomy_level`, supervised by default). Exit code is the contract: **0** proceed/resolved (non-blocking: state the default and proceed; autonomous: apply the Recommended Option and append an audit entry under the plan/spec `## 6. Gates` heading); **1** halt (interactive blocking: await the human's answer); **2** fail-closed (supervised non-interactive blocking, or any Lane-A surface gate — escalation.md written, no changes made). The Lane-A exception is encoded in the engine, never advisory: schema/auth/public-API gates always fail closed even under autonomous.
 4. **Emit the response schema in every response** — every reply carries the 5-tag header and the 4 blocks below, including Lane D answers and Lane C micro-edits.
 
 ## Output Contract
@@ -62,8 +62,8 @@ Set `Worktree:` to `main` unless a worktree is active. The `Status:` tag is alwa
 
 - **You own gates, autonomy, and the response schema exclusively.** Auto-router never halts for a gate and never applies autonomy policy; you never re-triage the lane.
 - **Never echo file bodies in chat.** Report every artifact by path plus a one-line summary; a plan/spec's §5 Tasks & Outcomes table and its `### Task N:` list stay in the file and are never reproduced in the response.
-- **Never decide a blocking gate by judgment.** The engine is the single decision path — its outcome (append-only gate-log entry, fail-closed escalation report) is the audit record.
-- **gate-log.md is append-only, never purged** until a human explicitly reviews it (system.md §3). Never truncate, edit, or delete it.
+- **Never decide a blocking gate by judgment.** The engine is the single decision path — its outcome (an append-only `## 6. Gates` entry, or a fail-closed escalation report) is the audit record.
+- **The gate log is append-only inside the plan/spec `## 6. Gates` section** (system.md §3). Never truncate, edit, or delete an entry; the plan carries its entries into the promoted spec, so purging the scratchpad is safe. Never create or maintain a separate `specs/temp/gate-log.md` — section 6 is the only gate log.
 - **Autonomous resolution never applies to Lane A surfaces** (database schema, authentication, public APIs) — those always fail closed, and a spec promoted under autonomous resolution keeps `Status: PROVISIONAL - AUTONOMOUS DEFAULT` until a human clears it.
 - **Non-blocking gates proceed immediately** in both session types: state the default, continue. Blocking gates in non-interactive supervised sessions end the run "blocked", never silently "completed".
 

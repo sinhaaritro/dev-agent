@@ -64,7 +64,7 @@ memory-aware development team.
 - Lint: `python -m ruff check skills tools tests` (`.agents/skills/` is the derived mirror + vendored `skill-creator`; it is excluded from lint)
 - Skill sync (guard): `python tools/promote.py --check`
 - Suite drift report: `python tools/suite_report.py` (`--update` refreshes `tests/.suite-baseline.json`)
-- Behavior evals: `python tools/behavior_eval.py list|init|run|check --case <case>`
+- Behavior evals: `python tools/behavior_eval.py list|init|run|check|batch|feedback` (`batch --skill <name>` runs N predefined prompts as one review: new_skill vs old_skill + Benchmark summary)
 
 ## Skill-creator evals (maintainers)
 

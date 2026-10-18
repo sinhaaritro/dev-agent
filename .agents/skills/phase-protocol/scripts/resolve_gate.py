@@ -17,9 +17,11 @@ Outcomes:
                 Exit 2.
     RESOLVED    blocking gate in a non-interactive session under
                 `autonomous` with no Lane-A surface: apply the
-                Recommended Option and append a verbatim audit entry to
-                specs/temp/gate-log.md (append-only, never truncated or
-                purged - system.md ss3). Exit 0.
+                Recommended Option and append an audit entry to the
+                active plan/spec `## 6. Gates` section (append-only).
+                The target is `--spec` if given, else the newest active
+                NNN-SPEC-*.md, else specs/temp/draft-plan.md. No target
+                => fail closed. Exit 0.
 
 Autonomy defaults to the `autonomy_level` frontmatter of AGENTS.md
 (supervised if absent); --autonomy overrides for testing.
@@ -40,8 +42,6 @@ import datetime
 import re
 import sys
 from pathlib import Path
-
-LINES = "-" * 40
 
 
 def find_root() -> Path:
@@ -83,21 +83,16 @@ def parse_options(options_text: str) -> list[str]:
 def gate_log_entry(
     question: str, option_lines: list[str], choice: str, autonomy: str
 ) -> str:
-    """Verbatim entry per the format declared in specs/temp/gate-log.md."""
+    """Markdown entry appended under the target's `## 6. Gates` heading."""
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     choice_line = option_lines[0] if choice == "A" and option_lines else choice
     lines = [
-        LINES,
-        f"## Entry {now}",
-        f"Question: {question}",
-        "Options:",
+        f"### Gate {now} — blocking ({autonomy}) — RESOLVED",
+        f"- Question: {question}",
+        "- Options: " + "; ".join(option_lines),
+        f"- Choice made: {choice} - {choice_line}",
+        f"- Autonomy mode: {autonomy}",
     ]
-    for opt in option_lines:
-        lines.append(f"- {opt}")
-    lines.append(f"Choice made: {choice} - {choice_line}")
-    lines.append("Autonomy mode: autonomous")
-    lines.append("Spec tagged provisional: no")
-    lines.append("")
     return "\n".join(lines)
 
 
@@ -161,37 +156,84 @@ def ensure_scratchpad_guard(root: Path, temp_dir: Path) -> None:
         inner.write_text("*\n!.gitignore\n", encoding="utf-8")
 
 
-def append_gate_log(root: Path, entry: str) -> None:
-    """Append-only write; creates specs/temp/gate-log.md with its header if missing."""
-    temp_dir = root / "specs" / "temp"
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    ensure_scratchpad_guard(root, temp_dir)
-    gate_log = temp_dir / "gate-log.md"
-    if not gate_log.is_file():
-        header = (
-            "# Gate Log - Autonomous Choice Audit Trail\n"
-            "\n"
-            "Append-only audit log for autonomous policy resolutions (phase-protocol "
-            "skill). This file is **never purged** by task-cleaner until a human "
-            "explicitly reviews it.\n"
-            "\n"
-            "Format for each entry:\n"
-            "\n"
-            "```text\n"
-            "---\n"
-            "## Entry YYYY-MM-DD HH:MM\n"
-            "Question: <the blocking question as posed>\n"
-            "Options:\n"
-            "- A (Recommended): <option A>\n"
-            "- B: <option B>\n"
-            "Choice made: <A | B> - <option summary>\n"
-            "Autonomy mode: autonomous\n"
-            "Spec tagged provisional: <yes/no + specs/<id> if promoted>\n"
-            "```\n"
-        )
-        gate_log.write_text(header, encoding="utf-8")
-    with gate_log.open("a", encoding="utf-8") as fh:
-        fh.write(entry)
+def append_gate_entry(target: Path, entry: str) -> None:
+    """Append `entry` inside the target's `## 6. Gates` section.
+
+    Creates the section when the plan/spec has none, and never touches text
+    outside it. The plan is promoted *with* its §6, so the entry survives into
+    the spec and is no longer scratchpad content.
+    """
+    text = target.read_text(encoding="utf-8-sig") if target.is_file() else ""
+    lines = text.splitlines()
+    start = None
+    for index, line in enumerate(lines):
+        if re.match(r"^##\s+6\.", line.strip()):
+            start = index
+            break
+
+    block = entry.splitlines()
+    if start is None:
+        new_text = text.rstrip("\n")
+        new_text += "\n\n## 6. Gates\n\n" + entry + "\n"
+    else:
+        end = len(lines)
+        for index in range(start + 1, len(lines)):
+            if re.match(r"^##\s", lines[index].strip()):
+                end = index
+                break
+        before = lines[:end]
+        after = lines[end:]
+        while before and not before[-1].strip():
+            before.pop()
+        merged = before + [""] + block + [""]
+        if after:
+            merged += after
+        new_text = "\n".join(merged).rstrip("\n") + "\n"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(new_text, encoding="utf-8")
+
+
+ACTIVE_STATUSES = (
+    "DRAFTED",
+    "COMPILED",
+    "BUILDING",
+    "REVIEWED",
+    "PLAN_REVISION_REQUIRED",
+)
+
+
+def find_active_spec(root: Path) -> Path | None:
+    """Newest specs/*-SPEC-*.md whose Status is still active."""
+    specs = sorted(
+        (root / "specs").glob("*-SPEC-*.md"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    for path in specs:
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        match = re.search(r"(?m)^Status:\s*([A-Z_]+)", text)
+        if match and match.group(1) in ACTIVE_STATUSES:
+            return path
+    return None
+
+
+def resolve_gate_target(root: Path, spec_arg: str | None) -> Path | None:
+    """Pick where the audit entry belongs: --spec, active spec, draft plan."""
+    if spec_arg:
+        target = Path(spec_arg)
+        if not target.is_absolute():
+            target = root / target
+        return target
+    active = find_active_spec(root)
+    if active is not None:
+        return active
+    draft = root / "specs" / "temp" / "draft-plan.md"
+    if draft.is_file():
+        return draft
+    return None
 
 
 def write_escalation(root: Path, report: str) -> None:
@@ -220,6 +262,11 @@ def main() -> int:
     parser.add_argument("--question", default="")
     parser.add_argument("--options", default="")
     parser.add_argument("--choice", default="A")
+    parser.add_argument(
+        "--spec",
+        default=None,
+        help="plan/spec to record the gate in (default: draft-plan, then active spec)",
+    )
     args = parser.parse_args()
 
     # Normalize case, then validate: an argparse error would exit 2, the
@@ -273,13 +320,20 @@ def main() -> int:
             else "supervised fail-closed policy"
         )
         print("FAIL-CLOSED: " + reason)
-        print("escalation.md written; gate-log.md untouched; no changes made")
+        print("escalation.md written; no gate log entry; no changes made")
         return 2
 
+    target = resolve_gate_target(root, args.spec)
+    if target is None:
+        print("FAIL-CLOSED: no plan or spec to record the autonomous gate in")
+        print(
+            "create specs/temp/draft-plan.md, promote the spec, or pass --spec <path>"
+        )
+        return 2
     entry = gate_log_entry(args.question, option_lines, args.choice, autonomy)
-    append_gate_log(root, entry)
+    append_gate_entry(target, entry)
     print(f"RESOLVED: autonomous default {args.choice} (Recommended) applied")
-    print("gate-log.md appended verbatim; no code changes made")
+    print(f"gate entry appended to {target} §6; no code changes made")
     return 0
 
 

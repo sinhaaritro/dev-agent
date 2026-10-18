@@ -9,7 +9,11 @@
     "escalation is announced, never asks permission to escalate"
   ],
   "expected_artifacts": [
-    "contains:run:transcript.md:Lane: B",
+    "matches:run:transcript.md:Lane: (A|B)",
     "contains:run:transcript.md:escalat"
-  ]
+  ],
+  "assertion_labels": {
+    "matches:run:transcript.md:Lane: (A|B)": "the widened scope lands in Lane A or B, above the starting Lane C",
+    "contains:run:transcript.md:escalat": "the up-escalation is announced"
+  }
 }

@@ -6,10 +6,16 @@
   "prompt": "Set up caching end to end without asking me; record any decision you take.",
   "expectations": [
     "unattended autonomous applies the Recommended option",
-    "the decision is recorded in the spec's Gates: section"
+    "the decision is recorded in the spec's section 6 Gates log"
   ],
   "expected_artifacts": [
     "contains:run:transcript.md:Recommended",
-    "contains:repo:specs/*:Gates:"
-  ]
+    "contains:repo:specs/*-SPEC-*.md:Choice made",
+    "missing:repo:specs/temp/gate-log.md"
+  ],
+  "assertion_labels": {
+    "contains:run:transcript.md:Recommended": "the answer applies the Recommended option",
+    "contains:repo:specs/*-SPEC-*.md:Choice made": "the autonomous decision is recorded in the spec's `## 6. Gates` section",
+    "missing:repo:specs/temp/gate-log.md": "no legacy scratchpad gate log is created"
+  }
 }

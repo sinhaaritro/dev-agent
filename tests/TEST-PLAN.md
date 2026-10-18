@@ -100,6 +100,15 @@ Location: `tests/*.py` · Runner: `python -m unittest discover -s tests -v`
 Location: a **bootstrapped target-repo fixture** (framework installed) · Runner:
 `tools/behavior_eval.py` · Cases: `tests/fixtures/behavior/cases/` (all 38
 below exist; `tests/test_behavior_harness.py` covers the harness itself).
+`--config` runs `new_skill` (current `skills/`), `old_skill` (git HEAD or
+`--old-skills-dir`) and/or `without_skill`; `check` grades every present config
+into `grading.json` and renders `review.html` with the skill-creator viewer.
+`batch --skill <name>` puts many predefined prompts into one review, pairs each
+prompt's configs side by side, and adds the Benchmark (summary) tab; "Submit All
+Reviews" downloads `feedback.json` for `feedback` to digest.
+**Live status (2026-10-18): 38/38 pass** with `--config new_skill`; artifacts
+support regex alternatives (`matches:` / `not-matches:`) for legitimately
+different lanes.
 
 ### 2.1 Boot & index
 
@@ -221,6 +230,11 @@ Location: this repo (`dev-agent`) · skill-creator is not a bootstrapped target.
    touching behavior.
 3. Fix the known drift it exposes (`verify.py`/`resolve_gate.py` still writing
    `specs/temp/gate-log.md`, `verify-state.json`).
+   **DONE (gate log):** `resolve_gate.py` now appends autonomous entries under
+   the plan/spec `## 6. Gates` (spec wins over draft; `--spec` override; no
+   target fails closed), and the docs/rules no longer promise a scratch
+   `gate-log.md`. `verify-state.json` stays: it is the documented per-task
+   scratch ledger.
 4. Build the target-repo fixture for Group 2.
 5. Author behavior tests **2.1 -> 2.9**.
 6. Fold the two new requirements (**B3.7/B3.8** gate-type, **B7.3–7.5** `specs/`

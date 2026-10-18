@@ -2,6 +2,7 @@
   "name": "b3-8-no-alternatives-later",
   "layer": "behavior",
   "profile": "bootstrapped-node",
+  "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder,verification-runner"],
   "prompt": "The cache storage decision was already settled as in-memory. Continue the build without reopening it.",
   "expectations": [
     "a settled non-blocking decision just states the default",

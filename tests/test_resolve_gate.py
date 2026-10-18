@@ -55,6 +55,20 @@ class GateBase(unittest.TestCase):
     def escalation(self):
         return self.root / "specs" / "temp" / "escalation.md"
 
+    def write_draft(self, with_gates: bool = True) -> Path:
+        path = self.root / "specs" / "temp" / "draft-plan.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        body = (
+            "# [SPEC-ID]: Gate sandbox\n\n"
+            "Status: DRAFTED | Date: 2026-10-18\n\n"
+            "## 1. Goal & Context\n\nx\n\n"
+        )
+        if with_gates:
+            body += "## 6. Gates\n\n_(empty)_\n\n"
+        body += "## 7. Verification Commands\n\n- Build Command: x\n"
+        path.write_text(body, encoding="utf-8")
+        return path
+
 
 class NonBlockingTest(GateBase):
     def test_non_blocking_proceeds_in_both_sessions(self):
@@ -110,7 +124,8 @@ class SupervisedFailClosedTest(GateBase):
 
 
 class AutonomousResolveTest(GateBase):
-    def test_blocking_noni_autonomous_resolves_and_logs(self):
+    def test_blocking_noni_autonomous_resolves_into_gates_section(self):
+        draft = self.write_draft()
         code, out = self.run_gate(
             "--gate",
             "blocking",
@@ -129,11 +144,77 @@ class AutonomousResolveTest(GateBase):
         )
         self.assertEqual(code, 0, out)
         self.assertIn("RESOLVED", out)
-        self.assertTrue(self.gate_log().exists())
-        text = self.gate_log().read_text(encoding="utf-8")
+
+        text = draft.read_text(encoding="utf-8")
         self.assertIn("which cache?", text)
         self.assertIn("Choice made: A", text)
+        gates = text.split("## 6. Gates", 1)[1].split("## 7.", 1)[0]
+        self.assertIn("Choice made: A", gates)
+        self.assertIn("### Gate ", gates)
+        self.assertFalse(self.gate_log().exists())
         self.assertFalse(self.escalation().exists())
+
+    def test_appends_a_second_entry_without_losing_the_first(self):
+        draft = self.write_draft()
+        args = (
+            "--gate", "blocking", "--session", "non-interactive", "--lane", "B",
+            "--autonomy", "autonomous", "--question", "q1", "--options", "A: x; B: y",
+        )
+        self.assertEqual(self.run_gate(*args)[0], 0)
+        self.assertEqual(self.run_gate(*args)[0], 0)
+        text = draft.read_text(encoding="utf-8")
+        self.assertEqual(text.count("### Gate "), 2)
+        self.assertEqual(text.count("Choice made:"), 2)
+        self.assertIn("## 7. Verification Commands", text)
+
+    def test_spec_argument_targets_that_file(self):
+        spec = self.root / "specs" / "001-SPEC-x.md"
+        spec.parent.mkdir(parents=True, exist_ok=True)
+        spec.write_text(
+            "# Spec\n\nStatus: COMPILED\n\n## 6. Gates\n\n_(empty)_\n\n## 7. V\n",
+            encoding="utf-8",
+        )
+        code, out = self.run_gate(
+            "--gate", "blocking", "--session", "non-interactive", "--lane", "B",
+            "--autonomy", "autonomous", "--question", "pick", "--options", "A: x; B: y",
+            "--spec", "specs/001-SPEC-x.md",
+        )
+        self.assertEqual(code, 0, out)
+        self.assertIn("Choice made: A", spec.read_text(encoding="utf-8"))
+        self.assertFalse((self.root / "specs" / "temp" / "draft-plan.md").exists())
+
+    def test_active_spec_wins_over_a_stale_draft(self):
+        self.write_draft()
+        spec = self.root / "specs" / "001-SPEC-x.md"
+        spec.write_text("# Spec\n\nStatus: BUILDING\n\n## 6. Gates\n", encoding="utf-8")
+        code, out = self.run_gate(
+            "--gate", "blocking", "--session", "non-interactive", "--lane", "B",
+            "--autonomy", "autonomous", "--question", "q", "--options", "A: x; B: y",
+        )
+        self.assertEqual(code, 0, out)
+        self.assertIn("Choice made: A", spec.read_text(encoding="utf-8"))
+        draft = self.root / "specs" / "temp" / "draft-plan.md"
+        self.assertNotIn("Choice made", draft.read_text(encoding="utf-8"))
+
+    def test_creates_the_gates_section_when_missing(self):
+        draft = self.write_draft(with_gates=False)
+        code, out = self.run_gate(
+            "--gate", "blocking", "--session", "non-interactive", "--lane", "B",
+            "--autonomy", "autonomous", "--question", "q", "--options", "A: x; B: y",
+        )
+        self.assertEqual(code, 0, out)
+        text = draft.read_text(encoding="utf-8")
+        self.assertIn("## 6. Gates", text)
+        self.assertIn("Choice made: A", text)
+
+    def test_no_target_fails_closed_without_scratch_log(self):
+        code, out = self.run_gate(
+            "--gate", "blocking", "--session", "non-interactive", "--lane", "B",
+            "--autonomy", "autonomous", "--question", "q", "--options", "A: x; B: y",
+        )
+        self.assertEqual(code, 2, out)
+        self.assertIn("no plan or spec", out)
+        self.assertFalse(self.gate_log().exists())
 
     def test_lane_a_surface_never_resolves_autonomously(self):
         # Surface via --lane-a-surface ...
@@ -178,6 +259,7 @@ class AutonomyDefaultTest(GateBase):
             "# Test\nautonomy_level: autonomous\n", encoding="utf-8"
         )
         self.assertEqual(resolve_gate.read_autonomy(self.root), "autonomous")
+        self.write_draft()
         code, _ = self.run_gate(
             "--gate", "blocking", "--session", "non-interactive", "--lane", "B"
         )

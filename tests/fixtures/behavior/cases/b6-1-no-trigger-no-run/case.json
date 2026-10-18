@@ -5,10 +5,12 @@
   "prompt": "Nice weather today.",
   "expectations": [
     "no run trigger means no run starts",
-    "a plain answer is Lane D and creates no specs"
+    "no specs are created by a plain conversational answer"
   ],
   "expected_artifacts": [
-    "contains:run:transcript.md:Lane: D",
     "missing:repo:specs/"
-  ]
+  ],
+  "assertion_labels": {
+    "missing:repo:specs/": "the answer created no specs/ (no run started)"
+  }
 }

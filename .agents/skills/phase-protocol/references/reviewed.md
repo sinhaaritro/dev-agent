@@ -28,5 +28,5 @@ The spec was promoted at approval; this step finalizes it, not births it.
 
 1. Summarize outcome + re-measured verification evidence in the final response (fresh re-run per section 1): each task's `Verify` command, the matched `Expect` marker, and attempt count — not memory of what ran. If any task is `FAILED`/`ABANDON`ed or unmet, block 4 states the halt/hand-back, never a "done".
 2. The Sign-off gate (when `signoff: on`) is the human's "say ok" on the reviewed result; pass -> commit on the spec's branch -> `Status: COMPLETED` (commit is terminal; see building.md §3), block -> `REVIEW_REVISION_REQUIRED` -> re-build. An unresolvable failure parks the spec as `ESCALATED` (not `ABORTED`) and the batch continues to the next spec.
-3. Call `task-cleaner` when the human accepts the task (purges `specs/temp/`; preserves unreviewed `gate-log.md`).
+3. Call `task-cleaner` when the human accepts the task (purges `specs/temp/`; gate entries live in the spec's `## 6. Gates`).
 4. Unresolved issues -> route back to Plan/Build; never silently downgrade the lane.

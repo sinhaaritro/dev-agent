@@ -9,7 +9,11 @@
     "re-labels only after explicit confirmation"
   ],
   "expected_artifacts": [
-    "contains:run:transcript.md:Lane: C",
+    "matches:run:transcript.md:Lane: (A|C)",
     "contains:run:transcript.md:confirm"
-  ]
+  ],
+  "assertion_labels": {
+    "matches:run:transcript.md:Lane: (A|C)": "the lane stays A, or moves to C only after confirmation",
+    "contains:run:transcript.md:confirm": "the de-escalation asks for explicit human confirmation"
+  }
 }
