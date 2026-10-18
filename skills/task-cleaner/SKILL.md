@@ -47,8 +47,3 @@ You reset the ephemeral scratchpad (`specs/temp/`) when a task is accepted or co
 - **`--temp-dir` is for tests/evals only** — real purges target `specs/temp/`; sandbox runs must never point at the real scratchpad.
 - **Purged on acceptance, by design:** draft-stage scratch (`draft-plan.md`, `active-task.md`) is ephemeral — a closed task's draft is gone with it; the durable record is the spec + task files + report.
 - The trigger belongs to review, but the skill is on-demand: any explicit cleanup request also loads it.
-
-## Deep reference (context budget)
-
-The "why" lives in `docs/`, not here — load on demand, never at session start:
-- **lifecycle** — why the scratchpad is ephemeral vs the durable spec + task files (the compile save point) → `docs/lifecycle.md`

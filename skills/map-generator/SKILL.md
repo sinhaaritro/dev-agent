@@ -38,7 +38,7 @@ You keep `.agents/MAP.md` current — the single table-format index of all skill
    `.venv/bin/python .agents/skills/map-generator/scripts/generate_map.py --force`
    (Use after manual MAP.md edits — which are forbidden; the file is auto-generated.)
 
-## Output Format
+## Output Contract
 
 MAP.md is a flat table-format index — all skills treated as equal:
 
@@ -49,12 +49,9 @@ MAP.md is a flat table-format index — all skills treated as equal:
 
 The output is **ASCII-only by design**: the engine maps common Unicode punctuation (em/en dashes, smart quotes, ellipsis, arrows) to ASCII and drops emoji, keeping the index clean in Windows-1252-viewing renderers. Frontmatter follows the canonical SKILL.md contract: required `name`, `description`, `tags`, and a nested `metadata` block (`version`, `author`); optional `scope: always` (on-demand is the default); `requires` for personas; `trigger_tags` is a legacy fallback for `tags`.
 
-## Freshness Check
-
-Freshness is the **snapshot hash**: the engine recomputes a content hash over every SKILL.md and compares it to the `Snapshot:` line. A mismatch means a skill changed (or appeared) and triggers a rebuild. This is mtime-independent — it catches skills copied in with old timestamps (git restore, worktree checkout, clock skew) that a pure timestamp check would miss. Without a `Snapshot:` line (pre-snapshot index), the engine falls back to mtime comparison.
-
 ## Notes
 
+- **Freshness is a content hash, not a timestamp.** The engine hashes every SKILL.md and compares it to the `Snapshot:` line, so skills copied in with old mtimes (git restore, worktree checkout, clock skew) still trigger a rebuild. Without a `Snapshot:` line the engine falls back to mtime.
 - Never write MAP.md when fresh — the no-arg run stays idempotent (second run: `MAP.md is fresh`).
 - The engine is stdlib-only Python; no third-party imports without a spec update.
 - Fix wrong index metadata by editing the skill's SKILL.md frontmatter and regenerating — never hand-edit MAP.md.

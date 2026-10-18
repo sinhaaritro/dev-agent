@@ -1,6 +1,6 @@
 ---
 name: auto-router
-description: Intent triage & lane taxonomy engine - classifies every request into a lane, detects session type, monitors scope escalation
+description: Intent triage & lane taxonomy engine - classifies every request into a lane (D/C/B/A), detects the session type, resolves the run contract, and monitors scope escalation. Use at every session start and on every incoming prompt, when a task must be scoped or re-scoped, when work grows past its lane, or when a run contract (targets / mode / stop point) must be resolved.
 tags:
   - triage
   - lane
@@ -45,9 +45,3 @@ Exactly: **Lane**, **Session**, **candidate skills**, optional **escalation flag
 - **Escalation is announce-only upward:** reclassify, announce (never ask permission), phase-protocol continues under the new lane. Never silently de-escalate.
 - **Skill discovery goes through `.agents/MAP.md` only** — never hardcode skill names; re-read the index whenever `map-generator` reports `regenerated`.
 - **Never match against a stale index:** if MAP.md is missing or `regenerated` was reported, refresh it first (system.md step 1) before triaging.
-
-## Deep reference (context budget)
-
-The "why" lives in `docs/`, not here — load on demand, never at session start:
-- **run contract** — explicit trigger, mode default (Option A), stop point, opt-in cost gate, unattended pause → `docs/run-contract.md`
-- **flow** — how lane/verdict feeds the build state machine → `docs/flow.md`

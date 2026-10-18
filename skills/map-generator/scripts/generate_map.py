@@ -244,8 +244,8 @@ def _topic_tags(path: Path) -> list[str]:
 def _reserved_name(name: str) -> bool:
     """Names under docs/ that are not topic docs.
 
-    Only the generated index itself is skipped - the reference series
-    (001..007) and every other docs/ file/folder are legitimate topics and
+    Only the generated index itself is skipped - the numbered series
+    (NNN-*) and every other docs/ file/folder are legitimate topics and
     are indexed.
     """
     return name == "_topics.md"

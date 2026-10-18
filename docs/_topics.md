@@ -94,14 +94,6 @@
     - 3. Integration points (where this would plug in)
     - 4. What a future skill would own
 
-## README.md
-
-  path: docs/README.md
-  covers: (none)
-  sections:
-    - Status board
-    - Frontmatter conventions
-
 ## branching.md
 
   path: docs/branching.md
@@ -136,6 +128,14 @@
   sections:
     - Current State
     - Decision Log
+
+## README.md
+
+  path: docs/README.md
+  covers: (none)
+  sections:
+    - Status board
+    - Frontmatter conventions
 
 ## run-contract.md
 

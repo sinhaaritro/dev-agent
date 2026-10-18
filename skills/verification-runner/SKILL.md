@@ -61,9 +61,3 @@ You execute the plan's verification commands and enforce the per-task attempt li
 - **Interactive commands are refused** (`--interactive`, `--watch`, `--live-reload`) — verification is non-interactive by design.
 - **escalation.md is the audit record** of a halted task: verbatim logs, hypothesis, remediation options, hand-back line — engine-generated so every report is reviewable and truthful.
 - Framework pages extend this skill per-project: add a page when a project needs one; never hardcode a stack into this file.
-
-## Deep reference (context budget)
-
-The "why" lives in `docs/`, not here — load on demand, never at session start:
-- **verification** — repo-root resolution, the executor-free fingerprint, content-hash evidence, derived `MET`/`STALE`, the 9-point doctor, per-spec reports → `docs/verification.md`
-- **flow** — where verify sits in the build/review state machine → `docs/flow.md`

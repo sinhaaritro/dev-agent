@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-18T13:31:05Z",
+  "generated": "2026-10-18T14:13:17Z",
   "tests": {
     "test_behavior_harness.ArtifactDslTest.test_bad_regex_fails_the_check": "pass",
     "test_behavior_harness.ArtifactDslTest.test_case_assertion_labels_override_the_default_wording": "pass",
@@ -139,6 +139,9 @@
     "test_resolve_gate.UsageTest.test_invalid_gate_argument_exits": "pass",
     "test_resolve_gate.UsageTest.test_invalid_lane_argument_exits": "pass",
     "test_resolve_gate.UsageTest.test_parse_options_splits_and_defaults": "pass",
+    "test_shipping_paths.ShippingPathsTest.test_guard_detects_known_violations": "pass",
+    "test_shipping_paths.ShippingPathsTest.test_no_dead_deep_reference_sections": "pass",
+    "test_shipping_paths.ShippingPathsTest.test_shipped_files_reference_no_maintainer_paths": "pass",
     "test_shipping_set.ShippingSetTest.test_default_list_is_exactly_the_product": "pass",
     "test_shipping_set.ShippingSetTest.test_internal_reveal_adds_more": "pass",
     "test_skill_creator_contract.AggregateBenchmarkTest.test_builds_with_skill_and_baseline_summary": "pass",

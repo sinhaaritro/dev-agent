@@ -48,9 +48,9 @@ memory-aware development team.
 - `specs/` - what to build: approved specs with a single `Status:` lifecycle
   (`DRAFTED -> COMPILED -> BUILDING -> BUILT -> REVIEWED -> COMPLETED`) plus
   `specs/temp/` (gitignored scratchpad)
-- `docs/` - what is + why we chose: reference series `001..007`, topic docs
-  (per-subsystem decision log; AI index at `docs/_topics.md`); human landing page
-  at `docs/README.md`
+- `docs/` - what is + why we chose: living numbered series `docs/NNN-<slug>.md`,
+  topic docs (per-subsystem decision log; AI index at `docs/_topics.md`); human
+  landing page at `docs/README.md`
 - `tests/` - test suite
 
 > The consumer template lives at `skills/bootstrap/reference/AGENTS.md` - that is

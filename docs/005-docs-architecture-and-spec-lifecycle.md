@@ -17,7 +17,7 @@ generation, topic decisions, tag governance, TOC), `map-generator`
 
 | Location | Role | Lifecycle |
 | :--- | :--- | :--- |
-| `docs/001..007-*.md` (reference series) | What is — living series; no lifecycle | Living; optional `version_pin` / `fallback_pin` |
+| `docs/NNN-<slug>.md` (numbered series) | What is — living series; no lifecycle | Living; optional `version_pin` / `fallback_pin` |
 | `docs/<name>.md` or `docs/<name>/` (topic docs) | Why we chose — one livedoc per subsystem: current state + decision history | Living; decisions are appended and revised in place |
 | `specs/` | What to build | A single `Status:` receipt per spec: `DRAFTED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED` (failure states `ESCALATED` / `ABORTED`; gate-block states `PLAN_REVISION_REQUIRED` / `REVIEW_REVISION_REQUIRED`) |
 | `specs/temp/` | Ephemeral working memory | Gitignored (`*` except `.gitignore`); purged by `task-cleaner` (default preserves `.gitignore` only) |
@@ -110,7 +110,7 @@ python .agents/skills/map-generator/scripts/generate_map.py sync-docs
 - **Topic docs:** `docs/<name>.md` (or `docs/<name>/`), plain lowercase, no
   numeric prefix (kebab for multi-word: `docs/data-storage.md`). The name is
    the decision-ID namespace. Reserved names a topic may not use: the
-   `001..007-` numbered reference series, `README.md`, and anything
+   `NNN-` prefix when a numbered series is kept, `README.md`, and anything
    underscore-prefixed (generated files, e.g. `_topics.md`).
 - **`specs/`:** a **group** of companions sharing one `NNN` prefix:
   `NNN-SPEC-<slug>.md` (the spec), `NNN-TASK-<NN>-<slug>.md` (one per §5 task),
@@ -121,8 +121,9 @@ python .agents/skills/map-generator/scripts/generate_map.py sync-docs
   deeper `NNN-<letter><NN>-<letter><NN>` (e.g. `001-A01-B01`); a sub-ID child
   compiles into the parent group (the engine strips the `NNN-LNN:` title
   prefix).
-- **`docs/001..007-*.md` (reference series):** `NNN-<slug>.md` — this
-  numbered series; living, not lifecycle-tracked.
+- **`docs/NNN-<slug>.md` (numbered series, when kept):** `NNN-<slug>.md` — a
+  numbered series; living, not lifecycle-tracked. Optional: a project that keeps
+  no reference series simply has topic docs.
 
 **Numbering is engine-derived.** `promote_spec.py` computes the next `NNN` by
 scanning the specs folder, and the next `<TOPIC>-D<nn>` by scanning every
@@ -131,7 +132,7 @@ committed record.
 
 ## 3. Tags contract
 
-Every committed doc in `specs/` and the reference series (`docs/001..007`) —
+Every committed doc in `specs/` and any numbered-series doc (`docs/NNN-*.md`) —
 and every topic doc —
 carries a `tags` field in its **YAML frontmatter block** at the top of the
 file:
@@ -261,7 +262,7 @@ the markers is safe from regeneration.
  derives `sections` (file topics) / `files` (folder topics) from headings, and
  writes `docs/_topics.md`. The agent runs it after editing a topic doc; a
  human runs it after hand edits. Every docs/ file and folder is a topic - the
- reference series (001..007) included - and the only thing skipped is the
+ numbered series (NNN-*) included - and the only thing skipped is the
  generated `_topics.md` itself (it would otherwise index itself).
 
 ## 7. Scratchpad lifecycle & garbage collection

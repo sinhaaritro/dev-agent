@@ -6,7 +6,7 @@ Human + AI shared space: the committed knowledge of this repository.
 | :--- | :--- | :--- |
 | `specs/` | What to build — permanent functional & technical specs with a single `Status:` lifecycle (`DRAFTED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED`) | `NNN-<slug>.md`, sub-IDs `NNN-<letter><NN>` (spec 010 D3) |
 | `specs/temp/` | Ephemeral working memory (gitignored; purged by task-cleaner) | none |
-| `docs/001..007-*.md` (reference series) | What is — living, lookup, authoritative docs (no lifecycle) | `NNN-<slug>.md` |
+| `docs/NNN-<slug>.md` (numbered series) | What is — living, lookup, authoritative docs (no lifecycle) | `NNN-<slug>.md` |
 | `docs/<name>.md` (topic docs) | Why we chose — Topic-Based decision docs: one livedoc per subsystem (`## Current State` + `## Decision Log`), revised in place | `<name>.md` or `<name>/` (plain lowercase kebab; decision IDs `<TOPIC>-D<nn>`) |
 
 Topic docs live directly under `docs/`, one per subsystem. The AI routing

@@ -1,6 +1,6 @@
 ---
 name: phase-protocol
-description: Meta-skill driving the single Status lifecycle DRAFTED -> COMPILED -> BUILDING -> BUILT -> REVIEWED -> COMPLETED (Vetting and Sign-off gates), Socratic gates, autonomy policy, and the 4-Block response schema
+description: Process governance meta-skill - drives the single Status lifecycle DRAFTED -> COMPILED -> BUILDING -> BUILT -> REVIEWED -> COMPLETED through the Vetting and Sign-off gates, resolves Socratic gates via the autonomy policy, and emits the 5-tag header with the 4-Block response schema. Use on every session and every prompt, at every status transition, and whenever a decision must be gated (blocking or non-blocking).
 tags:
   - status
   - lifecycle
@@ -66,13 +66,3 @@ Set `Worktree:` to `main` unless a worktree is active. The `Status:` tag is alwa
 - **The gate log is append-only inside the plan/spec `## 6. Gates` section** (system.md §3). Never truncate, edit, or delete an entry; the plan carries its entries into the promoted spec, so purging the scratchpad is safe. Never create or maintain a separate `specs/temp/gate-log.md` — section 6 is the only gate log.
 - **Autonomous resolution never applies to Lane A surfaces** (database schema, authentication, public APIs) — those always fail closed, and a spec promoted under autonomous resolution keeps `Status: PROVISIONAL - AUTONOMOUS DEFAULT` until a human clears it.
 - **Non-blocking gates proceed immediately** in both session types: state the default, continue. Blocking gates in non-interactive supervised sessions end the run "blocked", never silently "completed".
-
-## Deep reference (context budget)
-
-The "why" lives in `docs/`, not here — load a topic doc on demand, never at session start:
-- **lifecycle** — the single `Status:` receipt, status save points, `ESCALATED` vs `ABORTED` → `docs/lifecycle.md`
-- **run contract** — explicit trigger, mode default (Option A), stop point, opt-in cost gate → `docs/run-contract.md`
-- **branch & commit** — branch-per-spec, commit-terminal, never-merge guardrail → `docs/branching.md`
-- **task files** — the 1:1 coder contract, subtasks vs task verify → `docs/task-files.md`
-- **verification** — fingerprint, content-hash evidence, derived status, doctor → `docs/verification.md`
-- **flow diagrams** — master state machine + build/review/multi-spec flows → `docs/flow.md`

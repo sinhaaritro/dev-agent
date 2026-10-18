@@ -5,7 +5,7 @@ tags: [framework, overview, architecture, orchestration]
 # 001 - Framework Overview
 
 What the Dev Agent framework is, what it guarantees, and how a session boots.
-This is the entry point to the reference series 001-007; each later doc covers
+This is the entry point to the reference series; each later doc covers
 one aspect in depth and names the skills it documents.
 
 ## 1. What it is
@@ -51,7 +51,7 @@ It is:
 │
 ├── docs/                        # HUMAN + AI SHARED SPACE (committed)
 │   ├── README.md                # Landing page with generated Index block
-│   ├── 001..007-*.md            # Reference series — "what is"; living, no lifecycle
+│   ├── NNN-<slug>.md            # Reference series — "what is"; living, no lifecycle
 │   ├── <name>.md or <name>/     # Why we chose — topic docs: one livedoc per subsystem
 │   │                            #   (## Current State + ## Decision Log)
 │   └── _topics.md               # Generated AI routing index for the topic docs (sync-docs)

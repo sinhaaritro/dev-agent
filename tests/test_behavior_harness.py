@@ -33,7 +33,7 @@ class CaseCatalogTest(unittest.TestCase):
     def test_every_case_loads_and_is_well_formed(self):
         names = behavior_eval.list_cases(FIXTURES)
         self.assertTrue(names, "no behavior cases found")
-        self.assertEqual(len(names), 38, "case count drifted from the test plan")
+        self.assertEqual(len(names), 39, "case count drifted from the test plan")
         for name in names:
             case = behavior_eval.Case.load(FIXTURES, name)
             self.assertEqual(case.name, name)
