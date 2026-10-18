@@ -1,6 +1,6 @@
 """U2.6 - the shipped consumer rulebook carries the new guardrails.
 
-The bootstrap seed at `skills/bootstrap/reference/rules/system.md` is what
+The bootstrap seed at `skills/bootstrap/reference/rules/dev-agent-framework.md` is what
 installs into *other* repos, so the `specs/` one-way rule and the plan-time
 gate labels must live there, not only in this repo's own `.agents/` copy.
 """
@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-SHIPPED_RULES = REPO / "skills" / "bootstrap" / "reference" / "rules" / "system.md"
+SHIPPED_RULES = REPO / "skills" / "bootstrap" / "reference" / "rules" / "dev-agent-framework.md"
 
 
 class ConsumerRulebookTest(unittest.TestCase):

@@ -1,6 +1,6 @@
 ---
 name: bootstrap
-description: Project scaffolder - installs the Dev Agent framework (AGENTS.md and .agents/rules/system.md) into a target repository from the skill's reference/ seed files. Use when a new project should adopt the framework, the user asks to bootstrap or set up a repo, AGENTS.md or .agents/rules/ is missing in a target repo, or the framework install is re-run after a broken setup.
+description: Project scaffolder - installs the Dev Agent framework (AGENTS.md and .agents/rules/dev-agent-framework.md) into a target repository from the skill's reference/ seed files. Use when a new project should adopt the framework, the user asks to bootstrap or set up a repo, AGENTS.md or .agents/rules/ is missing in a target repo, or the framework install is re-run after a broken setup.
 tags:
   - bootstrap
   - scaffold
@@ -22,12 +22,14 @@ You install the Dev Agent framework into a target repository by copying the cano
 | :--- | :--- |
 | `reference/AGENTS.md` | `AGENTS.md` (repo root) |
 | `reference/.gitignore` | `.gitignore` (repo root) |
-| `reference/rules/system.md` | `.agents/rules/system.md` |
+| `reference/rules/dev-agent-framework.md` | `.agents/rules/dev-agent-framework.md` |
 | `reference/agents/coder.md` | `.agents/agents/coder.md` |
 | `reference/.cursorrules` | `.cursorrules` (repo root) |
 | `reference/.windsurfrules` | `.windsurfrules` (repo root) |
 
-The two dotfiles are IDE pointer files — one line each, telling Cursor and Windsurf to load `.agents/rules/system.md` as the gateway.
+The two dotfiles are IDE pointer files — one line each, telling Cursor and Windsurf to load `.agents/rules/dev-agent-framework.md` as the gateway.
+
+Only the framework's own contract is seeded. A project that wants its own rules keeps them in a `SYSTEM.md` of its own — the framework neither creates nor manages that file.
 
 `reference/agents/coder.md` is the **portable coder subagent contract** (role, input = the task file only, fetch context on demand, search/replace blocks for large files, run the task's verification, never commit / never plan / never expand scope / never touch files it does not Own, sole writer of its own task file, the trivial direct-fix exception). Bootstrap seeds it so every target repo has the contract the build status's coder dispatch relies on.
 
@@ -37,7 +39,7 @@ Copy mechanics belong to `scripts/bootstrap.py`; you decide WHERE the target rep
 
 - A new (or existing) project should adopt the Dev Agent framework.
 - The user asks to "bootstrap", "set up", or "install the framework" in a repo.
-- A target repo is missing `AGENTS.md` or `.agents/rules/system.md` and the agent needs the gateway rulebook to function.
+- A target repo is missing `AGENTS.md` or `.agents/rules/dev-agent-framework.md` and the agent needs the gateway rulebook to function.
 - Re-running a previous install after a broken or partial setup.
 
 ## Instructions
@@ -50,7 +52,7 @@ Copy mechanics belong to `scripts/bootstrap.py`; you decide WHERE the target rep
 4. **Run the install:**
    `python <this-skill>/scripts/bootstrap.py --target <abs-path>`
    Success contract: one line per file (`installed:` / `updated:` / `unchanged:`) followed by `bootstrap complete: N installed, M updated, K unchanged`.
-5. **Post-install.** The target now has the gateway rulebook and the coder contract. Tell the human the next step: open the target in their AI editor (the agent reads `AGENTS.md` and `.agents/rules/system.md` on startup). If the target should also get the other core skills, install them via `npx skills add` per the target's AGENTS.md.
+5. **Post-install.** The target now has the gateway rulebook and the coder contract. Tell the human the next step: open the target in their AI editor (the agent reads `AGENTS.md` and `.agents/rules/dev-agent-framework.md` on startup). If the target should also get the other core skills, install them via `npx skills add` per the target's AGENTS.md. A project that needs its own rules creates its own `SYSTEM.md` — the framework does not seed or manage it.
 6. **Adapter notes.** The seeded `.agents/agents/coder.md` is the *behavioral* contract only — it is harness-agnostic. Each harness adds a **thin adapter** on top: bind a small (≈32k-class) model and a narrow permission surface to that file, and load it as the coder subagent's system prompt. The adapter is per-harness (it lives in the harness's own subagent mechanism), so bootstrap does not seed it; remind the human to point their harness's coder at `.agents/agents/coder.md`.
 
 ## Output Contract

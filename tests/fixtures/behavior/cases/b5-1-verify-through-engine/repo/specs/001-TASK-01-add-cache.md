@@ -2,7 +2,7 @@
 
 ## Role & rules
 
-Coder under `.agents/rules/system.md`.
+Coder under `.agents/rules/dev-agent-framework.md`.
 
 ## Project overview
 

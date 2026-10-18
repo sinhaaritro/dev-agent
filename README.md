@@ -55,31 +55,9 @@ npx skills update          # update to latest
 npx skills remove <name>   # remove a skill
 ```
 
-### 2. Set Up an Existing Repo
+### 2. Start Coding
 
-To adopt the framework in a repo you already have, install the gateway files — `AGENTS.md`, `.agents/rules/system.md`, plus the IDE pointers `.cursorrules` / `.windsurfrules`:
-
-**Option A — copy the files** (from a clone of this repo):
-
-```bash
-cp <dev-agent>/AGENTS.md                 /path/to/your/repo/AGENTS.md
-mkdir -p /path/to/your/repo/.agents/rules
-cp <dev-agent>/.agents/rules/system.md   /path/to/your/repo/.agents/rules/system.md
-cp <dev-agent>/.cursorrules              /path/to/your/repo/.cursorrules
-cp <dev-agent>/.windsurfrules            /path/to/your/repo/.windsurfrules
-```
-
-**Option B — the bootstrap skill** (from a clone of this repo, or a globally installed copy):
-
-```bash
-python .agents/skills/bootstrap/scripts/bootstrap.py --target .
-```
-
-Preview first with `--dry-run`; the engine reports each file as `new:` / `ok:` / `overwrite:`, is idempotent, and refuses to run against this framework's own source tree.
-
-### 3. Start Coding
-
-Open the project in your AI-powered editor. The agent reads `AGENTS.md` and `.agents/rules/system.md` on startup, auto-loads the `scope: always` skills, and routes every request through the lane taxonomy.
+Open the project in your AI-powered editor. The agent reads `AGENTS.md` and `.agents/rules/dev-agent-framework.md` on startup, auto-loads the `scope: always` skills, and routes every request through the lane taxonomy.
 
 ---
 
@@ -93,10 +71,10 @@ users install. Everything under `.agents/` is this repo's own workspace and is
 dev-agent/
 ├── AGENTS.md                   # Maintainer briefing (entry point)
 ├── skills.sh.json              # skills.sh catalog groupings
-├── .cursorrules                # Cursor IDE → points to .agents/rules/system.md
-├── .windsurfrules              # Windsurf IDE → points to .agents/rules/system.md
+├── .cursorrules                # Cursor IDE → points to .agents/rules/dev-agent-framework.md
+├── .windsurfrules              # Windsurf IDE → points to .agents/rules/dev-agent-framework.md
 ├── skills/                     # PRODUCT — installable skills (this is what ships)
-│   ├── bootstrap/              #   installs AGENTS.md + system.md into a target repo
+│   ├── bootstrap/              #   installs AGENTS.md + dev-agent-framework.md into a target repo
 │   ├── auto-router/            #   lane triage + skill recall (always on)
 │   ├── map-generator/          #   builds the local skill index (MAP.md)
 │   ├── phase-protocol/         #   the Status lifecycle (DRAFTED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED) + gates (always on)
@@ -106,7 +84,7 @@ dev-agent/
 ├── tools/                      # Maintainer engines (never shipped)
 │   └── promote.py              #   mirrors skills/ down into .agents/skills/
 ├── .agents/                    # Repo workspace — NEVER shipped
-│   ├── rules/system.md         #   Gateway rulebook — loaded on every session
+│   ├── rules/dev-agent-framework.md         #   Gateway rulebook — loaded on every session
 │   ├── agents/coder.md         #   coder subagent contract
 │   └── skills/                 #   derived mirror (internal) + repo-only tools
 ├── specs/                      # What to build — spec groups with a lifecycle (NNN-SPEC + NNN-TASK + approvals + report)
@@ -128,12 +106,12 @@ AI Setup works across multiple AI-powered editors through a pointer-based loadin
 
 | IDE | Config File | How It Loads |
 |:---|:---|:---|
-| **Cursor** | `.cursorrules` | Points to `.agents/rules/system.md` |
-| **Windsurf** | `.windsurfrules` | Points to `.agents/rules/system.md` |
-| **Claude Code** | `.agents/rules/system.md` | Direct rule loading |
-| **Antigravity** | `.agents/rules/system.md` | Direct rule loading |
+| **Cursor** | `.cursorrules` | Points to `.agents/rules/dev-agent-framework.md` |
+| **Windsurf** | `.windsurfrules` | Points to `.agents/rules/dev-agent-framework.md` |
+| **Claude Code** | `.agents/rules/dev-agent-framework.md` | Direct rule loading |
+| **Antigravity** | `.agents/rules/dev-agent-framework.md` | Direct rule loading |
 
-The `system.md` file acts as the universal gateway — it loads mandatory startup skills, defines universal rules, and bootstraps the memory and routing systems.
+The `dev-agent-framework.md` file acts as the universal gateway — it loads mandatory startup skills, defines universal rules, and bootstraps the memory and routing systems.
 
 ---
 

@@ -93,7 +93,7 @@ engine-driven pattern of the core skills):
   (`git worktree add` with branch + scratchpad bootstrap), list/inspect,
   teardown (remove + scratchpad purge verification), and the branch naming
   convention.
-- `system.md` boot-chain step for worktree detection (is this session inside
+- `dev-agent-framework.md` boot-chain step for worktree detection (is this session inside
   a non-main worktree? set the `Worktree:` tag).
 - A topic decision recording the adoption, per the normal spec-first
   lifecycle — this doc is the planning input, not the approval.

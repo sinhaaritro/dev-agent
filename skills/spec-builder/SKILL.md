@@ -16,7 +16,7 @@ metadata:
 
 ## Overview
 
-You own plan drafting, spec promotion, topic decision recording, and spec compile. The templates in `references/` are the format truth — every draft, promoted spec, and topic doc must match them, which is why validation and promotion run through your engine instead of judgment. In system.md step 4 you are the on-demand plan authority: phase-protocol `drafted.md` routes Lane B/A planning and its approval step (section 5) to you; `reviewed.md` routes spec finalization.
+You own plan drafting, spec promotion, topic decision recording, and spec compile. The templates in `references/` are the format truth — every draft, promoted spec, and topic doc must match them, which is why validation and promotion run through your engine instead of judgment. In dev-agent-framework.md step 4 you are the on-demand plan authority: phase-protocol `drafted.md` routes Lane B/A planning and its approval step (section 5) to you; `reviewed.md` routes spec finalization.
 
 ## When to Use
 
@@ -31,7 +31,7 @@ You own plan drafting, spec promotion, topic decision recording, and spec compil
 - **Editing or running the build** — that is phase-protocol/`building.md`, not this skill; a session that compiled task files must not build in the same session.
 - **Purging the scratchpad** — `specs/temp/` cleanup after acceptance is `task-cleaner`, not here.
 - **Verifying tasks or reporting status** — running `Verify`, deriving `MET`/`STALE`, or writing run reports is `verification-runner`.
-- **Silent or unrequested changes** — never edit a promoted spec or topic doc without the matching request (system.md §3).
+- **Silent or unrequested changes** — never edit a promoted spec or topic doc without the matching request (dev-agent-framework.md §3).
 
 ## Instructions
 
@@ -45,7 +45,7 @@ You own plan drafting, spec promotion, topic decision recording, and spec compil
    The engine validates the draft, computes the next sequential number by scanning `specs/` (never guess), derives the slug from the title, and refuses to overwrite. `APPROVED` = human acceptance; `PROVISIONAL` renders `PROVISIONAL - AUTONOMOUS DEFAULT`, which stays until a human clears the tag. The engine is mechanics only — the gate is asserted by the status you pass, so never promote without the gate. Both lanes promote (B: sections 1/4/5).
  5. **Topic decisions are triggered by the decision, not the lane.** Any architectural decision at any lane (schema, public API, auth/security, new dependency) gets a permanent entry in its topic doc directly under `docs/` (one doc per subsystem — format truth: `references/topic-template.md`). Lane A: one per section-2 decision; Lane B: only when a decision surfaces (no section 2). At approval, file it via:
     `python .agents/skills/spec-builder/scripts/promote_spec.py topic <name> --why <text> [--title <t>] [--file <sub>] [--tags a,b] [--state <text>]`
-    The engine creates the topic doc from the template when missing, allocates the next `<TOPIC>-D<nn>` by scanning every file of the topic (topic-global), and appends the Decision Log entry (`Date` / `Why` / `Supersedes` / `Affects` / `Ref`). Reversing a decision is a **revision**, never "delete + recreate": `--supersedes <ID>` marks the old entry `(superseded)` and the new entry takes the next ID; `--affects <target>` records a one-way ripple pointer; `--reciprocal <topic>` writes the terse `Ref` entry in the affected topic. Entries are recorded only alongside `APPROVED`; autonomous resolutions record none until a human clears the tag. No silent / unrequested topic edits in any lane (system.md §3). After any topic-doc edit, rebuild the index:
+    The engine creates the topic doc from the template when missing, allocates the next `<TOPIC>-D<nn>` by scanning every file of the topic (topic-global), and appends the Decision Log entry (`Date` / `Why` / `Supersedes` / `Affects` / `Ref`). Reversing a decision is a **revision**, never "delete + recreate": `--supersedes <ID>` marks the old entry `(superseded)` and the new entry takes the next ID; `--affects <target>` records a one-way ripple pointer; `--reciprocal <topic>` writes the terse `Ref` entry in the affected topic. Entries are recorded only alongside `APPROVED`; autonomous resolutions record none until a human clears the tag. No silent / unrequested topic edits in any lane (dev-agent-framework.md §3). After any topic-doc edit, rebuild the index:
     `python .agents/skills/map-generator/scripts/generate_map.py sync-docs`
  6. **Compile the task files — then stop (compile).** After promotion and decision recording:
      `python .agents/skills/spec-builder/scripts/promote_spec.py compile specs/<NNN>-<SPEC>-<slug>.md`

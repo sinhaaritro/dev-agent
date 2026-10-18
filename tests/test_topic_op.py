@@ -9,7 +9,7 @@ in place), and cross-topic revisions linked by Affects (primary) + Ref
 
 Each test builds a sandbox repo under ``tempfile.TemporaryDirectory`` (an
 ``AGENTS.md`` marker) and drives the engine as a subprocess, exactly as
-system.md invokes it.
+dev-agent-framework.md invokes it.
 """
 
 import subprocess

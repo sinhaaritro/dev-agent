@@ -20,7 +20,7 @@ agent can resume mid-flight.
 It is:
 
 - **Harness-agnostic.** No harness-specific skill mechanism. The agent reads
-  files off disk (`AGENTS.md`, `.agents/rules/system.md`, each
+  files off disk (`AGENTS.md`, `.agents/rules/dev-agent-framework.md`, each
   `.agents/skills/<name>/SKILL.md`) guided by explicit paths — the same files
   work in Cursor, Windsurf, Claude Code, OpenCode, Aider, Gemini CLI, Roo Code,
   Antigravity, and others.
@@ -42,8 +42,8 @@ It is:
 ```text
 <repository-root>/
 ├── AGENTS.md                    # Project contract + entry point (agent reads first)
-├── .cursorrules                 # IDE pointer -> .agents/rules/system.md
-├── .windsurfrules               # IDE pointer -> .agents/rules/system.md
+├── .cursorrules                 # IDE pointer -> .agents/rules/dev-agent-framework.md
+├── .windsurfrules               # IDE pointer -> .agents/rules/dev-agent-framework.md
 ├── skills.sh.json               # skills.sh catalog groupings (install via npx skills)
 │
 ├── specs/                       # What to build — spec groups: NNN-SPEC + NNN-TASK + approvals + report
@@ -58,7 +58,7 @@ It is:
 │
 └── .agents/                     # MACHINE SPACE (AI internals)
     ├── rules/
-    │   └── system.md            # Gateway rulebook — loaded every session, wins conflicts
+    │   └── dev-agent-framework.md            # Gateway rulebook — loaded every session, wins conflicts
     ├── MAP.md                   # Generated skill index (on-disk at session start, never committed)
     └── skills/                  # Seven core skills (below)
 ```
@@ -90,7 +90,7 @@ decisions are recorded in the spec's own `Gates:` section, and the per-spec
 | `spec-builder` | Plan drafting, spec compile + promotion, task-file generation, topic decision recording, tag governance, TOC rollup | `promote_spec.py` |
 | `verification-runner` | Verification command execution, content-hash evidence, `doctor`/`status`/`report`, consolidated escalation | `verify.py` |
 | `task-cleaner` | Scratchpad garbage collection on acceptance (preserves `.gitignore` only) | `clean.py` |
-| `bootstrap` | Installs the framework (AGENTS.md + system.md + IDE pointers) into a target repo | `bootstrap.py` |
+| `bootstrap` | Installs the framework (AGENTS.md + dev-agent-framework.md + IDE pointers) into a target repo | `bootstrap.py` |
 
 Each skill is self-contained: a `SKILL.md` (what/when/instructions), a
 `scripts/` engine (stdlib-only Python), and optional `references/` checklists.
@@ -99,7 +99,7 @@ at session start; all others load on demand when their tags or context match.
 
 ## 5. Boot chain (what happens on every request)
 
-Defined in `.agents/rules/system.md`, in order:
+Defined in `.agents/rules/dev-agent-framework.md`, in order:
 
 1. **MAP freshness.** Run `generate_map.py`; if it prints `regenerated`,
    re-read `.agents/MAP.md`. Never match against a stale index.

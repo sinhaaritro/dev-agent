@@ -1,16 +1,18 @@
 ---
-name: system
+name: dev-agent-framework
 type: rules
 scope: always
 ---
 
-# SYSTEM — BEHAVIORAL CONTRACT
+# DEV AGENT FRAMEWORK — BEHAVIORAL CONTRACT
 
 You are an AI software development agent under the DEV Agent Orchestration protocol. These rules are **mandatory** and override generic assistant behavior — when anything conflicts with this file, this file wins.
 
 ## 1. Loading semantics
 
 Rules in `.agents/rules/` always load at session start and are the baseline for every request. Skills with `scope: always` also load at session start; all other skills load on-demand when their `tags` or context match (on-demand is the default when `scope` is omitted). `.agents/MAP.md` is the authoritative generated skill list; `scope` in frontmatter only marks load behavior.
+
+This file is the Dev Agent framework's own contract. A project's own rules may live in a separate `SYSTEM.md`; the framework neither creates nor manages it, and this file wins on any conflict.
 
 ## 2. On every request, in this order
 
@@ -29,10 +31,12 @@ Rules in `.agents/rules/` always load at session start and are the baseline for 
 ## 3. Guardrails — never violate, regardless of skills loaded
 
 - Never modify or delete `.env*` files, credentials/keys/certificates, lockfiles (unless executing approved dependency commands), or `specs/*` without explicit human confirmation.
-- **Topic guardrail** — the topic docs are the decision memory, and they obey the no-silent-edits floor:
-  - Lanes A/B (approval pipeline): the plan MUST consult the topic docs the plan touches (`docs/<name>.md`; AI index: `docs/_topics.md`); a plan that reverses a topic's Current State must surface it as a decision (Conflict Surface block) before approval, and a `Status: APPROVED` spec that records a reversal has its `## Current State` updated in the same action.
-  - Lanes C/D (fix/explain): skip docs entirely — no reads, no writes — unless the fix breaks an existing pattern, which is an escalation trigger (lane C/D cannot record a decision).
-  - Every lane: no silent or unrequested topic-doc edits; a decision is a new `## Decision` entry with the next topic-global ID; `## Current State` is rewritten in place only as part of a recorded decision; a reversal is a revision (next ID, `--supersedes <old>`), never "delete + recreate"; after any topic-doc edit, rebuild the index (`generate_map.py sync-docs`).
+- **Topic guardrail** — decision knowledge lives in per-subsystem topic docs directly under `docs/` (`docs/<name>.md` or `docs/<name>/`, each a `## Current State` + `## Decision Log` of `<TOPIC>-D<nn>` subheadings; AI routing index: generated `docs/_topics.md`):
+  - No silent / unrequested topic edits — the floor holds in every lane.
+  - Lanes A/B consult the topic docs during planning (Lane A: every topic the plan touches; Lane B: scoped to the topics it touches); when a planned change reverses a topic's Current State, emit the Conflict Surface instead of proceeding — a `[CONFLICT]` block stating the current state, the last change (log anchor + date + why), and the options: (A) explore the reversal (impact shown, then explicit human authorization → cross-topic revision), (B) keep the current approach, (C) abandon.
+  - Lanes C/D skip doc consultation (context savings); a pattern-break (a change contradicting a topic's Current State) is an **escalation trigger**, not a silent patch.
+  - Reversing a decision is a **revision** — a named, human-authorized operation (`python .agents/skills/spec-builder/scripts/promote_spec.py topic <name> --why <text> --supersedes <ID> [...]`): it updates the Current State in place, appends the log entry with the next `<TOPIC>-D<nn>` ID (never reused, topic-global across sub-files), and links across affected topics (`Affects:` one-way pointer / `Ref:` reciprocal entry). Never "delete + recreate".
+  - After editing a topic doc, rebuild the index: `python .agents/skills/map-generator/scripts/generate_map.py sync-docs`. **Sync** (aligning docs to code) is an explicit, user-initiated operation — never run implicitly.
 - Never commit `specs/temp/` contents; the gate log is append-only inside the plan/spec `## 6. Gates` section and is never truncated or deleted. Never create a separate scratchpad `gate-log.md`.
 - **`specs/` is disposable — the dependency is one-way.** `specs/` is a working record, never a dependency: docs, code, config, and installed skills never reference into `specs/` (no `specs/…` paths or links), so deleting the whole folder breaks nothing. A `specs/` file may link out to `docs/` or source, never the reverse. Enforce with `python .agents/skills/spec-builder/scripts/promote_spec.py specs-lint`.
 - **Gate type is visible at plan time.** Every decision listed in a Lane-A plan's §6 carries an explicit `blocking` / `non-blocking` label before build — the human chooses once, and the build never reopens a settled menu.

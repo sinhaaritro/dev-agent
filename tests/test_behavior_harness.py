@@ -80,7 +80,7 @@ class InitRunTest(unittest.TestCase):
         repo = run / "repo"
         self.assertTrue((repo / "package.json").is_file())  # profile seeded
         self.assertTrue((repo / "AGENTS.md").is_file())  # bootstrap ran
-        self.assertTrue((repo / ".agents" / "rules" / "system.md").is_file())
+        self.assertTrue((repo / ".agents" / "rules" / "dev-agent-framework.md").is_file())
         self.assertTrue(
             (repo / ".agents" / "skills" / "auto-router" / "SKILL.md").is_file()
         )

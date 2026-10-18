@@ -24,4 +24,16 @@
 
 # DEV AGENT
 
-Read `.agents/rules/system.md` (behavioral contract - read it and obey)
+Read `.agents/rules/dev-agent-framework.md` (the framework's behavioral contract — read it and obey).
+
+## Project instructions
+
+Everything this project adds on top of the framework lives in this one section —
+the shipped skills stay generic. Fill in the settings the framework reads:
+
+- `autonomy_level`: supervised
+- `Run Prefix`: <your environment activator, e.g. `.venv\Scripts\activate &&`, or "none">
+- <project-specific behavior / per-skill notes>
+
+A project's own rules (beyond the framework) may live in a separate `SYSTEM.md`;
+the framework neither creates nor manages it.

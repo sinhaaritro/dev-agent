@@ -66,7 +66,7 @@ edit, which is forbidden).
 
 ## 3. Why MAP.md gates everything
 
-`system.md` step 1 runs the freshness check **before** any prompt is
+`dev-agent-framework.md` step 1 runs the freshness check **before** any prompt is
 processed, and auto-router instruction 3 re-reads `MAP.md` whenever
 `regenerated` was reported. The rule is absolute: never match skills against a
 stale index. A missing or stale `MAP.md` is a boot-chain violation, not a

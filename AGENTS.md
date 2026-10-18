@@ -14,7 +14,7 @@ skills users install. It is not a project that *uses* Dev Agent.
   carry `metadata.internal: true` or it leaks to users - the `promote` engine
   enforces this.
 - **You are a maintainer of the framework, not a consumer of it.** The consumer
-  contract in `.agents/rules/system.md` governs *how* you work, but your output is
+  contract in `.agents/rules/dev-agent-framework.md` governs *how* you work, but your output is
   the shipped skills in `skills/`.
 
 ## Description
@@ -35,7 +35,7 @@ memory-aware development team.
   `scripts/`, `references/`, `reference/`). This is the canonical source of truth
   and exactly what users install.
 - `.agents/` - this repo's workspace, never shipped:
-  - `.agents/rules/system.md` - behavioral contract (loaded every session)
+  - `.agents/rules/dev-agent-framework.md` - behavioral contract (loaded every session)
   - `.agents/agents/coder.md` - the coder subagent contract
   - `.agents/skills/` - the derived dogfood mirror of `skills/` (does not ship;
     stamped `metadata.internal: true`) plus repo-only tools (`promote`,
@@ -94,4 +94,12 @@ Claude-specific description-optimization scripts (`run_eval.py`,
 
 # DEV AGENT
 
-Read `.agents/rules/system.md` (behavioral contract - read it and obey)
+Read `.agents/rules/dev-agent-framework.md` (the framework's behavioral contract — read it and obey).
+
+## Project instructions
+
+Everything this project adds on top of the framework lives in this one section —
+the shipped skills stay generic.
+
+- `autonomy_level`: supervised
+- `Run Prefix`: none — the engines use the active Python interpreter.

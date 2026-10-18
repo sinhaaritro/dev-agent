@@ -5,7 +5,7 @@ Load when a task starts (Lanes B and A; Lane C runs a single pass). **Read-only 
 ## 1. Understand & analyze
 
 1. Recap intent in 1 sentence (block 1 of the response schema).
-2. Inspect affected code/files (read-only); search existing patterns; Lanes A/B consult the topic docs the plan touches (`docs/<name>.md`; AI index: `docs/_topics.md`) — a plan that reverses a topic's Current State must surface it (system.md §3 Topic guardrail).
+2. Inspect affected code/files (read-only); search existing patterns; Lanes A/B consult the topic docs the plan touches (`docs/<name>.md`; AI index: `docs/_topics.md`) — a plan that reverses a topic's Current State must surface it (dev-agent-framework.md §3 Topic guardrail).
 3. Record findings in `specs/temp/active-task.md`.
 
 ## 2. Draft the plan via spec-builder

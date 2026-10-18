@@ -90,7 +90,7 @@ Location: `tests/*.py` · Runner: `python -m unittest discover -s tests -v`
 - **U2.5** **Gate-type visibility** — template `check` requires each section-6
   decision to carry a blocking/non-blocking label. **DONE** (`test_gate_labels.py`)
 - **U2.6** **Consumer rulebook contract** — shipped
-  `bootstrap/reference/rules/system.md` contains the new guardrail (test pattern
+  `bootstrap/reference/rules/dev-agent-framework.md` contains the new guardrail (test pattern
   like `test_drift_phases`). **DONE** (`test_consumer_rulebook.py`)
 
 ---

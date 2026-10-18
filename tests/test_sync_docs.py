@@ -7,7 +7,7 @@ and rebuilds `docs/_topics.md` with one section per topic carrying path,
 covers (frontmatter tags), and either sections (flat file) or files (folder).
 
 Each test builds a sandbox repo under ``tempfile.TemporaryDirectory`` and
-drives the engine as a subprocess, exactly as system.md invokes it.
+drives the engine as a subprocess, exactly as dev-agent-framework.md invokes it.
 """
 
 import subprocess

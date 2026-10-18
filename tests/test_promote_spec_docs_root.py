@@ -7,7 +7,7 @@ and never clobbers the project's root ``README.md``.
 
 Each test builds a sandbox repo under ``tempfile.TemporaryDirectory``
 (an ``AGENTS.md`` marker plus a root ``README.md`` with known content)
-and drives the engine as a subprocess, exactly as system.md invokes it.
+and drives the engine as a subprocess, exactly as dev-agent-framework.md invokes it.
 """
 
 import subprocess

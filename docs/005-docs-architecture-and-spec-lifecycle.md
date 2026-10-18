@@ -73,7 +73,7 @@ place, appends the log entry with the **next** ID (the reversed one is marked
 `(superseded)` and stays), and links across the affected files/topics. One
 decision, one reason, one approval, N files.
 
-**Guardrail (lane-tied, system.md §3):** no silent / unrequested topic edits
+**Guardrail (lane-tied, dev-agent-framework.md §3):** no silent / unrequested topic edits
 in any lane; Lanes A/B consult the topic docs during planning and emit the
 Conflict Surface when a plan reverses a topic's Current State; Lanes C/D skip
 doc consultation and treat a pattern-break as an **escalation trigger**, not

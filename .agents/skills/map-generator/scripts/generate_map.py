@@ -6,7 +6,7 @@ Usage:
     python .agents/skills/map-generator/scripts/generate_map.py --force  # unconditional rebuild
 
 Exit codes: 0 = index is fresh (or regenerated); 1 = fatal error.
-Output strings follow system.md section 2 step 1 verbatim:
+Output strings follow dev-agent-framework.md section 2 step 1 verbatim:
 "MAP.md is fresh" (exit 0) or "regenerated".
 """
 

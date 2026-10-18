@@ -16,11 +16,11 @@ metadata:
 
 ## Overview
 
-You keep `.agents/MAP.md` current — the single table-format index of all skills. Run before relying on the index (at session start per system.md step 1, and after any skill change). Never match against a stale index.
+You keep `.agents/MAP.md` current — the single table-format index of all skills. Run before relying on the index (at session start per dev-agent-framework.md step 1, and after any skill change). Never match against a stale index.
 
 ## When to Use
 
-- At session start, before any prompt is triaged (system.md step 1).
+- At session start, before any prompt is triaged (dev-agent-framework.md step 1).
 - After creating, editing, or deleting anything under `.agents/skills/`.
 - Whenever `.agents/MAP.md` is suspected stale or hand-edited.
 

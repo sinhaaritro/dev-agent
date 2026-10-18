@@ -22,7 +22,7 @@ of equal-weight, linkable entries (`<TOPIC>-D<nn>`).
 - `docs/_topics.md` is the generated AI-routing index (covers from `tags:`,
   sections/files from headings), rebuilt by `generate_map.py sync-docs`;
   humans land on the topic docs themselves.
-- Lane-tied guardrail (system.md §3): Lanes A/B consult topic docs at plan
+- Lane-tied guardrail (dev-agent-framework.md §3): Lanes A/B consult topic docs at plan
   time and surface a Conflict Surface when a plan reverses a Current State;
   Lanes C/D skip docs and escalate on pattern-breaks.
 

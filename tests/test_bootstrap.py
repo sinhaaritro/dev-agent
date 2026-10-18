@@ -22,7 +22,7 @@ REFERENCE = REPO / ".agents" / "skills" / "bootstrap" / "reference"
 SEED_FILES = (
     "AGENTS.md",
     ".gitignore",
-    ".agents/rules/system.md",
+    ".agents/rules/dev-agent-framework.md",
     ".agents/agents/coder.md",
     ".cursorrules",
     ".windsurfrules",
@@ -53,7 +53,7 @@ class DryRunTest(BootstrapBase):
         proc = self.run_bootstrap(None, "--dry-run")
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         self.assertIn("new: AGENTS.md", proc.stdout)
-        self.assertIn("new: .agents/rules/system.md", proc.stdout)
+        self.assertIn("new: .agents/rules/dev-agent-framework.md", proc.stdout)
         self.assertFalse((self.target / "AGENTS.md").exists())
 
 

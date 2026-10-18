@@ -43,4 +43,4 @@ Exactly: **Lane**, **Session**, **candidate skills**, optional **escalation flag
 
 - **Escalation is announce-only upward:** reclassify, announce (never ask permission), phase-protocol continues under the new lane. Never silently de-escalate.
 - **Skill discovery goes through `.agents/MAP.md` only** — never hardcode skill names; re-read the index whenever `map-generator` reports `regenerated`.
-- **Never match against a stale index:** if MAP.md is missing or `regenerated` was reported, refresh it first (system.md step 1) before triaging.
+- **Never match against a stale index:** if MAP.md is missing or `regenerated` was reported, refresh it first (dev-agent-framework.md step 1) before triaging.
