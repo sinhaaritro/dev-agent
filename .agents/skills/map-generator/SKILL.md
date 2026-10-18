@@ -45,10 +45,10 @@ MAP.md is a flat table-format index — all skills treated as equal:
 
 - Auto-generated banner with a `> [!NOTE]` warning, generated timestamp, and snapshot hash.
 - `## Skills & Instructions` table: `Skill | Description | Active Condition | Source File`, one row per SKILL.md under `.agents/skills/`, sorted by name.
-- `## Personas & Roles` table emitted only when `.agents/personas/` exists (per-project extensibility).
+- `## Personas & Roles` table emitted only when `.agents/agents/` exists (per-project extensibility).
 - Active Condition derives from frontmatter: `scope: always` → `*Always active*`; otherwise `*Use when: <tags>*` from the `tags` field.
 
-The output is **ASCII-only by design**: the engine maps common Unicode punctuation (em/en dashes, smart quotes, ellipsis, arrows) to ASCII and drops emoji, keeping the index clean in Windows-1252-viewing renderers. Frontmatter follows the canonical SKILL.md contract: required `name`, `description`, `tags`, and a nested `metadata` block (`version`, `author`); optional `scope: always` (on-demand is the default); `requires` for personas; `trigger_tags` is a legacy fallback for `tags`.
+The output is **ASCII-only by design**: the engine maps common Unicode punctuation (em/en dashes, smart quotes, ellipsis, arrows) to ASCII and drops emoji, keeping the index clean in Windows-1252-viewing renderers. Frontmatter follows the canonical SKILL.md contract: required `name`, `description`, `tags`, and a nested `metadata` block (`version`, `author`); optional `scope: always` (on-demand is the default); `requires` for agents; `trigger_tags` is a legacy fallback for `tags`.
 
 ## Notes
 

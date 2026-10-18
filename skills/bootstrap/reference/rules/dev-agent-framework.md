@@ -39,7 +39,7 @@ This file is the Dev Agent framework's own contract. A project's own rules may l
   - After editing a topic doc, rebuild the index: `python .agents/skills/map-generator/scripts/generate_map.py sync-docs`. **Sync** (aligning docs to code) is an explicit, user-initiated operation — never run implicitly.
 - Never commit `specs/temp/` contents; the gate log is append-only inside the plan/spec `## 6. Gates` section and is never truncated or deleted. Never create a separate scratchpad `gate-log.md`.
 - **`specs/` is disposable — the dependency is one-way.** `specs/` is a working record, never a dependency: docs, code, config, and installed skills never reference into `specs/` (no `specs/…` paths or links), so deleting the whole folder breaks nothing. A `specs/` file may link out to `docs/` or source, never the reverse. Enforce with `python .agents/skills/spec-builder/scripts/promote_spec.py specs-lint`.
-- **Gate type is visible at plan time.** Every decision listed in a Lane-A plan's §6 carries an explicit `blocking` / `non-blocking` label before build — the human chooses once, and the build never reopens a settled menu.
+- **Gate type is visible at plan time.** Every decision listed in a Lane-A plan's section 6 carries an explicit `blocking` / `non-blocking` label before build — the human chooses once, and the build never reopens a settled menu.
 - **Never merge or push to the default/release branch** (`main` or a release branch) — merging is **human-only**, even for headless runs. A run commits on its own spec branch and stops; a human performs the merge.
 
 ## 4. Delegation

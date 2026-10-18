@@ -160,7 +160,7 @@ def append_gate_entry(target: Path, entry: str) -> None:
     """Append `entry` inside the target's `## 6. Gates` section.
 
     Creates the section when the plan/spec has none, and never touches text
-    outside it. The plan is promoted *with* its §6, so the entry survives into
+    outside it. The plan is promoted *with* its section 6, so the entry survives into
     the spec and is no longer scratchpad content.
     """
     text = target.read_text(encoding="utf-8-sig") if target.is_file() else ""
@@ -333,7 +333,7 @@ def main() -> int:
     entry = gate_log_entry(args.question, option_lines, args.choice, autonomy)
     append_gate_entry(target, entry)
     print(f"RESOLVED: autonomous default {args.choice} (Recommended) applied")
-    print(f"gate entry appended to {target} §6; no code changes made")
+    print(f"gate entry appended to {target} section 6; no code changes made")
     return 0
 
 

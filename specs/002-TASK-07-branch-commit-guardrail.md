@@ -10,8 +10,9 @@ Dev-agent: a portable meta-framework that drives coding tasks through a phase pr
 
 ## Task
 Document the build/commit model in `system.md` and the phase references:
-- specs are authored on `main`; a run creates **one branch per spec off `main` (+worktree)**
-  and **never edits `main`**;
+- specs are authored on `main`; a run creates **one branch per spec off `main` (+ worktree)**
+  and **never edits `main`**; the worktree is a sibling directory named `<repo>-<worktree>`,
+  never inside the repo;
 - **commit is terminal** — at spec end the run commits on its branch and stamps `COMPLETED`
   immediately; there are no post-commit checks;
 - **hard guardrail: never merge or push to the default/release branch** — merging is

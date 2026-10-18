@@ -4,11 +4,11 @@ The task file is the **coder's own working file**: exactly one task file is owne
 exactly one coder, and only that coder writes it. It carries the **Progress** checklist the
 coder works through and the **evidence block** (the per-task verification record, written by
 `verify.py`). The **global** task list — which tasks are done — lives only in the spec's
-§5 and is written by the orchestrator; it is **not** copied into task files.
+section 5 and is written by the orchestrator; it is **not** copied into task files.
 
 ## Generation
 
-`promote_spec.py compile <spec>` (the compile step) reads the spec's §5
+`promote_spec.py compile <spec>` (the compile step) reads the spec's section 5
 **Tasks & Outcomes** and emits **one self-contained task file per task**, named
 `NNN-TASK-<NN>-<slug>.md` (parent `NNN` prefix + two-digit task number + a short task slug).
 It validates **every file it writes** with `validate_task_file(text)` — a missing or
@@ -50,7 +50,7 @@ don't Own, do not commit.
 
 ## Project overview
 Dev-agent: a meta-framework that drives coding tasks through a status protocol.
-(the global task list lives in the spec §5 — not copied here)
+(the global task list lives in the spec section 5 — not copied here)
 
 ## Task
 Add a `doctor` subcommand to verify.py that checks the unattended preconditions and fails

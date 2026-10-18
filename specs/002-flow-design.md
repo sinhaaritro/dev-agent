@@ -2,7 +2,7 @@
 
 > Companion to `draft-plan.md`. Groups every open **flow** question in one place and maps
 > the branches across: supervised vs unattended, review vs no-review, review pass vs fail,
-> multi-spec, and escalation. Diagrams show the current design; open items are listed in §8.
+> multi-spec, and escalation. Diagrams show the current design; open items are listed in section 8.
 
 ## 1. The variables that pick the branch
 
@@ -16,7 +16,7 @@
 | 1.5-Vetting | header flag `vetting: on\|off` | Whether a fresh critic gates "approve draft" |
 | 4.5-Sign-off | header flag `signoff: on\|off` | Human decides at REVIEWED (on) or auto-commits (off); in `unattended` mode `on` **pauses** at 4.5 |
 | Review revision | header flag `review_revision: auto\|halt` | `auto` = ≤3 re-build cycles; `halt` = straight to human |
-| Branching | specs on `main`; run branch per spec off `main` (+worktree) | Never code on `main`; escalation stops that spec's branch; the batch continues |
+| Branching | specs on `main`; run branch per spec off `main` (+ worktree, a sibling dir named `<repo>-<worktree>`) | Never code on `main`; escalation stops that spec's branch; the batch continues |
 
 ## 2. Flow issues (one group)
 
@@ -65,7 +65,7 @@ branch** and the batch **continues**; the batch ends with a report.
 **concurrently** (serialized by `Depends On`); they may still run in the same spec.
 
 **F12 — Review scope.** 4-Review reads "the built diff + the spec". Where are the `R#`
-outcome observations recorded (run report / task file / spec §5), and what does
+outcome observations recorded (run report / task file / spec section 5), and what does
 reconciliation do on a missing observation — fail the review, or park in `BACKLOG.md`?
 
 ## 3. Master per-spec state machine
@@ -115,7 +115,7 @@ Only review red has the 3-cycle repair loop; build red exits straight to `ESCALA
 - **The shared plan-readiness checklist.** Both the authoring loop and vetting test the same
   things: (1) every goal captured, (2) no internal inconsistency, (3) every decision made,
   (4) every ambiguity resolved — **plus** the engine checks: the verify/expect lint and
-  §2.7 "every outcome has an owner task". Vetting is just an *independent* run of this
+  section 2.7 "every outcome has an owner task". Vetting is just an *independent* run of this
   checklist by someone who did not author the plan.
 - **1.5-Vetting loop (the optional gate on top).**
   - **Trigger.** The draft-time header flag `vetting: on|off` (default on for a Lane-A
@@ -163,7 +163,7 @@ flowchart TD
     FAILED --> PROG
     PROG -- yes --> DISP
     PROG -- no --> ANY{any FAILED task?}
-    ANY -- no · all MET --> BUILT[BUILT → review §6]
+    ANY -- no · all MET --> BUILT[BUILT → review section 6]
     ANY -- yes --> ESC[consolidated NNN-ESCALATION<br/>failed + blocked · no commit · Status: ESCALATED]
 ```
 
@@ -205,7 +205,7 @@ flowchart TD
     R --> Q{green?}
     Q -- no --> RR{review_revision}
     RR -- auto --> RC{cycles < 3?}
-    RC -- yes --> RB[reopen tasks the failure points to · cycle++ · re-build → §4]
+    RC -- yes --> RB[reopen tasks the failure points to · cycle++ · re-build → section 4]
     RB --> B
     RC -- no --> PL[consolidated NNN-ESCALATION · Status: ESCALATED<br/>halt for human · human decides plan vs build]
     RR -- halt --> PL
@@ -213,7 +213,7 @@ flowchart TD
     RV --> G45{signoff on?}
     G45 -- off --> SP{stop point}
     G45 -- on --> PS{human accepts? · unattended pauses here}
-    PS -- no --> RREV[REVIEW_REVISION_REQUIRED → re-build → §4]
+    PS -- no --> RREV[REVIEW_REVISION_REQUIRED → re-build → section 4]
     PS -- yes --> SP
     SP -- commit --> CMT[commit on branch] --> DONE[COMPLETED → next spec]
     SP -- pre-commit --> HOLD[stop at REVIEWED · human commits]
@@ -280,7 +280,8 @@ run never merges to the default/release branch (hard guardrail).
 - **Backlog lifecycle** — **decided**: the human owns it (agents add/propose; only the human
   closes an entry).
 - **Branching** — **decided**: specs live on `main`; a run creates one branch per spec off
-  `main` (+worktree) and never edits `main`; merge is human-only.
+  `main` (+ worktree) and never edits `main`; the worktree is a sibling directory named
+  `<repo>-<worktree>` (never a folder inside the repo); merge is human-only.
 - **Review re-build** — **decided**: a combined failure always ends at a human (`kind: review`
   escalation). `review_revision: auto` may try ≤3 re-builds first; picking which tasks is a
   human call.

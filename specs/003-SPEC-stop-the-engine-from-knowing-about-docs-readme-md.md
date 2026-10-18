@@ -79,7 +79,7 @@ The always-loaded behavioral contract.
 Reference series doc that owns the docs/ architecture contract.
 
 - Contract:
-  - The §1 layout prose no longer names `docs/README.md`; the generated
+  - The section 1 layout prose no longer names `docs/README.md`; the generated
     `## Index` section is described as belonging to `specs/README.md`.
   - The `tag-index` row is removed from the governance subcommand table.
   - The "Each committed folder has a README.md" sentence scopes to

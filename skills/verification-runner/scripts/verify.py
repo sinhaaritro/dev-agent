@@ -634,7 +634,7 @@ def _dag_ok(tasks: list[dict]) -> tuple[bool, str]:
 
 
 def _clean(value: str) -> str:
-    """Strip a field's surrounding backticks/quotes (spec §5 'Verify:'/'Expect:')."""
+    """Strip a field's surrounding backticks/quotes (spec section 5 'Verify:'/'Expect:')."""
     v = value.strip()
     if len(v) >= 2 and v.startswith("`") and v.endswith("`"):
         v = v[1:-1].strip()

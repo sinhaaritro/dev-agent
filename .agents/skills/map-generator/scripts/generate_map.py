@@ -244,9 +244,9 @@ def _topic_tags(path: Path) -> list[str]:
 def _reserved_name(name: str) -> bool:
     """Names under docs/ that are not topic docs.
 
-    Only the generated index itself is skipped - the numbered series
-    (NNN-*) and every other docs/ file/folder are legitimate topics and
-    are indexed.
+    Only the generated index itself is skipped - every other docs/ file and
+    folder (including the landing README) is a legitimate topic and is
+    indexed.
     """
     return name == "_topics.md"
 
@@ -336,16 +336,16 @@ def build_map(root: Path, skills: list[Path], snapshot: str, generated: str) -> 
     lines.append(f"- Snapshot: {snapshot}")
     lines.append("")
 
-    personas_dir = root / ".agents" / "personas"
-    persona_files = sorted(personas_dir.glob("*.md")) if personas_dir.is_dir() else []
-    if persona_files:
+    agents_dir = root / ".agents" / "agents"
+    agent_files = sorted(agents_dir.glob("*.md")) if agents_dir.is_dir() else []
+    if agent_files:
         lines.append("## Personas & Roles")
         lines.append("")
         lines.append(
             "| Persona | Description | Required Skills | Activation Trigger | Source File |"
         )
         lines.append("| :--- | :--- | :--- | :--- | :--- |")
-        for p in persona_files:
+        for p in agent_files:
             name, desc, req_skills, link = persona_entry(p)
             trigger = sanitize_ascii(
                 parse_front_matter(p.read_text(encoding="utf-8")).get("trigger", "")

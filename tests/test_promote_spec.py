@@ -231,7 +231,7 @@ class TestNewTemplateCheck(unittest.TestCase):
 
 
 class TestCanonicalStatuses(unittest.TestCase):
-    """The canonical Status: receipt set (spec 002, §2.1)."""
+    """The canonical Status: receipt set (spec 002, section 2.1)."""
 
     def test_canonical_set(self):
         self.assertEqual(
@@ -258,7 +258,7 @@ class TestCanonicalStatuses(unittest.TestCase):
 
 
 def spec_group_text() -> str:
-    """A promoted NNN-SPEC-<slug>.md body with two §5 tasks (for compile)."""
+    """A promoted NNN-SPEC-<slug>.md body with two section 5 tasks (for compile)."""
     return """---
 tags: [sandbox, group]
 ---
@@ -396,7 +396,7 @@ class TestCompilePurgeSyncAccept(unittest.TestCase):
         import json
         data = json.loads(approvals.read_text(encoding="utf-8"))
         self.assertEqual(len(data["approvals"]), 2)
-        # fingerprint has no executor field (spec 002 §2.5): command|expect|cwd
+        # fingerprint has no executor field (spec 002 section 2.5): command|expect|cwd
         fp = data["approvals"][0]["fingerprint"]
         self.assertEqual(fp.count("|"), 2)
         self.assertNotIn("executor", fp)

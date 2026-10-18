@@ -30,12 +30,11 @@ SHIPPED = REPO / "skills"
 # Maintainer-only paths that must never appear in a shipped file.
 FORBIDDEN = (
     (
-        re.compile(r"docs/00[1-7]-"),
-        "framework reference-series doc (docs/00N-...)",
-    ),
-    (
-        re.compile(r"docs/(?:flow|lifecycle|run-contract|branching|task-files|verification|decision-records)\.md"),
-        "framework topic/reference doc",
+        re.compile(
+            r"docs/(?:overview|skill-discovery|routing|lifecycle|decision-records|"
+            r"task-files|verification|branching|run-contract|flow)\.md"
+        ),
+        "framework topic doc",
     ),
     (
         re.compile(r"tools/(?:promote|skill_eval|behavior_eval|suite_report)\.py"),
@@ -102,8 +101,8 @@ class ShippingPathsTest(unittest.TestCase):
     def test_guard_detects_known_violations(self):
         # A guard that silently stopped matching would pass forever; prove it bites.
         cases = {
-            "The why lives in `docs/flow.md`.": "framework topic/reference doc",
-            "see docs/003-lanes.md": "framework reference-series doc (docs/00N-...)",
+            "The why lives in `docs/flow.md`.": "framework topic doc",
+            "see docs/routing.md": "framework topic doc",
             "run tools/promote.py": "maintainer engine",
         }
         for line, label in cases.items():

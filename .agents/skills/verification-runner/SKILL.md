@@ -22,18 +22,18 @@ You execute the plan's verification commands and enforce the per-task attempt li
 
 ## When to Use
 
-- Every build task: run its `Verify` command (spec §5 / task file) with its `Expect` marker; the canonical build/test commands (spec §7) and `AGENTS.md` are the fallback source.
+- Every build task: run its `Verify` command (spec section 5 / task file) with its `Expect` marker; the canonical build/test commands (spec section 7) and `AGENTS.md` are the fallback source.
 - A pre-flight is needed before an unattended run — `verify.py doctor --spec <NNN>` runs the 9 ordered preconditions and prints `PRECONDITIONS OK` or a named list of gaps.
 - A task's completion must be derived, not asserted — `verify.py status --task <id>` reads the evidence block and reports `MET` / `NOT MET` / `STALE` / `NO-EVIDENCE`.
 - A run report must be (re)generated at spec end or on demand — `verify.py report --spec <NNN>` writes `NNN-REPORT-<slug>.md`.
 - A lane A/B command needs its first-run approval (exit 4 without it) — approvals are pre-recorded at compile into `NNN-APPROVALS-<slug>.json`; ad-hoc commands are approved with `verify.py approve` before their first execution.
 - A task's verify fails and a fix attempt is made — the retry must go through the engine's ledger so the 3-attempt limit is real, never recalled from memory.
-- No `Verify` on the task, no §7 commands in the plan, and no Commands in `AGENTS.md` — detect the framework and suggest canonical commands.
+- No `Verify` on the task, no section 7 commands in the plan, and no Commands in `AGENTS.md` — detect the framework and suggest canonical commands.
 - An escalation report needs finalizing (hypothesis + remediation options) after a task exhausts its attempts.
 
 ## Instructions
 
-1. **Read the command source, in order.** The task's `Verify` command (spec §5 / task file) is primary, with its `Expect` marker. If absent, the plan's §7 (`- Build Command: ...` / `- Test Command: ...`), then `AGENTS.md`'s Commands block. If both absent, run `detect` to identify the framework and read its page in `references/frameworks/` for canonical commands, then confirm Socratically before the first run (Lane C's only approval gate). When a project uses a non-default environment activator (a venv, conda, nvm use, etc.), the project declares a `Run Prefix` line in `AGENTS.md`; prefix the detected canonical commands with it. No prefix declared and no obvious global toolchain -> ask.
+1. **Read the command source, in order.** The task's `Verify` command (spec section 5 / task file) is primary, with its `Expect` marker. If absent, the plan's section 7 (`- Build Command: ...` / `- Test Command: ...`), then `AGENTS.md`'s Commands block. If both absent, run `detect` to identify the framework and read its page in `references/frameworks/` for canonical commands, then confirm Socratically before the first run (Lane C's only approval gate). When a project uses a non-default environment activator (a venv, conda, nvm use, etc.), the project declares a `Run Prefix` line in `AGENTS.md`; prefix the detected canonical commands with it. No prefix declared and no obvious global toolchain -> ask.
 2. **Approve the command on its first run (lanes A/B).** Approving the plan does not approve its commands. The spec's verify commands are pre-approved at compile into `NNN-APPROVALS-<slug>.json` (fingerprint = `command | expect | cwd`, no executor). For any ad-hoc command, present the exact command and `Expect` and approve it:
    `python .agents/skills/verification-runner/scripts/verify.py approve --command "<cmd>" --expect "<marker>"`
    The fingerprint is `sha256(command | expect | cwd)`, cached in `specs/temp/approvals.json` (per-task lifetime; a new session re-approves). Cached re-runs are free; any change to the command, `Expect`, or CWD re-arms approval. Lanes A and B enforce this; lanes C/D are exempt.

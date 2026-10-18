@@ -112,7 +112,7 @@ from pathlib import Path
 LANE_SECTIONS = {"B": {1, 4, 5}, "A": {1, 2, 3, 4, 5, 6, 7, 8}}
 PROVISIONAL_STATUS = "PROVISIONAL - AUTONOMOUS DEFAULT"
 
-# Canonical Status: receipt set (spec 002, §2.1) - past-tense receipts of the
+# Canonical Status: receipt set (spec 002, section 2.1) - past-tense receipts of the
 # last completed engine action, one per lifecycle status plus the gate/failure
 # receipts. The two decimal consensus gates (Vetting, Sign-off) carry
 # no receipt of their own.
@@ -131,7 +131,6 @@ CANONICAL_STATUSES = frozenset((
 
 SPEC_FOLDER = "specs"
 COMMIT_FOLDERS = ("specs",)
-REF_SERIES_RE = re.compile(r"^\d{3}-.+\.md$")
 TOC_START = "<!-- TOC:START -->"
 TOC_END = "<!-- TOC:END -->"
 TAG_START = "<!-- TAG-INDEX:START -->"
@@ -141,7 +140,7 @@ TAG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 FM_BLOCK = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
 SUB_ID_RE = re.compile(r"^(\d{3})-([A-Z]\d{2})(?:-([A-Z]\d{2}))?$")
 
-# Spec group file types (spec 002, §2.2): a group is NNN-SPEC-* + its
+# Spec group file types (spec 002, section 2.2): a group is NNN-SPEC-* + its
 # NNN-TASK-* / NNN-REPORT-* / NNN-APPROVALS-* / NNN-ESCALATION-* companions.
 # The engine's NNN scan and the specs/README TOC recognize only NNN-SPEC-* as
 # spec files; the companions are group-internal (never indexed as specs).
@@ -149,7 +148,7 @@ SPEC_KIND = re.compile(r"^(\d{3})-SPEC-(.+)\.md$")
 TASK_KIND = re.compile(r"^(\d{3})-TASK-(\d{2})-(.+)\.md$")
 GROUP_COMPANION_RE = re.compile(r"^(\d{3})-(TASK|REPORT|APPROVALS|ESCALATION)-")
 
-# Canonical task-file headings, in the order the engine requires (spec 002 §2.3,
+# Canonical task-file headings, in the order the engine requires (spec 002 section 2.3,
 # references/task-file-format.md). validate_task_file enforces them.
 TASK_FILE_HEADINGS = (
     "Role & rules",
@@ -297,7 +296,7 @@ def _unfailable_expect(verify: str, expect: str) -> str:
 def _parse_tasks(body: str) -> list[dict]:
     """Parse '### Task N:' blocks of a section-5 body into structured task dicts.
 
-    New template (spec 002, §2.2/§2.7): each task block carries a
+    New template (spec 002, section 2.2/section 2.7): each task block carries a
     Depends On: line (may be 'None') and a Verify:/Expect: pair. Field lines
     are '- <Label>: <value>' inside the block; any other '###' heading (e.g.
     an outcomes sub-heading) terminates the block.
@@ -412,7 +411,7 @@ def check_draft(draft: Path, lane: str) -> tuple[bool, list[int], list[str]]:
 
 
 def validate_task_file(text: str) -> list[str]:
-    """Structural violations for a canonical task file (spec 002 §2.3).
+    """Structural violations for a canonical task file (spec 002 section 2.3).
 
     Enforces the required ``##`` headings in order (references/
     task-file-format.md), the ``### Progress`` sub-heading under ``## Task``,
@@ -561,7 +560,7 @@ def _render_task_file(num: int, task: dict, spec_name: str, spec_text: str,
         if m:
             owns_lines.append(f"- [{m.group(1)}] {m.group(2)}")
     if not owns_lines:
-        owns_lines = ["_(owned files are listed in the spec §4 Affected Files & Contracts)_"]
+        owns_lines = ["_(owned files are listed in the spec section 4 Affected Files & Contracts)_"]
     deps = task["depends_on"] or "None"
     verify = task["verify"].strip("`").strip() or "_(verify command)_"
     expect = task["expect"].strip('"').strip() or "_(expect marker)_"
@@ -572,7 +571,7 @@ def _render_task_file(num: int, task: dict, spec_name: str, spec_text: str,
         "don't Own, do not commit.\n\n"
         "## Project overview\n"
         + overview + "\n"
-        "(the global task list lives in the spec §5 — not copied here)\n\n"
+        "(the global task list lives in the spec section 5 — not copied here)\n\n"
         "## Task\n"
         f"{title}. Depends On: {deps}.\n\n"
         "### Progress\n"
@@ -597,9 +596,9 @@ def _render_task_file(num: int, task: dict, spec_name: str, spec_text: str,
 
 
 def compile_spec(spec: Path, root: Path | None = None) -> list[Path]:
-    """compile: emit one task file per §5 task + approvals + stamp.
+    """compile: emit one task file per section 5 task + approvals + stamp.
 
-    Reads the spec's §5 Tasks & Outcomes, renders each task in the canonical
+    Reads the spec's section 5 Tasks & Outcomes, renders each task in the canonical
     task-file shape, validates it (refusing to write on violations), writes
     NNN-APPROVALS-<slug>.json, and stamps 'Status: COMPILED' on the spec.
     Returns the list of task-file paths written.
@@ -926,11 +925,11 @@ def _scan_docs(root: Path) -> dict:
     """Scan the committed docs into sorted doc entries.
 
     ``root`` is the repo root. Returns a dict keyed by section:
-    ``"specs"`` -> ``root/specs/*.md`` and ``"reference"`` -> the numbered
-    ``root/docs/NNN-*.md`` series (topic docs live directly under ``docs/``
-    and are indexed separately by ``sync-docs``). Shared by the TOC roll-up
-    and every tag-governance function - one frontmatter parse, no
-    cross-subcommand drift.
+    ``"specs"`` -> ``root/specs/*.md`` and ``"topics"`` -> every topic doc
+    under ``root/docs/`` (``README.md`` and generated underscore files are
+    skipped). ``sync-docs`` still builds the separate AI routing index.
+    Shared by the TOC roll-up and every tag-governance function - one
+    frontmatter parse, no cross-subcommand drift.
     """
     def collect(paths: list[Path]) -> list[dict]:
         entries = []
@@ -960,10 +959,10 @@ def _scan_docs(root: Path) -> dict:
     spec_dir = root / SPEC_FOLDER
     specs = collect(sorted(spec_dir.glob("*.md"))) if spec_dir.is_dir() else []
     docs["specs"] = sorted(specs, key=lambda e: _folder_sort_key("specs", e["name"]))
-    ref_dir = root / "docs"
-    refs = collect(sorted(ref_dir.glob("*.md"))) if ref_dir.is_dir() else []
-    refs = [e for e in refs if REF_SERIES_RE.match(e["name"])]
-    docs["reference"] = sorted(refs, key=lambda e: e["name"])
+    docs_dir = root / "docs"
+    topics = collect(sorted(docs_dir.glob("*.md"))) if docs_dir.is_dir() else []
+    topics = [e for e in topics if not e["name"].startswith("_")]
+    docs["topics"] = sorted(topics, key=lambda e: e["name"])
     return docs
 
 
@@ -1785,7 +1784,7 @@ def main() -> int:
     specs_lint_p.set_defaults(func=cmd_specs_lint)
 
     compile_p = sub.add_parser(
-        "compile", help="compile: emit one task file per §5 task + approvals + stamp"
+        "compile", help="compile: emit one task file per section 5 task + approvals + stamp"
     )
     compile_p.add_argument("spec", type=Path, help="promoted spec NNN-SPEC-<slug>.md")
     compile_p.add_argument("--root", type=Path, default=None)

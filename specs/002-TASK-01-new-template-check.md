@@ -13,7 +13,7 @@ Make `promote_spec.py check` validate the NEW spec template and retire the old
 `### Task N:` / `Phase Gate:` structure check. `check` must:
 - accept the new section set (0 Frontmatter, 1 Goal, 2 The Change, 3 Risks, 4 Affected Files,
   5 Tasks & Outcomes, 6 Gates, 7 Verification, 8 Rollback);
-- parse the new §5 task shape (`### Task N:` with `Depends On:` and a `Verify:`/`Expect:`
+- parse the new section 5 task shape (`### Task N:` with `Depends On:` and a `Verify:`/`Expect:`
   pair) and require at least one task;
 - keep the Verify/Expect lint (no no-op command, no empty Expect, Expect must not appear in
   the Verify line);
@@ -23,7 +23,7 @@ Make `promote_spec.py check` validate the NEW spec template and retire the old
 
 ### Progress
 - [ ] read `check_draft()` and `_validate_task_dag()` in promote_spec.py
-- [ ] replace the old task-DAG parse with the new §5 parse (Task → Depends On + Verify/Expect)
+- [ ] replace the old task-DAG parse with the new section 5 parse (Task → Depends On + Verify/Expect)
 - [ ] drop the `Phase Gate` and `>=1 subtask` requirements
 - [ ] accept sections 0..8 in the Lane A expectations
 - [ ] print `structure: ok`; keep the tag lint

@@ -63,9 +63,7 @@ Open the project in your AI-powered editor. The agent reads `AGENTS.md` and `.ag
 
 ## Architecture Overview
 
-This repo *is* the framework source. The **product** is `skills/` — that is what
-users install. Everything under `.agents/` is this repo's own workspace and is
-**never shipped**.
+This repo *is* the framework source. The **product** is `skills/` — that is what users install. Everything under `.agents/` is this repo's own workspace and is **never shipped**.
 
 ```
 dev-agent/
@@ -89,14 +87,10 @@ dev-agent/
 │   └── skills/                 #   derived mirror (internal) + repo-only tools
 ├── specs/                      # What to build — spec groups with a lifecycle (NNN-SPEC + NNN-TASK + approvals + report)
 │   └── temp/                   #   ephemeral draft-stage scratchpad (gitignored)
-└── docs/                       # What is + why we chose — reference series, topic docs (per-subsystem decision log), flow
+└── docs/                       # What is + why we chose — topic docs (Current State + Decision Log), README guide, generated index
 ```
 
-Every skill is self-contained: a `SKILL.md` (what it does, when to use it) plus
-`scripts/` (a stdlib-only Python engine) and optional `references/`. Only
-`skills/` ships — the skills CLI also scans `.agents/skills/`, so every copy
-there carries `metadata.internal: true` and stays hidden from users. `MAP.md` is
-generated locally at session start and never committed.
+Every skill is self-contained: a `SKILL.md` (what it does, when to use it) plus `scripts/` (a stdlib-only Python engine) and optional `references/`. Only `skills/` ships — the skills CLI also scans `.agents/skills/`, so every copy there carries `metadata.internal: true` and stays hidden from users. `MAP.md` is generated locally at session start and never committed.
 
 ---
 
@@ -117,8 +111,7 @@ The `dev-agent-framework.md` file acts as the universal gateway — it loads man
 
 ## Development Setup (maintainers)
 
-The shipped skills are stdlib-only: there are **no runtime dependencies**.
-Python 3.10+ is required; Ruff is the only dev tool.
+The shipped skills are stdlib-only: there are **no runtime dependencies**. Python 3.10+ is required; Ruff is the only dev tool.
 
 ```bash
 python -m venv .venv
@@ -130,13 +123,9 @@ source .venv/bin/activate
 python -m pip install --group dev
 ```
 
-`.venv/` is local to the machine and is **not portable between operating
-systems** — Windows and Linux use different interpreter layouts. It is
-gitignored, so when you switch OS just delete it and re-run the commands above;
-each environment is recreated from `pyproject.toml`.
+`.venv/` is local to the machine and is **not portable between operating systems** — Windows and Linux use different interpreter layouts. It is gitignored, so when you switch OS just delete it and re-run the commands above; each environment is recreated from `pyproject.toml`.
 
-If pip is older than 25.1 (no `--group` support), install the pinned tool
-directly: `python -m pip install ruff==0.17.1`.
+If pip is older than 25.1 (no `--group` support), install the pinned tool directly: `python -m pip install ruff==0.17.1`.
 
 Canonical commands (from the repo root):
 
@@ -147,9 +136,7 @@ python -m ruff check skills tools tests              # Lint
 python tools/promote.py --check                      # Skill mirror guard
 ```
 
-`pyproject.toml` holds the Ruff policy (target Python 3.10). `.agents/skills/`
-is excluded from lint because it is the derived mirror and contains the
-vendored `skill-creator`.
+`pyproject.toml` holds the Ruff policy (target Python 3.10). `.agents/skills/` is excluded from lint because it is the derived mirror and contains the vendored `skill-creator`.
 
 ---
 

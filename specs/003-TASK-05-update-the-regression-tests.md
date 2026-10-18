@@ -12,7 +12,7 @@ whose only output is that file. This change removes **every** reference to
 file exists. `docs/README.md` itself stays as a plain human-maintained file
 (its generated TOC/TAG-INDEX blocks are stripped). `specs/README.md` keeps its
 generated TOC. No architectural decisions surface (Lane B).
-(the global task list lives in the spec §5 — not copied here)
+(the global task list lives in the spec section 5 — not copied here)
 
 ## Task
 Update the regression tests. Depends On: Task 1.

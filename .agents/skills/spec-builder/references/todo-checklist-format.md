@@ -9,7 +9,7 @@ There are **two distinct levels of state**, and they are not the same thing:
    **optional** (a trivial single-edit task omits the list) and they are **not a gate**
    — ticking every subtask does not complete the task.
 2. **Task — verified, derived state.** Whether a task is done is decided by its
-   **task-level `Verify`/`Expect`** (the spec's §5), not by the subtask checkboxes.
+   **task-level `Verify`/`Expect`** (the spec's section 5), not by the subtask checkboxes.
    On a green PASS the engine writes an evidence block (command, exit, matched marker,
    `sha256` of every owned file) into the task file, and the task's completion is
    **derived from that evidence**, never asserted.

@@ -10,7 +10,7 @@ Dev-agent: a portable meta-framework that drives coding tasks through a phase pr
 
 ## Task
 Add four subcommands to promote_spec.py:
-- `compile <spec>` (2-Handoff): read §5 Tasks & Outcomes and emit one self-contained
+- `compile <spec>` (2-Handoff): read section 5 Tasks & Outcomes and emit one self-contained
   `NNN-TASK-<NN>-<slug>.md` per task in the **canonical task-file shape**
   (`references/task-file-format.md`), **validating each file it writes** (required headings in
   order; `Verification` has a fenced command + an `**Expect:**` line); write pre-approvals for
@@ -27,7 +27,7 @@ Contracts: `compile(spec: Path) -> list[Path]`, `purge(spec: Path) -> None`,
 ### Progress
 - [ ] add `references/task-file-format.md` (the canonical skeleton + rule list)
 - [ ] implement `validate_task_file(text)` against the required headings + fence/Expect
-- [ ] emit each task file from §5 rows; validate before writing
+- [ ] emit each task file from section 5 rows; validate before writing
 - [ ] write approvals with fingerprint `command|expect|cwd` (no executor)
 - [ ] implement purge/sync against the `specs/README.md` marker block
 - [ ] implement accept as a status stamp only (no git)

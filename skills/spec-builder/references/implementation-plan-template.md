@@ -12,7 +12,7 @@ Status: DRAFTED | Date: YYYY-MM-DD
 ## 0. Frontmatter
 
 The YAML block above the title is the single, easy-to-flip home for the per-spec
-flow flags (set at draft time; §2.1 of the plan spec):
+flow flags (set at draft time; section 2.1 of the plan spec):
 
 - `tags:` — lowercase-kebab, 2-30 chars, max 7 (mandatory on committed docs).
 - `vetting: on|off` — the Vetting (plan review) gate. Default `on` for a

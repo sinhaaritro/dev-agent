@@ -70,8 +70,8 @@ class TestBTocRepoRoot(SandboxTestCase):
 
     def test_toc_repo_root_writes_index_readmes(self):
         (self.root / "docs").mkdir()
-        (self.root / "docs" / "001-framework-overview.md").write_text(
-            "---\ntags: [framework]\n---\n\n# 001: Framework Overview\n",
+        (self.root / "docs" / "overview.md").write_text(
+            "---\ntags: [framework]\n---\n\n# Framework Overview\n",
             encoding="utf-8",
         )
         (self.root / "specs").mkdir()

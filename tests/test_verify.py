@@ -323,7 +323,7 @@ class ShellCommandTest(SandboxCase):
         (self.tmp / "docs").mkdir()
         (self.tmp / "docs" / "001-x.md").write_text("plan is real\n", encoding="utf-8")
         cmd = (
-            'grep -q "plan" docs/001-x.md && '
+            'grep -q "plan" docs/note.md && '
             'test -z "$(grep -rln "OLD-STEP" docs/)" && echo REFDOCS-OK'
         )
         state_dir = self.tmp / "specs" / "temp"

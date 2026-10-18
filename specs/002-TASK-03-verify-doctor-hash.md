@@ -14,7 +14,7 @@ Update verify.py:
   drop `executor` so a human's pre-approval matches a coder's run.
 - `run` records evidence into the task file's evidence block: command, pass timestamp, and a
   `sha256` of every owned file at that moment.
-- `doctor --spec <n>`: the 9 ordered per-spec preconditions (§2.6); print `PRECONDITIONS OK`.
+- `doctor --spec <n>`: the 9 ordered per-spec preconditions (section 2.6); print `PRECONDITIONS OK`.
 - `status --task <id>`: derive `MET` (hash matches) / `NOT MET` / `STALE` (hash changed) /
   `NO-EVIDENCE` from the task file.
 - `report --spec <n>`: regenerate `NNN-REPORT-<slug>.md`.

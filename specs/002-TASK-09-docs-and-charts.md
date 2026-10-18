@@ -16,7 +16,7 @@ Write the topic docs that carry the deep explanation (`.agents` files stay short
 escalation). Each doc gets a `tags:` frontmatter block (topic-doc rules).
 
 ### Progress
-- [x] create the five topic docs from §2 of the spec (explain the why)
+- [x] create the five topic docs from section 2 of the spec (explain the why)
 - [x] copy the mermaid blocks into docs/flow.md with short prose
 - [x] add tags frontmatter to each; do not edit `.agents` here
 - [x] regenerate docs/_topics.md (map-generator sync-docs)
