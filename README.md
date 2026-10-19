@@ -22,7 +22,27 @@ Instead of relying on ad-hoc prompts, Dev Agent gives your agent:
 
 ## Quick Start
 
-### 1. Install via the [skills.sh](https://skills.sh) CLI (Recommended)
+### 1. Bootstrap with the `dev-agent` skill (Official)
+
+Installing skills only makes them available to the agent — it does **not** set the project up. The official flow installs the `dev-agent` skill, then runs its `setup` to seed the framework into the project you are working in:
+
+```bash
+# Install the framework skill
+npx skills add git@github.com:sinhaaritro/dev-agent.git --skill dev-agent
+
+# Run its setup against the current repo
+python <dev-agent-skill>/scripts/bootstrap.py setup --target .
+```
+
+`<dev-agent-skill>` is wherever the skills CLI put the `dev-agent` folder (for a `-g` install, `~/.config/opencode/skills/dev-agent/`; for a project install, `.agents/skills/dev-agent/`). Preview first with `--dry-run`. Setup seeds:
+
+- `AGENTS.md`, `.gitignore`, `.cursorrules`, `.windsurfrules` at the repo root
+- `.agents/rules/dev-agent-framework.md` (the gateway rulebook) and `.agents/agents/coder.md` (the coder contract)
+- the shared runtime at `.agents/scripts/devagent/`, plus the `.agents/.devagent.json` manifest
+
+After that, the agent handles it: just ask it to "run dev-agent setup" and it runs the skill for you. Keep the install in sync with `setup --check` (read-only, exits 1 on drift) and `setup --update`. Every engine command then runs project-relative as `python .agents/scripts/devagent/main.py <command>`.
+
+### 2. Install skills via the [skills.sh](https://skills.sh) CLI
 
 Skills are installable with `npx skills`. Browse the grouped catalog at https://skills.sh/sinhaaritro/dev-agent.
 
@@ -56,23 +76,6 @@ npx skills list            # list installed skills
 npx skills update          # update to latest
 npx skills remove <name>   # remove a skill
 ```
-
-### 2. Bootstrap your project with the `dev-agent` skill (Official)
-
-Installing skills only makes them available to the agent — it does **not** set the project up. The official flow installs the `dev-agent` skill, then runs its `setup` to seed the framework into the project you are working in:
-
-```bash
-# The dev-agent skill installs the shared runtime + rulebook into the current repo
-python <dev-agent-skill>/scripts/bootstrap.py setup --target .
-```
-
-`<dev-agent-skill>` is wherever the skills CLI put the `dev-agent` folder (for a `-g` install, `~/.config/opencode/skills/dev-agent/`; for a project install, `.agents/skills/dev-agent/`). Preview first with `--dry-run`. Setup seeds:
-
-- `AGENTS.md`, `.gitignore`, `.cursorrules`, `.windsurfrules` at the repo root
-- `.agents/rules/dev-agent-framework.md` (the gateway rulebook) and `.agents/agents/coder.md` (the coder contract)
-- the shared runtime at `.agents/scripts/devagent/`, plus the `.agents/.devagent.json` manifest
-
-After that, the agent handles it: just ask it to "run dev-agent setup" and it runs the skill for you. Keep the install in sync with `setup --check` (read-only, exits 1 on drift) and `setup --update`. Every engine command then runs project-relative as `python .agents/scripts/devagent/main.py <command>`.
 
 ### 3. Start Coding
 
