@@ -71,7 +71,7 @@ purpose. Work like a maintainer editing a library:
    runs the vendored skill-creator cases.
 4. **Do not use the `specs/` phase lifecycle or the framework skills to develop
    the framework.** `specs/` is retained as resolved history; new framework work
-   goes through a plain plan (`PLAN.md`), not `specs/`.
+   goes through a plain plan, not `specs/`.
 
 ## Project instructions
 
