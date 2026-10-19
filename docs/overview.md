@@ -38,7 +38,7 @@ Dev Agent is a drop-in configuration framework for AI coding assistants. It turn
     │   └── dev-agent-framework.md            # Gateway rulebook — loaded every session, wins conflicts
     ├── scripts/devagent/        # Installed shared stdlib-only runtime (single entry point: main.py)
     ├── MAP.md                   # Generated skill index (on-disk at session start, never committed)
-    └── skills/                  # Seven core skills (below)
+    └── skills/                  # Seven skills: six core + the dev-agent installer (below)
 ```
 
 Note: `.agents/MAP.md` is generated on demand by the runtime's `map` command at session start and is not part of the committed tree; it is listed here because every other doc references it.
@@ -54,7 +54,7 @@ Memory is strictly split:
 
 There is no preserved append-only gate log in the scratchpad: gate decisions are recorded in the spec's own `Gates:` section, and the per-spec `NNN-ESCALATION-<slug>.md` is the durable failure audit record.
 
-### The seven core skills
+### The six core skills (+ the installer)
 
 | Skill | Role | Engine |
 | :--- | :--- | :--- |

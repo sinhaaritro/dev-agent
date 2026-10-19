@@ -233,7 +233,7 @@ class RefusalTest(BootstrapBase):
                     "version": 1,
                     "skills": {
                         "dev-agent": {
-                            "source": "github/sinhaaritro/dev-agent",
+                            "source": "sinhaaritro/dev-agent",
                             "skillPath": "skills/dev-agent/SKILL.md",
                         }
                     },
@@ -264,9 +264,9 @@ class RefusalTest(BootstrapBase):
         self.assertIn("Read `.agents/rules/dev-agent-framework.md`", agents)
         self.assertTrue((consumer / MANIFEST_REL).is_file())
 
-    def test_catalog_without_the_framework_grouping_is_not_refused(self):
-        # A repo can publish its own skills.sh.json catalog; only one that groups
-        # dev-agent is the framework's source tree.
+    def test_catalog_without_the_framework_skill_is_not_refused(self):
+        # A repo can publish its own skills.sh.json catalog; only a checkout that
+        # also ships skills/dev-agent is the framework's source tree.
         consumer = self.target
         (consumer / "skills.sh.json").write_text(
             json.dumps(
@@ -360,7 +360,7 @@ class AtomicityTest(BootstrapBase):
 class SkillsDescriptorTest(BootstrapBase):
     def test_descriptor_names_the_six_wrappers(self):
         descriptor = bootstrap._read_descriptor(SKILL)
-        self.assertEqual(descriptor["source"], "github/sinhaaritro/dev-agent")
+        self.assertEqual(descriptor["source"], "sinhaaritro/dev-agent")
         mandatory = descriptor["mandatory"]
         self.assertEqual(len(mandatory), 6)
         for name in mandatory:

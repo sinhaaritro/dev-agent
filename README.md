@@ -51,9 +51,9 @@ Skills are installable with `npx skills`. Browse the grouped catalog at https://
 # Install a single skill
 npx skills add git@github.com:sinhaaritro/dev-agent.git --skill auto-router
 
-# Install the 7 core skills
+# Install the 6 core skills
 npx skills add git@github.com:sinhaaritro/dev-agent.git \
-  -s dev-agent -s auto-router -s map-generator \
+  -s auto-router -s map-generator \
   -s phase-protocol -s spec-builder \
   -s task-cleaner -s verification-runner
 
@@ -67,7 +67,7 @@ Useful flags: `-g` (install globally to `~/.config/opencode/skills/`), `-a <agen
 
 ```bash
 # Non-interactive, global, opencode-only
-npx skills add github/sinhaaritro/dev-agent --skill phase-protocol -g -a opencode -y
+npx skills add sinhaaritro/dev-agent --skill phase-protocol -g -a opencode -y
 ```
 
 Management:

@@ -4,9 +4,8 @@
   "groupings": [
     {
       "title": "Core",
-      "description": "The 7 core skills of the Dev Agent framework. Install together with: npx skills add github/sinhaaritro/dev-agent --skill dev-agent --skill auto-router --skill map-generator --skill phase-protocol --skill spec-builder --skill task-cleaner --skill verification-runner",
+      "description": "The 6 core behavioral skills of the Dev Agent framework. Install together with: npx skills add sinhaaritro/dev-agent --skill auto-router --skill map-generator --skill phase-protocol --skill spec-builder --skill task-cleaner --skill verification-runner",
       "skills": [
-        "dev-agent",
         "auto-router",
         "map-generator",
         "phase-protocol",

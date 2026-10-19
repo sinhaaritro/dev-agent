@@ -104,16 +104,17 @@ def _load_json(path: Path) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
-def catalog_groups_framework(catalog: Path) -> bool:
-    """True when a ``skills.sh.json`` catalog groups this framework's skill."""
-    data = _load_json(catalog)
-    groupings = data.get("groupings") if data else None
-    if not isinstance(groupings, list):
+def is_framework_checkout(root: Path) -> bool:
+    """True when ``root`` is the framework's own source checkout.
+
+    The marker is structural, not a grouping name: the repo carries the skills
+    catalog *and* ships this skill's source at ``skills/dev-agent``. A consumer
+    install keeps the skill under ``.agents/skills/dev-agent``, and a consumer
+    catalog (grouping its own skills) lacks that source path, so neither matches.
+    """
+    if not (root / SOURCE_CATALOG).is_file():
         return False
-    return any(
-        isinstance(group, dict) and FRAMEWORK in (group.get("skills") or ())
-        for group in groupings
-    )
+    return (root / "skills" / FRAMEWORK / "SKILL.md").is_file()
 
 
 def lock_installs_framework(lock: Path) -> bool:
@@ -124,18 +125,18 @@ def lock_installs_framework(lock: Path) -> bool:
 
 
 def find_source_repo_root(target: Path) -> Path | None:
-    """Walk up from ``target`` to the nearest repo that publishes this framework.
+    """Walk up from ``target`` to the nearest framework source checkout.
 
-    A repo is the framework's source tree when its ``skills.sh.json`` catalog groups
-    ``dev-agent``. A consumer repo is recognised by ``skills-lock.json`` recording a
-    dev-agent install, and is never the source tree. ``AGENTS.md`` is deliberately
-    not a marker: consumer repos carry their own, and setup writes one into every
+    A repo is the source tree when it has the catalog and ``skills/dev-agent``.
+    A consumer repo is recognised by ``skills-lock.json`` recording a dev-agent
+    install, and is never the source tree. ``AGENTS.md`` is deliberately not a
+    marker: consumer repos carry their own, and setup writes one into every
     installed repo. Walking stops at a repo boundary (``.git``) or the filesystem
     root, so a nested clone is never mistaken for its parent.
     """
     current = target.resolve()
     while True:
-        if catalog_groups_framework(current / SOURCE_CATALOG):
+        if is_framework_checkout(current):
             return current
         if lock_installs_framework(current / LOCK_FILE):
             return None
@@ -653,6 +654,15 @@ def _resolve_skill_names(spec: str, descriptor: dict) -> list:
     return mandatory + [s for s in extra if s not in mandatory]
 
 
+def _emit(stream, text: str) -> None:
+    """Write subprocess output without failing on a narrow console codec."""
+    encoding = getattr(stream, "encoding", None) or "utf-8"
+    try:
+        stream.write(text)
+    except UnicodeEncodeError:
+        stream.write(text.encode(encoding, "replace").decode(encoding, "replace"))
+
+
 def _install_skills(
     skill_root: Path, args, target: Path, names: list | None = None
 ) -> int:
@@ -693,9 +703,9 @@ def _install_skills(
         errors="replace",
     )
     if proc.stdout:
-        sys.stdout.write(proc.stdout)
+        _emit(sys.stdout, proc.stdout)
     if proc.stderr:
-        sys.stderr.write(proc.stderr)
+        _emit(sys.stderr, proc.stderr)
     if proc.returncode != 0:
         sys.stderr.write(
             "error: `npx skills add` failed (exit " + str(proc.returncode) + ")\n"

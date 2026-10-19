@@ -25,7 +25,7 @@ The order is deliberate: each doc only assumes the ones before it.
 
 | # | Doc | What you get |
 | :-- | :--- | :--- |
-| 1 | [`overview.md`](overview.md) | The mental model: what Dev Agent guarantees, the directory map, memory tiers, the seven core skills, and the boot chain. **Start here.** |
+| 1 | [`overview.md`](overview.md) | The mental model: what Dev Agent guarantees, the directory map, memory tiers, the six core skills plus the installer, and the boot chain. **Start here.** |
 | 2 | [`skill-discovery.md`](skill-discovery.md) | How the agent finds skills: the generated `MAP.md`, snapshot-hash freshness, and two-stage recall. |
 | 3 | [`routing.md`](routing.md) | How a request is classified: the four lanes (D/C/B/A), session detection, escalation, and the routing verdict. |
 | 4 | [`lifecycle.md`](lifecycle.md) | How work is governed: the `Status:` lifecycle, Socratic gates, the autonomy policy, and the 4-block response schema. |

@@ -1,5 +1,5 @@
 {
-  "source": "github/sinhaaritro/dev-agent",
+  "source": "sinhaaritro/dev-agent",
   "mandatory": [
     "auto-router",
     "map-generator",
