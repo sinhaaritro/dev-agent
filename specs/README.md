@@ -17,7 +17,7 @@ Every spec carries `tags: [lowercase-kebab, ...]`; the promotion gate runs
 ## Index
   - 📄 [001-SPEC-topic-based-adr.md](./001-SPEC-topic-based-adr.md) — COMPLETED
   - 📄 [002-flow-design.md](./002-flow-design.md)
-  - 📄 [002-SPEC-subagent-task-files-full-plan.md](./002-SPEC-subagent-task-files-full-plan.md) — DRAFTED | Date: 2026-09-23
+  - 📄 [002-SPEC-subagent-task-files-full-plan.md](./002-SPEC-subagent-task-files-full-plan.md) — COMPILED
   - 📄 [002-TASK-01-new-template-check.md](./002-TASK-01-new-template-check.md)
   - 📄 [002-TASK-02-compile-purge-sync-accept.md](./002-TASK-02-compile-purge-sync-accept.md)
   - 📄 [002-TASK-03-verify-doctor-hash.md](./002-TASK-03-verify-doctor-hash.md)
