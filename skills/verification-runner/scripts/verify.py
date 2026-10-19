@@ -90,9 +90,12 @@ Modes:
 
     report   verify.py report --spec <NNN> [--root <dir>]
               Regenerate NNN-REPORT-<slug>.md: run state, per-task verify
-              status (derived from each task file's evidence block), and the
-              Review re-run result. A green report (every task MET) advances
-              BUILDING/BUILT to REVIEWED (review owner). Exit 0.
+              status (derived from each task file's evidence block), the R#
+              outcome observations (one line each; a missing observation fails
+              review), and the Review re-run result. A green report (every task
+              MET and every R# observed) advances BUILDING/BUILT to REVIEWED
+              (review owner). Exit 0; exit 1 when review fails (a task is not
+              MET, or a declared R# has no observation).
 
     escalate verify.py escalate --task <id> --hypothesis "<text>"
                   --options "A (Recommended): ...; B: ..." [--state-dir <dir>]
@@ -719,8 +722,8 @@ def _spec_runnable(path: Path) -> tuple[bool, str]:
     return True, ""
 
 
-def _section5_tasks(text: str) -> list[dict]:
-    """Minimal parse of the '## 5.' section's '### Task N:' blocks."""
+def _section5_body(text: str) -> str:
+    """The text of the '## 5.' section ('' when absent)."""
     lines = text.splitlines()
     start = None
     for i, line in enumerate(lines):
@@ -728,13 +731,18 @@ def _section5_tasks(text: str) -> list[dict]:
             start = i + 1
             break
     if start is None:
-        return []
+        return ""
     end = len(lines)
     for j in range(start, len(lines)):
         if re.match(r"^##\s", lines[j].strip()):
             end = j
             break
-    body = "\n".join(lines[start:end])
+    return "\n".join(lines[start:end])
+
+
+def _section5_tasks(text: str) -> list[dict]:
+    """Minimal parse of the '## 5.' section's '### Task N:' blocks."""
+    body = _section5_body(text)
     tasks: list[dict] = []
     current: dict | None = None
     for raw in body.splitlines():
@@ -743,7 +751,7 @@ def _section5_tasks(text: str) -> list[dict]:
             continue
         m = re.match(r"^###\s+Task\s+(\d+)\s*:\s*(.*)$", stripped)
         if m:
-            current = {"num": int(m.group(1)), "depends_on": ""}
+            current = {"num": int(m.group(1)), "depends_on": "", "outcomes": ""}
             tasks.append(current)
             continue
         if current is None:
@@ -751,10 +759,60 @@ def _section5_tasks(text: str) -> list[dict]:
         if stripped.startswith("###"):
             current = None
             continue
-        m = re.match(r"^-\s*(Depends On|Verify|Expect)\s*:\s*(.*)$", stripped)
+        m = re.match(r"^-\s*(Depends On|Verify|Expect|Outcomes)\s*:\s*(.*)$", stripped)
         if m:
             current[m.group(1).lower().replace(" ", "_")] = m.group(2).strip()
     return tasks
+
+
+def _section5_outcome_ids(text: str) -> list[str]:
+    """The 'R#' IDs declared in section 5's Outcomes table, in table order."""
+    ids: list[str] = []
+    for m in re.finditer(r"(?m)^\|\s*(R\d+)\s*\|", _section5_body(text)):
+        if m.group(1) not in ids:
+            ids.append(m.group(1))
+    return ids
+
+
+def _outcome_observations(
+    root: Path, num: int, text: str, tasks: list[dict]
+) -> list[tuple[str, bool, list[int]]]:
+    """Per declared R#: (id, observed?, delivering task numbers).
+
+    A delivering task is one whose 'Outcomes:' line names the R#. The outcome
+    is observed only when it has at least one deliverer and every deliverer is
+    MET (evidence-derived); an outcome no task delivers is never observed.
+    """
+    deliverers: dict[str, list[int]] = {}
+    for task in tasks:
+        for rid in re.findall(r"R\d+", task.get("outcomes") or ""):
+            deliverers.setdefault(rid, []).append(task["num"])
+    out: list[tuple[str, bool, list[int]]] = []
+    for rid in _section5_outcome_ids(text):
+        nums = deliverers.get(rid, [])
+        observed = bool(nums)
+        for n in nums:
+            tf = task_file_for(root, num, f"Task {n}")
+            if tf is None or status(tf) != "MET":
+                observed = False
+                break
+        out.append((rid, observed, nums))
+    return out
+
+
+def _observation_lines(observations: list[tuple[str, bool, list[int]]]) -> list[str]:
+    """One review line per R# outcome observation."""
+    lines: list[str] = []
+    for rid, observed, nums in observations:
+        if observed:
+            who = ", ".join(f"Task {n}" for n in nums)
+            lines.append(f"- {rid}: observed ({who})")
+        elif nums:
+            who = ", ".join(f"Task {n}" for n in nums)
+            lines.append(f"- {rid}: MISSING (delivered by {who}, not MET)")
+        else:
+            lines.append(f"- {rid}: MISSING (no delivering task)")
+    return lines
 
 
 def _dag_ok(tasks: list[dict]) -> tuple[bool, str]:
@@ -1016,19 +1074,33 @@ def report(spec: Path) -> Path:
         "",
         "## Task Status (derived from evidence blocks)",
     ]
+    not_met: list[str] = []
     for task in tasks:
         tf = task_file_for(root, num, f"Task {task['num']}")
         if tf is None:
             lines.append(f"- Task {task['num']}: NO TASK FILE")
+            not_met.append(f"Task {task['num']}")
             continue
         derived = status(tf)
         lines.append(f"- Task {task['num']}: {derived} ({tf.name})")
+        if derived != "MET":
+            not_met.append(f"Task {task['num']}")
+    observations = _outcome_observations(root, num, text, tasks)
+    if observations:
+        lines += ["", "## Outcomes (R# observations)"]
+        lines.extend(_observation_lines(observations))
     lines += [
         "",
         "## Review (fresh re-run of verify commands)",
     ]
     lines.extend(_rereun_verify(root, num, text))
-    lines.append("")
+    missing = [rid for rid, observed, _ in observations if not observed]
+    reasons = []
+    if missing:
+        reasons.append("missing " + ", ".join(missing))
+    if not_met:
+        reasons.append("not MET: " + ", ".join(not_met))
+    lines += ["", "Review: " + ("PASS" if not reasons else "FAIL (" + "; ".join(reasons) + ")")]
     target = spec.parent / f"{num:03d}-REPORT-{slug}.md"
     target.write_text("\n".join(lines), encoding="utf-8")
     return target
@@ -1261,15 +1333,40 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 0
 
 
+def _spec_num(spec: Path) -> int:
+    """The NNN of an NNN-SPEC-<slug>.md path (best effort)."""
+    m = SPEC_KIND.match(spec.name)
+    return int(m.group(1)) if m else int(spec.name[:3])
+
+
 def cmd_report(args: argparse.Namespace) -> int:
-    # Review owner: a green report (every task MET) moves BUILDING/BUILT ->
-    # REVIEWED. Advance before writing the report so its Status: line matches.
-    if _all_tasks_met(find_root(), args.spec):
+    # Review owner: a green report (every task MET and every R# observed) moves
+    # BUILDING/BUILT -> REVIEWED. Advance before writing the report so its
+    # Status: line matches; a failed review leaves the spec where it is.
+    root = find_root()
+    try:
+        text = args.spec.read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeDecodeError):
+        text = ""
+    tasks = _section5_tasks(text)
+    missing = [
+        rid
+        for rid, observed, _ in _outcome_observations(root, _spec_num(args.spec), text, tasks)
+        if not observed
+    ]
+    all_met = _all_tasks_met(root, args.spec)
+    if all_met and not missing:
         token = _status_token(args.spec)
         if token in ("BUILDING", "BUILT"):
             _set_spec_status(args.spec, "REVIEWED")
     path = report(args.spec)
     print("report: " + str(path))
+    if missing:
+        print("review FAILED: missing outcome observation(s): " + ", ".join(missing))
+        return 1
+    if not all_met:
+        print("review FAILED: not every task is MET")
+        return 1
     return 0
 
 

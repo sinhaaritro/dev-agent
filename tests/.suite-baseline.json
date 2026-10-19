@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T04:03:06Z",
+  "generated": "2026-10-19T04:14:18Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_doctor_precondition_7_accepts_compile_preapproval": "pass",
@@ -234,6 +234,9 @@
     "test_verify.EvidenceStatusTest.test_stale_when_owned_file_changes": "pass",
     "test_verify.FingerprintTest.test_executor_dropped": "pass",
     "test_verify.FingerprintTest.test_fields_affect_fingerprint": "pass",
+    "test_verify.OutcomeObservationTest.test_all_observed_passes_review": "pass",
+    "test_verify.OutcomeObservationTest.test_missing_observation_fails_review": "pass",
+    "test_verify.OutcomeObservationTest.test_one_observation_line_per_r": "pass",
     "test_verify.ReportTest.test_report_writes_group_report": "pass",
     "test_verify.RunEvidenceTest.test_run_writes_hash_evidence_on_pass": "pass",
     "test_verify.ShellCommandTest.test_run_executes_command_substitution": "skip",

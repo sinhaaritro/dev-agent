@@ -30,7 +30,9 @@ verify = importlib.util.module_from_spec(_spec)
 sys.modules["verify"] = verify
 _spec.loader.exec_module(verify)
 
-VERIFY_SCRIPT = REPO / ".agents" / "skills" / "verification-runner" / "scripts" / "verify.py"
+VERIFY_SCRIPT = (
+    REPO / ".agents" / "skills" / "verification-runner" / "scripts" / "verify.py"
+)
 
 
 def _sandbox(tmp: Path) -> Path:
@@ -87,7 +89,31 @@ def _spec_file(tmp: Path) -> Path:
         "## 5. Tasks & Outcomes\n\n"
         "### Task 1: do things\n"
         "- Depends On: None\n"
-        '- Verify: `python -c "print(\'MARKER\')"`\n'
+        "- Verify: `python -c \"print('MARKER')\"`\n"
+        "- Expect: MARKER\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _spec_with_outcomes(tmp: Path) -> Path:
+    """Like _spec_file, but section 5 declares an Outcomes table: R1 is
+    delivered by Task 1, R2 by no task — the fixture for the H4 observations."""
+    path = tmp / "specs" / "007-SPEC-do-things.md"
+    path.write_text(
+        "# 007: Do things\n\n"
+        "Status: COMPILED | Date: 2026-09-26\n\n"
+        "## 1. Goal\nDo things.\n\n"
+        "## 5. Tasks & Outcomes\n\n"
+        "**Outcomes:**\n\n"
+        "| ID | Outcome (what the user gets) |\n"
+        "|----|------------------------------|\n"
+        "| R1 | the thing works |\n"
+        "| R2 | the other thing works |\n\n"
+        "### Task 1: do things\n"
+        "- Depends On: None\n"
+        "- Outcomes: R1\n"
+        "- Verify: `python -c \"print('MARKER')\"`\n"
         "- Expect: MARKER\n",
         encoding="utf-8",
     )
@@ -170,7 +196,7 @@ class RunEvidenceTest(SandboxCase):
         state_dir = self.tmp / "specs" / "temp"
         rc = verify.cmd_run(
             _ns(
-                command='python -c "print(\'MARKER\')"',
+                command="python -c \"print('MARKER')\"",
                 task_id="007-Task 1",
                 expect="MARKER",
                 lane=None,
@@ -214,7 +240,9 @@ class DoctorTest(SandboxCase):
         super().setUp()
         self.spec = _spec_file(self.tmp)
         _task_file(self.tmp)
-        fp = verify.command_fingerprint('python -c "print(\'MARKER\')"', "MARKER", str(self.tmp))
+        fp = verify.command_fingerprint(
+            "python -c \"print('MARKER')\"", "MARKER", str(self.tmp)
+        )
         (self.tmp / "specs" / "007-APPROVALS-do-things.json").write_text(
             json.dumps(
                 {
@@ -223,7 +251,7 @@ class DoctorTest(SandboxCase):
                         {
                             "task": "Task 1",
                             "fingerprint": fp,
-                            "command": 'python -c "print(\'MARKER\')"',
+                            "command": "python -c \"print('MARKER')\"",
                             "expect": "MARKER",
                             "cwd": str(self.tmp),
                         }
@@ -258,7 +286,9 @@ class DoctorTest(SandboxCase):
 
     def test_doctor_detects_not_compiled(self):
         text = self.spec.read_text(encoding="utf-8")
-        self.spec.write_text(text.replace("Status: COMPILED", "Status: DRAFTED"), encoding="utf-8")
+        self.spec.write_text(
+            text.replace("Status: COMPILED", "Status: DRAFTED"), encoding="utf-8"
+        )
         gaps = verify.doctor(self.spec)
         self.assertTrue(any(g.startswith("4:") for g in gaps))
 
@@ -278,6 +308,51 @@ class ReportTest(SandboxCase):
         self.assertIn("Task 1: PASS", text)
 
 
+class OutcomeObservationTest(SandboxCase):
+    """H4: report() emits one R# observation per declared outcome, and a
+    missing observation fails review (exit 1, no advance to REVIEWED)."""
+
+    def setUp(self):
+        super().setUp()
+        self.spec = _spec_with_outcomes(self.tmp)
+        task_file = _task_file(self.tmp)
+        verify._write_evidence(task_file, _evidence_for(self.tmp, task_file))
+
+    def test_one_observation_line_per_r(self):
+        path = verify.report(self.spec)
+        text = path.read_text(encoding="utf-8")
+        self.assertIn("## Outcomes", text)
+        self.assertIn("- R1: observed (Task 1)", text)
+        self.assertIn("- R2: MISSING (no delivering task)", text)
+        self.assertIn("Review: FAIL", text)
+
+    def test_missing_observation_fails_review(self):
+        verify._set_spec_status(self.spec, "BUILT")
+        buf = StringIO()
+        with redirect_stdout(buf):
+            rc = verify.cmd_report(_ns(spec=self.spec))
+        self.assertEqual(rc, 1)
+        self.assertIn("R2", buf.getvalue())
+        # a failed review leaves the spec where it was
+        self.assertEqual(verify._status_token(self.spec), "BUILT")
+
+    def test_all_observed_passes_review(self):
+        text = self.spec.read_text(encoding="utf-8").replace(
+            "| R2 | the other thing works |\n", ""
+        )
+        self.spec.write_text(text, encoding="utf-8")
+        verify._set_spec_status(self.spec, "BUILT")
+        buf = StringIO()
+        with redirect_stdout(buf):
+            rc = verify.cmd_report(_ns(spec=self.spec))
+        self.assertEqual(rc, 0)
+        self.assertEqual(verify._status_token(self.spec), "REVIEWED")
+        report = self.tmp / "specs" / "007-REPORT-do-things.md"
+        report_text = report.read_text(encoding="utf-8")
+        self.assertIn("- R1: observed (Task 1)", report_text)
+        self.assertIn("Review: PASS", report_text)
+
+
 class ShellCommandTest(SandboxCase):
     """verify.py must shell-execute a command that uses shell syntax (pipes,
     boolean operators, command substitution) instead of a plain argv — a
@@ -291,7 +366,7 @@ class ShellCommandTest(SandboxCase):
         self.assertTrue(verify.uses_shell('test -z "$(grep -rln x docs/)"'))
         self.assertTrue(verify.uses_shell("a; b"))
         self.assertTrue(verify.uses_shell("a `cmd` b"))
-        self.assertFalse(verify.uses_shell('python -m unittest discover -s tests'))
+        self.assertFalse(verify.uses_shell("python -m unittest discover -s tests"))
         self.assertFalse(verify.uses_shell('echo "hello world"'))
 
     def test_run_executes_shell_command(self):
@@ -314,7 +389,9 @@ class ShellCommandTest(SandboxCase):
             )
         )
         self.assertEqual(rc, 0)
-        self.assertEqual(verify.status(self.tmp / "specs" / "007-TASK-01-do-things.md"), "MET")
+        self.assertEqual(
+            verify.status(self.tmp / "specs" / "007-TASK-01-do-things.md"), "MET"
+        )
 
     @unittest.skipUnless(os.name == "posix", "POSIX shell command substitution")
     def test_run_executes_command_substitution(self):
@@ -426,7 +503,7 @@ class StatusAdvanceTest(SandboxCase):
     def _pass(self, task_id="007-Task 1"):
         return verify.cmd_run(
             _ns(
-                command='python -c "print(\'MARKER\')"',
+                command="python -c \"print('MARKER')\"",
                 task_id=task_id,
                 expect="MARKER",
                 lane=None,
@@ -446,7 +523,7 @@ class StatusAdvanceTest(SandboxCase):
         self.spec.write_text(
             self.spec.read_text(encoding="utf-8")
             + "\n### Task 2: more\n- Depends On: Task 1\n"
-            + '- Verify: `python -c "print(\'MARKER\')"`\n- Expect: MARKER\n',
+            + "- Verify: `python -c \"print('MARKER')\"`\n- Expect: MARKER\n",
             encoding="utf-8",
         )
         self.assertEqual(self._pass(), 0)
@@ -494,8 +571,14 @@ class BranchPossibleTest(unittest.TestCase):
             self._git("init")
             self._git("symbolic-ref", "HEAD", f"refs/heads/{branch}")
         self._git(
-            "-c", "user.email=t@example.com", "-c", "user.name=test",
-            "commit", "--allow-empty", "-m", "init",
+            "-c",
+            "user.email=t@example.com",
+            "-c",
+            "user.name=test",
+            "commit",
+            "--allow-empty",
+            "-m",
+            "init",
         )
 
     def test_master_default_is_accepted(self):

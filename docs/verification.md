@@ -102,7 +102,7 @@ When a task exhausts its 3 attempts and no unblocked task remains:
 2. Finalize with `verify.py escalate --task <id> --hypothesis "<text>"`: it merges the stored attempt logs with the agent's hypothesis and guided remediation options into the report.
 3. The spec is parked **`ESCALATED`** (not `ABORTED`) and that spec's branch stops; the batch **continues** to the next spec. Report the hand-back in response blocks 3/4: the escalation record, the attempts' verbatim logs, the hypothesis, and the options; block 4 states the halt — no further modifications without a human.
 
-`verify.py report --spec <spec>` writes the per-spec `NNN-REPORT-<slug>.md`: the per-task derived status + evidence, the `R#` outcome observations (one line each — a missing observation **fails** review), and the review summary. Reports are **per spec only**; there is no combined batch file (VERIFY-D05). A green report (every task `MET`) advances the spec `BUILDING`/`BUILT` → `REVIEWED`; a Sign-off block parks it `REVIEW_REVISION_REQUIRED`.
+`verify.py report --spec <spec>` writes the per-spec `NNN-REPORT-<slug>.md`: the per-task derived status + evidence, the `R#` outcome observations (one line each — a missing observation **fails** review), and the review summary. An `R#` is observed only when every task whose `Outcomes:` line names it is `MET` (an outcome delivered by no task is never observed). Reports are **per spec only**; there is no combined batch file (VERIFY-D05). A green report (every task `MET` **and** every declared `R#` observed) advances the spec `BUILDING`/`BUILT` → `REVIEWED` and exits **0**; a task that is not `MET` or an unobserved `R#` leaves the status unchanged and exits **1**; a Sign-off block parks it `REVIEW_REVISION_REQUIRED`.
 
 ### Guardrails context
 
@@ -129,3 +129,7 @@ Verification never overrides the global guardrails (see `overview.md`): running 
 ### VERIFY-D05 - Reports are per spec only
 - **Date:** 2026-09-27
 - **Why:** Each spec has its own branch, escalation, and commit; a per-spec `NNN-REPORT` keeps a bad spec from cascading into a shared batch record, and the batch ends with a chat summary instead.
+
+### VERIFY-D06 - An outcome is observed only when its tasks are MET
+- **Date:** 2026-10-19
+- **Why:** The documented review gate ("a missing observation **fails** review") needs a derived, not asserted, meaning of "observed". Tying each `R#` to the tasks whose `Outcomes:` line names it, and requiring every such task to be `MET`, makes the report fail closed: an outcome no task delivers — or one whose task regressed to `STALE` — is `MISSING`, and a failed review exits 1 without advancing the spec to `REVIEWED`.

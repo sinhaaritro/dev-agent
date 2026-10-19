@@ -25,7 +25,7 @@ You execute the plan's verification commands and enforce the per-task attempt li
 - Every build task: run its `Verify` command (spec section 5 / task file) with its `Expect` marker; the canonical build/test commands (spec section 7) and `AGENTS.md` are the fallback source.
 - A pre-flight is needed before an unattended run — `verify.py doctor --spec <NNN>` runs the 9 ordered preconditions and prints `PRECONDITIONS OK` or a named list of gaps.
 - A task's completion must be derived, not asserted — `verify.py status --task <id>` reads the evidence block and reports `MET` / `NOT MET` / `STALE` / `NO-EVIDENCE`.
-- A run report must be (re)generated at spec end or on demand — `verify.py report --spec <NNN>` writes `NNN-REPORT-<slug>.md`.
+- A run report must be (re)generated at spec end or on demand — `verify.py report --spec <NNN>` writes `NNN-REPORT-<slug>.md`, including one observation line per declared `R#` outcome; a missing observation (or a non-`MET` task) **fails** review and exits 1.
 - A lane A/B command needs its first-run approval (exit 4 without it) — approvals are pre-recorded at compile into `NNN-APPROVALS-<slug>.json`; ad-hoc commands are approved with `verify.py approve` before their first execution.
 - A task's verify fails and a fix attempt is made — the retry must go through the engine's ledger so the 3-attempt limit is real, never recalled from memory.
 - No `Verify` on the task, no section 7 commands in the plan, and no Commands in `AGENTS.md` — detect the framework and suggest canonical commands.
@@ -61,5 +61,5 @@ You execute the plan's verification commands and enforce the per-task attempt li
 - **`--state-dir` is for tests/evals only** — real runs target `specs/temp/`; sandbox runs must never point at the real state file.
 - **Interactive commands are refused** (`--interactive`, `--watch`, `--live-reload`) — verification is non-interactive by design.
 - **The escalation record is the audit record** of a halted task (`NNN-ESCALATION-<slug>.md`, or `specs/temp/escalation.md` for a task with no spec group): verbatim logs, hypothesis, remediation options, hand-back line — engine-generated so every report is reviewable and truthful.
-- **The engine owns the build/review status receipts.** On PASS it advances the spec `COMPILED → BUILDING` (first pass) and `→ BUILT` once every task is `MET`; a green `report` (every task `MET`) advances `BUILDING`/`BUILT` `→ REVIEWED`. `ESCALATED` is stamped on a circuit-breaker trip. `doctor` accepts a `COMPILED` or `BUILDING` spec.
+- **The engine owns the build/review status receipts.** On PASS it advances the spec `COMPILED → BUILDING` (first pass) and `→ BUILT` once every task is `MET`; a green `report` (every task `MET` and every declared `R#` observed) advances `BUILDING`/`BUILT` `→ REVIEWED` (a failed review exits 1 and leaves the status unchanged). `ESCALATED` is stamped on a circuit-breaker trip. `doctor` accepts a `COMPILED` or `BUILDING` spec.
 - Framework pages extend this skill per-project: add a page when a project needs one; never hardcode a stack into this file.

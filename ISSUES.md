@@ -18,7 +18,7 @@
 | H1 | High | ✅ **Fixed 2026-10-19** — `drafted.md` Lane-A now lists the real 1–8 template (Gates/Verification/Rollback in the right slots) |
 | H2 | High | ✅ **Fixed 2026-10-19** — the documented convention is `NNN-SPEC-<slug>.md` everywhere; the fresh README scaffold and the dead tag-index block are corrected |
 | H3 | High | Documented CLI invocations (`doctor/report/status --spec|--task <NNN>`) do not work; `report` writes a stray file |
-| H4 | High | `verify.py report` omits the `R#` outcome observations the docs require |
+| H4 | High | ✅ **Fixed 2026-10-19** — `report` emits one `R#` outcome observation per declared outcome and fails review (exit 1, no advance) on a missing one |
 | H5 | High | Approvals are documented as gitignored but are committed, and embed machine-absolute CWDs |
 | H6 | High | `specs-lint` is unusable in this repo, scans gitignored eval output, and crashes on Windows/cp1252 |
 | H7 | High | ✅ **Fixed 2026-10-19** — `doctor` precondition 9 resolves the default branch and accepts `main` or `master` |
@@ -267,6 +267,8 @@ Review cannot fail on a missing outcome, contrary to the documented gate.
 **Suggested fix**
 
 Parse the section-5 Outcomes table and emit one observation line per `R#`, with an explicit FAIL when absent.
+
+**Status: ✅ Fixed (2026-10-19).** `report()` now parses section 5's Outcomes table (`_section5_outcome_ids`) and each task's `Outcomes:` line (captured by `_section5_tasks`), emitting a `## Outcomes (R# observations)` line per declared outcome: `- R1: observed (Task N)` when every delivering task is `MET`, else `- R1: MISSING …`. The report closes with `Review: PASS`/`Review: FAIL (…)`, and `cmd_report` exits **1** (leaving the status unchanged) when an `R#` is unobserved or a task is not `MET`; only a fully green review advances `BUILDING`/`BUILT` → `REVIEWED`. `docs/verification.md` and `verification-runner/SKILL.md` now state the exit-1 semantics. Regression test: `tests/test_verify.py::OutcomeObservationTest`.
 
 ---
 
