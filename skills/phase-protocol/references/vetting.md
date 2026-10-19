@@ -45,9 +45,9 @@ python .agents/scripts/devagent/main.py spec vetting specs/temp/draft-plan.md \
 ```
 
 A block sets `Status: PLAN_REVISION_REQUIRED` and returns to the authoring
-loop. The **3rd block** stays `PLAN_REVISION_REQUIRED` and hands back to the
-human; do not loop a fourth time. A human may record `--accept` to override a
-block as-is (it records a pass and returns a blocked draft to `DRAFTED`).
+loop. A later pass (or a human `--accept`) returns the draft to `DRAFTED`. The
+**3rd block** stays `PLAN_REVISION_REQUIRED` and hands back to the human; do not
+loop a fourth time. A human may record `--accept` to override a block as-is.
 
 On a pass (or accept), continue to `references/compiled.md`. Never build in the
 same session.

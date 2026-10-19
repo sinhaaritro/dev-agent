@@ -95,6 +95,13 @@ class VettingTest(unittest.TestCase):
         self.assertEqual(self.text().count("- Verdict: block"), 3)
         self.assertIn("Status: PLAN_REVISION_REQUIRED", self.text())
 
+    def test_pass_closes_a_blocked_revision_loop(self):
+        self.run_vetting(verdict="block", note="issue")
+        self.assertEqual(self.run_vetting(verdict="pass", note="fixed"), 0)
+        text = self.text()
+        self.assertIn("- Verdict: pass", text)
+        self.assertIn("Status: DRAFTED", text)
+
     def test_accept_returns_a_blocked_draft_to_drafted(self):
         self.run_vetting(verdict="block", note="issue")
         self.assertEqual(self.run_vetting(accept=True, note="human override"), 0)

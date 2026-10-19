@@ -1850,7 +1850,8 @@ def cmd_vetting(args: argparse.Namespace) -> int:
     )
     if verdict == "block":
         text = replace_status(text, "PLAN_REVISION_REQUIRED")
-    elif accepted and status_token(text) == "PLAN_REVISION_REQUIRED":
+    elif status_token(text) == "PLAN_REVISION_REQUIRED":
+        # A pass (or a human accept) closes the revision loop.
         text = replace_status(text, "DRAFTED")
     draft.write_text(text, encoding="utf-8")
 
