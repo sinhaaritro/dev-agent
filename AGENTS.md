@@ -36,7 +36,7 @@ Dev Agent is a drop-in configuration framework (a set of composable skills plus 
 - Test: `python -m unittest discover -s tests -v`
 - Lint: `python -m ruff check skills tools tests` (`.agents/skills/` holds the vendored `skill-creator`; it is excluded from lint)
 - Suite drift report: `python tools/suite_report.py` (`--update` refreshes `tests/.suite-baseline.json`)
-- Behavior evals: `python tools/behavior_eval.py list|init|run|check|batch|feedback` (`batch --skill <name>` runs N predefined prompts as one review: new_skill vs old_skill + Benchmark summary)
+- Behavior evals: `python tools/behavior_eval.py list|init|run|check|accept|baseline|batch|feedback` (`batch --skill <name>` runs N predefined prompts as one review: new_skill vs old_skill + Benchmark summary; `accept` records a checked run as the case baseline and `baseline` reports skill/fixture drift offline)
 
 ## Skill-creator evals (maintainers)
 

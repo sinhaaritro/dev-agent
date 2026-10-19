@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from argparse import Namespace
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -686,6 +687,112 @@ class BatchReviewTest(unittest.TestCase):
         self.assertIn("tighten the lane example", digest)
 
 
+class AcceptedBaselineTest(unittest.TestCase):
+    """Phase 2: accept a checked run, then detect skill/fixture drift offline."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.workspace = Path(self._tmp.name)
+        self.fixtures = self.workspace / "fixtures"
+
+    def make_case(self, prompt: str = "do the thing"):
+        case_dir = self.fixtures / "cases" / "case-x"
+        write(
+            case_dir / "case.json",
+            json.dumps(
+                {
+                    "name": "case-x",
+                    "profile": "bootstrapped-node",
+                    "setup": [],
+                    "prompt": prompt,
+                    "expectations": ["creates x"],
+                    "expected_artifacts": ["exists:repo:x"],
+                }
+            ),
+        )
+        return behavior_eval.Case.load(self.fixtures, "case-x")
+
+    def seed_run(self, case) -> Path:
+        run = self.workspace / "runs" / case.name / "run-1"
+        write(run / "repo" / "x", "hello\n")
+        write(run / "transcript.md", "done\n")
+        return run
+
+    def test_no_baseline_has_no_checks(self):
+        case = self.make_case()
+        self.assertIsNone(behavior_eval.load_baseline(case))
+        self.assertEqual(behavior_eval.baseline_checks(case), [])
+
+    def test_accept_records_a_passing_run(self):
+        case = self.make_case()
+        run = self.seed_run(case)
+        behavior_eval.check_config(case, run, "new_skill")
+        path = behavior_eval.accept_run(case, run, configs=("new_skill",))
+        self.assertTrue(path.is_file())
+        self.assertEqual(path, behavior_eval.baseline_path(case))
+        baseline = behavior_eval.load_baseline(case)
+        self.assertEqual(baseline["case"], "case-x")
+        self.assertEqual(baseline["summary"]["pass_rate"], 1.0)
+        self.assertIn("skills_sha256", baseline)
+        self.assertTrue(all(c["ok"] for c in behavior_eval.baseline_checks(case)))
+
+    def test_accept_refuses_a_failing_run_without_force(self):
+        case = self.make_case()
+        run = self.workspace / "runs" / case.name / "run-1"
+        (run / "repo").mkdir(parents=True)  # x missing -> artifact FAILs
+        behavior_eval.check_config(case, run, "new_skill")
+        with self.assertRaises(SystemExit):
+            behavior_eval.accept_run(case, run, configs=("new_skill",))
+        path = behavior_eval.accept_run(case, run, configs=("new_skill",), force=True)
+        self.assertTrue(path.is_file())
+
+    def test_fixture_change_shows_as_drift(self):
+        case = self.make_case()
+        run = self.seed_run(case)
+        behavior_eval.check_config(case, run, "new_skill")
+        behavior_eval.accept_run(case, run, configs=("new_skill",))
+        self.make_case(prompt="do a DIFFERENT thing")
+        reloaded = behavior_eval.Case.load(self.fixtures, "case-x")
+        drift = {c["name"]: c["ok"] for c in behavior_eval.baseline_checks(reloaded)}
+        self.assertFalse(drift["baseline: case fixture unchanged"])
+        self.assertTrue(drift["baseline: skills under test unchanged"])
+
+    def test_tree_sha_ignores_line_endings(self):
+        a = self.workspace / "a"
+        b = self.workspace / "b"
+        (a).mkdir(parents=True)
+        (b).mkdir(parents=True)
+        (a / "f.txt").write_bytes(b"one\ntwo\n")
+        (b / "f.txt").write_bytes(b"one\r\ntwo\r\n")
+        self.assertEqual(behavior_eval._tree_sha(a), behavior_eval._tree_sha(b))
+
+    def test_baseline_command_reports_drift(self):
+        case = self.make_case()
+        run = self.seed_run(case)
+        behavior_eval.check_config(case, run, "new_skill")
+        behavior_eval.accept_run(case, run, configs=("new_skill",))
+        args = Namespace(skill=None, strict=False)
+        self.assertEqual(behavior_eval.cmd_baseline(args, self.fixtures), 0)
+        self.make_case(prompt="changed fixture")
+        self.assertEqual(behavior_eval.cmd_baseline(args, self.fixtures), 1)
+
+    def test_baseline_strict_requires_a_baseline(self):
+        self.make_case()
+        self.assertEqual(
+            behavior_eval.cmd_baseline(
+                Namespace(skill=None, strict=True), self.fixtures
+            ),
+            1,
+        )
+        self.assertEqual(
+            behavior_eval.cmd_baseline(
+                Namespace(skill=None, strict=False), self.fixtures
+            ),
+            0,
+        )
+
+
 class CliTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -707,6 +814,12 @@ class CliTest(unittest.TestCase):
         proc = self.run_cli("list")
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         self.assertIn("b2-1-four-lanes", proc.stdout)
+
+    def test_baseline_reports_cases_offline(self):
+        proc = self.run_cli("baseline")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("b2-1-four-lanes", proc.stdout)
+        self.assertIn("cases:", proc.stdout)
 
     def test_init_then_check_offline(self):
         init = self.run_cli(

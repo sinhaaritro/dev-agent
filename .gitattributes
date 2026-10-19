@@ -1,5 +1,5 @@
-# Skill sources and the derived mirror: force LF so `promote --check` is
-# byte-stable across platforms.
+# Skill sources and tooling: force LF so tree hashes are byte-stable across
+# platforms.
 skills/**         text eol=lf
 .agents/skills/** text eol=lf
 tools/**          text eol=lf

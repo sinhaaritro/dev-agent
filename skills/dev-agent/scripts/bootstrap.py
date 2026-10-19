@@ -31,7 +31,7 @@ Per-file report:
 Summary (setup):     dev-agent setup complete: <N> installed, <M> updated, <K> unchanged
 
 ``--check`` prints ``ok`` / ``stale`` / ``modified`` / ``missing`` / ``orphan``
-lines and exits 1 on any drift (a CI guard, parallel to ``promote --check``).
+lines and exits 1 on any drift (a CI guard you can wire into hooks or CI).
 
 Exit codes: 0 = success / clean; 1 = error, drift, or bad target; 2 = refused
 (the packaged runtime is older than the one already installed).

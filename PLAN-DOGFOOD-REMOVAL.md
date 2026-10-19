@@ -1,6 +1,6 @@
 # Dev Agent — Stop Dogfooding (Shape 2) Plan
 
-> **Status:** In progress
+> **Status:** Complete (Shape 2 + Phase 2 behavior-eval baseline)
 > **Scope:** Collapse the repo's two-tree dogfood model to a single source
 > tree. `skills/` stays the canonical, shipped product; the repo stops running
 > the framework on itself. Pure maintainer tooling/evals stay.
@@ -97,20 +97,30 @@ section with a **Maintainer contract**.
 **T6 — Verify.** `compileall`, `ruff`, `unittest`, `suite_report`, plus a
 manual `npx skills add . --list` sanity check.
 
-## 5. Out of scope (Phase 2 — designed, not built)
+## 5. Phase 2 — behavior-eval baseline (built)
 
-**Behavior-eval baseline.** The evals already work without dogfood, but nothing
-records an *accepted* run in the repo. Add the skill_eval `accept` analog:
+The evals already work without dogfood; Phase 2 records an *accepted* run in the
+repo as the skill_eval `accept` analog:
 
-- `behavior_eval accept --case X --run-id Y` writes
-  `tests/fixtures/behavior/baselines/<case>.json` with the accepted grading plus
-  a hash of the `skills/` subtree under test.
-- `batch`/CI compare against the baseline; a skill edit that regresses flips it
-  to drift (same shape as `suite_report.py`).
+- `behavior_eval accept --case X --run-id Y [--config ...] [--force]` writes
+  `tests/fixtures/behavior/baselines/<case>.json` with the accepted per-step
+  verdicts, the configs, the model, and the hashes of the `skills/` subtree under
+  test and the case fixture. It refuses a run whose `new_skill` verdict failed
+  unless `--force` is given.
+- `behavior_eval baseline [--skill S] [--strict]` is the offline, agent-free
+  drift report (same shape as `suite_report.py`): it re-hashes the skills +
+  fixture and prints `ok` / `DRIFT` / `no-baseline` per case, exiting non-zero on
+  drift (and on missing baselines when `--strict`).
+- `check` and `batch` print an advisory `baseline drift:` line when the case was
+  accepted at a different skills/fixture state.
 
 Flow: change skills on a branch → `batch` there → green → `accept` → merge code
-+ baseline together → main CI re-checks the baseline. Optional git worktrees
-give isolation/parallelism; they are not required.
++ baseline together → main CI runs `baseline` and flags any later skill edit as
+drift. Optional git worktrees give isolation/parallelism; they are not required.
+
+Baselines are intentionally not committed by this change: an accepted baseline
+must come from a real graded run, so maintainers create them after a live
+`batch` + review. Until then `baseline` reports every case as `no-baseline`.
 
 ## 6. Definition of done
 
@@ -124,9 +134,9 @@ give isolation/parallelism; they are not required.
 
 ## 7. Progress
 
-**Shape 2 implemented; all gates green (276 tests, 2 skipped; `ruff` clean;
-`compileall` clean; `suite_report` no drift; product `setup`/`--check` smoke
-tested into a temp target).**
+**Shape 2 implemented; Phase 2 (behavior-eval baseline) implemented; all gates
+green (294 tests, 2 skipped; `ruff` clean; `compileall` clean; `suite_report` no
+drift; product `setup`/`--check` smoke tested into a temp target).**
 
 - Deleted the 7 consumer-skill mirrors, the mirrored runtime
   (`.agents/scripts/devagent/`), `.agents/.promoted.json`, `.agents/MAP.md`,
@@ -161,3 +171,16 @@ tested into a temp target).**
   still allows `.agents/...`.
 - `specs/`, `BACKLOG.md`, `tests/TEST-PLAN.md`, `PLAN.md`, and Decision-Log
   history are intentionally left untouched (resolved/historical).
+
+### Phase 2 (behavior-eval baseline) — added
+
+- `tools/behavior_eval.py`: `accept_run`/`cmd_accept` (writes
+  `tests/fixtures/behavior/baselines/<case>.json`), `skills_hash` / `fixture_hash`
+  (LF-normalized tree hashes), `baseline_checks`, `cmd_baseline` (offline
+  `ok`/`DRIFT`/`no-baseline` report, `--strict`, exit 1 on drift), and advisory
+  `baseline drift:` lines in `check`/`batch`. Docstring + CLI usage updated.
+- `tests/test_behavior_harness.py`: new `AcceptedBaselineTest` (7 tests) +
+  `CliTest.test_baseline_reports_cases_offline`; suite baseline refreshed
+  (294 tests).
+- Fixed a stale `promote` reference in the feedback digest ("then promote" →
+  "then re-run the eval").

@@ -49,21 +49,30 @@ the trusted copy under `.behavior-review/`, read the answers, and click "Submit
 All Reviews" to download `feedback.json`; save it at `<run>/feedback.json` and
 run `feedback` to turn it into a revision digest.
 
+`accept` records a checked run as the case's baseline under
+`tests/fixtures/behavior/baselines/<case>.json`, pinning the hashes of the
+skills under test and the case fixture. `baseline` re-hashes those offline, so a
+skill edit after `accept` shows up as drift until the case is re-run and
+re-accepted.
+
 Usage:
     python tools/behavior_eval.py list --skill spec-builder
     python tools/behavior_eval.py init --case b2-1-four-lanes --config compare
     python tools/behavior_eval.py run  --case b2-1-four-lanes --run-id <id> --config compare
     python tools/behavior_eval.py check --case b2-1-four-lanes --run-id <id>
+    python tools/behavior_eval.py accept --case b2-1-four-lanes --run-id <id>
+    python tools/behavior_eval.py baseline [--strict]
     python tools/behavior_eval.py batch --run-id <id> --skill auto-router
     python tools/behavior_eval.py feedback --run-dir <batch-dir>
 
-`run` drives OpenCode headlessly; `init`, `check` and `feedback` are offline
-(tests/test_behavior_harness.py covers them).
+`run` drives OpenCode headlessly; `init`, `check`, `accept`, `baseline` and
+`feedback` are offline (tests/test_behavior_harness.py covers them).
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -102,6 +111,10 @@ SCOPES = ("repo", "run")
 
 STEPS_DIR = "steps"
 BASE_SNAPSHOT_DIR = "_base_repo"
+
+# Accepted-run baselines: tests/fixtures/behavior/baselines/<case>.json
+BASELINES_DIR = "baselines"
+IGNORE_DIRS = {"__pycache__", ".git", ".venv", "node_modules"}
 
 
 def find_root() -> Path:
@@ -748,6 +761,170 @@ def skills_under_test(case: Case) -> list[str]:
     return names
 
 
+def _tree_sha(path: Path) -> str:
+    """Deterministic content hash of a directory tree (caches ignored).
+
+    Newlines are normalized to LF so a baseline accepted on one OS still
+    matches the same checkout on another.
+    """
+    digest = hashlib.sha256()
+    for entry in sorted(path.rglob("*")):
+        if entry.is_dir() or entry.suffix == ".pyc":
+            continue
+        if any(part in IGNORE_DIRS for part in entry.parts):
+            continue
+        rel = entry.relative_to(path).as_posix()
+        data = entry.read_bytes().replace(b"\r\n", b"\n")
+        digest.update(rel.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(data)
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def baseline_path(case: Case) -> Path | None:
+    """Where the accepted baseline for a case lives, if the case has a path."""
+    if case.path is None:
+        return None
+    return case.path.parent.parent / BASELINES_DIR / f"{case.name}.json"
+
+
+def skills_hash(case: Case) -> str:
+    """Hash the shipped skills a case exercises, plus the shared runtime.
+
+    Every case bootstraps `skills/dev-agent` (runtime + seed rulebook +
+    installer), so a change there can affect any case even when it is not
+    listed in `setup`.
+    """
+    names = sorted(set(skills_under_test(case)) | {"dev-agent"})
+    digest = hashlib.sha256()
+    for name in names:
+        src = SKILLS_SOURCE / name
+        digest.update(f"{name}\0".encode())
+        if src.is_dir():
+            digest.update(_tree_sha(src).encode("utf-8"))
+        else:
+            digest.update(b"missing")
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def fixture_hash(case: Case) -> str:
+    """Hash the case fixture itself (case.json + any per-case overlay)."""
+    if case.path is None:
+        return ""
+    return _tree_sha(case.path)
+
+
+def load_baseline(case: Case) -> dict | None:
+    path = baseline_path(case)
+    if path is None or not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def baseline_checks(case: Case) -> list[dict]:
+    """Drift checks against an accepted baseline; empty when none is recorded."""
+    baseline = load_baseline(case)
+    if baseline is None:
+        return []
+    return [
+        {
+            "name": "baseline: skills under test unchanged",
+            "ok": baseline.get("skills_sha256") == skills_hash(case),
+            "detail": "the skills changed since accept; re-run the eval and accept",
+        },
+        {
+            "name": "baseline: case fixture unchanged",
+            "ok": baseline.get("fixture_sha256") == fixture_hash(case),
+            "detail": "the case changed since accept; re-run the eval and accept",
+        },
+    ]
+
+
+def accept_run(
+    case: Case,
+    run: Path,
+    configs: tuple[str, ...] | None = None,
+    model: str | None = None,
+    force: bool = False,
+) -> Path:
+    """Record a checked run as the case's accepted baseline.
+
+    Mirrors `skill_eval accept`: the run must have graded (`check`) and its
+    `new_skill` verdict must have passed unless `force` is set. The baseline
+    pins the skills + fixture hashes so later drift is detectable offline.
+    """
+    present = existing_configs(run)
+    if not present:
+        raise SystemExit(f"error: run not initialized: {run}")
+    chosen = tuple(c for c in (configs or present) if c in present) or present
+    steps_snapshot: list[dict] = []
+    passed = 0
+    total = 0
+    verdict_ok = True
+    for config in chosen:
+        result_path = config_path(run, config) / "result.json"
+        if not result_path.is_file():
+            raise SystemExit(
+                f"error: config {config!r} has no result.json (run check first)"
+            )
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+        checks = result.get("checks", [])
+        passed += sum(1 for c in checks if c.get("passed"))
+        total += len(checks)
+        if config == ROOT_CONFIG:
+            verdict_ok = verdict_ok and bool(result.get("passed"))
+        step_results = result.get("steps") or [
+            {"step": case.steps[0].id, "checks": checks}
+        ]
+        for step_result in step_results:
+            steps_snapshot.append(
+                {
+                    "step": step_result.get("step"),
+                    "config": config,
+                    "checks": [
+                        {"artifact": c.get("artifact"), "passed": c.get("passed")}
+                        for c in step_result.get("checks", [])
+                    ],
+                }
+            )
+    if not verdict_ok and not force:
+        raise SystemExit("error: the run did not pass (use --force to accept anyway)")
+    path = baseline_path(case)
+    if path is None:
+        raise SystemExit("error: case has no fixture path to store a baseline")
+    baseline = {
+        "case": case.name,
+        "accepted_at": iso_now(),
+        "model": model,
+        "profile": case.profile,
+        "configs": list(chosen),
+        "skills_under_test": skills_under_test(case),
+        "skills_sha256": skills_hash(case),
+        "fixture_sha256": fixture_hash(case),
+        "summary": {
+            "passed": passed,
+            "total": total,
+            "pass_rate": round(passed / total, 3) if total else 0.0,
+        },
+        "steps": steps_snapshot,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(baseline, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def print_baseline_status(case: Case) -> None:
+    """Print an advisory when an accepted baseline has drifted (§Phase 2)."""
+    for check in baseline_checks(case):
+        if not check["ok"]:
+            print(f"baseline drift: {check['name']} - {check['detail']}")
+
+
 def _copy_outputs(base: Path, dest: Path) -> None:
     dest_out = dest / "outputs"
     dest_out.mkdir(parents=True, exist_ok=True)
@@ -1163,6 +1340,7 @@ def cmd_check(args: argparse.Namespace, fixtures_root: Path) -> int:
         elif ROOT_CONFIG not in configs:
             ok = ok and result["passed"]
     print(f"{'PASS' if ok else 'FAIL'} case {case.name}")
+    print_baseline_status(case)
     if not args.no_review:
         html = build_review(case, target)
         if html is not None:
@@ -1219,6 +1397,7 @@ def cmd_batch(args: argparse.Namespace, fixtures_root: Path) -> int:
             entries.extend(review_units(case, config, config_path(run, config)))
             mark = "PASS" if result["passed"] else "FAIL"
             print(f"{mark} {case.name} [{config}]")
+        print_baseline_status(case)
 
     skills = sorted({s for case in cases for s in skills_under_test(case)})
     skill_name = ", ".join(skills) or "behavior suite"
@@ -1297,7 +1476,7 @@ def cmd_feedback(args: argparse.Namespace, fixtures_root: Path) -> int:
 
     lines = [f"# Feedback digest - {label}", "", f"source: {path}"]
     lines.append(f"skills under test: {', '.join(skills) or '-'}")
-    lines.append("revise with: author-skill (skills/<name>/), then promote")
+    lines.append("revise with: author-skill (skills/<name>/), then re-run the eval")
     if status:
         lines.append(f"status: {status}")
     lines.append("")
@@ -1316,6 +1495,71 @@ def cmd_feedback(args: argparse.Namespace, fixtures_root: Path) -> int:
     print(f"digest: {digest}")
     if used == 0:
         print("no written feedback yet - submit reviews in review.html first")
+    return 0
+
+
+def cmd_accept(args: argparse.Namespace, fixtures_root: Path) -> int:
+    case = Case.load(fixtures_root, args.case)
+    target = run_dir(case, args.run_id, args.workspace_root)
+    if not target.is_dir():
+        print(f"error: run not found: {target}", file=sys.stderr)
+        return 2
+    path = accept_run(
+        case,
+        target,
+        configs=select_configs(args.config),
+        model=args.model,
+        force=args.force,
+    )
+    print(f"accepted: {case.name}")
+    print(f"baseline: {path}")
+    print(
+        "next: commit the baseline; `baseline` then flags drift when the "
+        "skills or case change"
+    )
+    return 0
+
+
+def cmd_baseline(args: argparse.Namespace, fixtures_root: Path) -> int:
+    """Offline drift report: compare each case against its accepted baseline.
+
+    Deterministic and agent-free, so it is safe to run in CI: a skill edit
+    after `accept` shows up as drift until the case is re-run and re-accepted.
+    """
+    names = list_cases(fixtures_root)
+    if args.skill:
+        names = [
+            name
+            for name in names
+            if args.skill in skills_under_test(Case.load(fixtures_root, name))
+        ]
+    ok = drift = missing = 0
+    for name in names:
+        case = Case.load(fixtures_root, name)
+        if load_baseline(case) is None:
+            status = "no-baseline"
+            missing += 1
+        elif any(not c["ok"] for c in baseline_checks(case)):
+            status = "DRIFT"
+            drift += 1
+        else:
+            status = "ok"
+            ok += 1
+        print(f"{status:<12} {name}")
+    print(f"\ncases: {len(names)}  ok: {ok}  drift: {drift}  no-baseline: {missing}")
+    if drift:
+        print(
+            "error: some baselines drifted; re-run and accept those cases",
+            file=sys.stderr,
+        )
+        return 1
+    if args.strict and missing:
+        print(
+            f"error: --strict requires a baseline for all {len(names)} cases "
+            f"({missing} missing)",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 
@@ -1434,6 +1678,39 @@ def build_parser() -> argparse.ArgumentParser:
     batch_p.add_argument("--model", default=None)
     batch_p.add_argument("--agent", default="build")
     batch_p.set_defaults(handler=cmd_batch)
+
+    accept_p = sub.add_parser(
+        "accept", help="record a checked run as the case's accepted baseline"
+    )
+    accept_p.add_argument("--case", required=True)
+    accept_p.add_argument("--run-id", required=True)
+    accept_p.add_argument(
+        "--workspace-root",
+        type=Path,
+        default=_resolve(DEFAULT_WORKSPACE, REPO),
+    )
+    accept_p.add_argument(
+        "--config",
+        choices=[*CONFIGS, "with_skill", "both", "compare", "all"],
+        default="all",
+        help="configs to record (default: every present config)",
+    )
+    accept_p.add_argument("--model", default=None)
+    accept_p.add_argument("--force", action="store_true")
+    accept_p.set_defaults(handler=cmd_accept)
+
+    baseline_p = sub.add_parser(
+        "baseline", help="offline drift report for accepted case baselines"
+    )
+    baseline_p.add_argument(
+        "--skill", default=None, help="only cases exercising this skill"
+    )
+    baseline_p.add_argument(
+        "--strict",
+        action="store_true",
+        help="fail when any case lacks a baseline (CI)",
+    )
+    baseline_p.set_defaults(handler=cmd_baseline)
     return parser
 
 
@@ -1442,6 +1719,8 @@ def main(argv: list[str] | None = None) -> int:
     fixtures_root = REPO / FIXTURES_REL
     if args.command == "list":
         return args.handler(fixtures_root, args.skill)
+    if args.command in ("baseline", "accept"):
+        return args.handler(args, fixtures_root)
     if args.command == "feedback" and args.run_dir:
         return args.handler(args, fixtures_root)
     if args.command == "feedback" and not args.case:
