@@ -47,7 +47,7 @@ The canonical `Status:` values are: `DRAFTED`, `APPROVED`, `PROVISIONAL`, `COMPI
 
 - **Spec-first two-step lifecycle.** Step 1 (spec production) ends at the approve step, which compiles the draft into `specs/` (spec + one task file per task), records topic decisions, and stamps the spec `Status: COMPILED`. Step 2 (implementation) is a separate session that builds from the `COMPILED` spec. A spec-producing session never builds in the same session — a run will not start against a spec that is not `COMPILED`.
 - **Status checklists are loaded one at a time.** At each status start the agent loads only `references/<name>.md` — never all references. Model tiering per status is situational, loaded only when a harness/model choice is in play.
-- **Lane C** is a single pass: edit, verify once (`Verify` + `Expect` via `verify.py`); 3 consecutive failures escalate to Lane B. **Lane D** is informational: the 5-tag header is emitted, but no lifecycle, no gates.
+- **Lane C** is a single pass: edit, verify once (`Verify` + `Expect` via `verify.py`); 3 failed attempts park the task as `ESCALATED` (there is no automatic C→B re-route — a human decides whether to re-plan). **Lane D** is informational: the 5-tag header is emitted, but no lifecycle, no gates.
 - **Passes are evidence-gated and commands are pre-approved:** a task is `MET` only when its `Verify` exits 0 AND its `Expect` marker matches, with a content-hash evidence block written into the task file (`verify.py` records `sha256` of every owned file); on lanes A/B a first-ever command is approved (`verify.py approve`) before it runs, or the engine refuses with exit 4 before execution (no state change, not an attempt).
 
 ### The Socratic gate

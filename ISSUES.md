@@ -24,7 +24,7 @@
 | H7 | High | ✅ **Fixed 2026-10-19** — `doctor` precondition 9 resolves the default branch and accepts `main` or `master` |
 | M1 | Medium | ✅ **Fixed 2026-10-19** — MAP freshness now hashes `.agents/agents/*.md` too (`indexed_sources`) |
 | M2 | Medium | ✅ **Fixed 2026-10-19** — every engine resolves the repo root from the CWD first; README documents global installs |
-| M3 | Medium | Contradictory statements: Lane C escalation, subtask gating, autonomous status, review promotion |
+| M3 | Medium | ✅ **Fixed 2026-10-19** — one rule per pair: Lane C 3 attempts→`ESCALATED`; subtasks are a checklist (task-level `Verify` gates); autonomous = `COMPILED` + `Gates` mark; review finalizes |
 | M4 | Medium | ✅ **Fixed 2026-10-19** — doc drift corrected (`compile --lane`, fail-closed location, Personas table, `_topics.md`) |
 | m1 | Minor | Duplicated `AGENTS.md` check in two engines |
 | m2 | Minor | `.gitattributes` references a nonexistent `PLAN.md` |
@@ -389,7 +389,12 @@ Resolve the default branch (`git symbolic-ref refs/remotes/origin/HEAD`, `init.d
 - **Autonomous status:** `docs/lifecycle.md:109` and `docs/decision-records.md:137` say the spec stays `COMPILED` with no topic decisions; `spec-builder/SKILL.md:45` and `compiled.md:15` say `PROVISIONAL - AUTONOMOUS DEFAULT`.
 - **Review promotion:** `harness.md:9` says review promotes the spec to `specs/`; `reviewed.md:19` says it was promoted at approval and review only finalizes.
 
-**Fix:** pick one rule per pair, align the docs and the engine, and add drift tests.
+**Status: ✅ Fixed (2026-10-19).** One rule per pair, docs aligned:
+- **Lane C exhaustion:** 3 attempts, run to exhaustion → `ESCALATED`; no automatic C→B re-route (aligned `lane-matrix.md`, `routing.md`, `lifecycle.md` to `verification.md`).
+- **Subtask gating:** subtasks are the coder's own checklist; the task-level `Verify` is the single gate and the orchestrator re-runs it (`building.md` aligned to `task-files.md`/`todo-checklist-format.md`).
+- **Autonomous status:** an autonomous resolution compiles to `COMPILED` with its `## 6. Gates` entry marked autonomous (`spec-builder/SKILL.md`, `phase-protocol/SKILL.md`, `compiled.md`, `drafted.md` aligned to `lifecycle.md`/`decision-records.md`); no engine change.
+- **Review promotion:** review finalizes; promotion happens at approval (`harness.md` fixed).
+Drift guard: `tests/test_drift_phases.py::ContradictionDriftTest` asserts the retired phrasings are absent.
 
 ### M4 — Doc drift
 

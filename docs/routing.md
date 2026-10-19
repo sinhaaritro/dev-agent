@@ -15,7 +15,7 @@ Single source of truth: `.agents/skills/auto-router/references/lane-matrix.md`.
 | Lane | Name | Scope criteria | Docs artifact | Gate | Verification |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **D** | Read-Only / Informational | No file mutations. Explanations, comparisons, code Q&A. | None | None — informational | None |
-| **C** | Micro-Edit | Single file; no schema/public-API/auth/dependency changes; diff under ~30 lines | None (inline diff output) | Non-blocking only | Single pass with `Verify` + `Expect` via `verify.py` (PASS = exit 0 + marker); 3 fails escalate to B |
+| **C** | Micro-Edit | Single file; no schema/public-API/auth/dependency changes; diff under ~30 lines | None (inline diff output) | Non-blocking only | Single pass with `Verify` + `Expect` via `verify.py` (PASS = exit 0 + marker); 3 failed attempts -> `ESCALATED` |
 | **B** | Scoped Multi-File Edit | 2–5 files; no schema/API/auth/security surface; no new external dependencies | Abbreviated plan (sections 1, 4, 5), compiled into a spec group on approval | Non-blocking by default; blocking only if scope creeps toward A | Task verify with 3-attempt run-to-exhaustion, then `ESCALATED` |
 | **A** | Full SDLC | >5 files, OR database schema, public API contracts, auth/security, OR a new architectural dependency | Full implementation plan, compiled on approval, topic decision per architectural decision | Blocking mandatory at every decision point | Task verify + review, run-to-exhaustion, then `ESCALATED` |
 

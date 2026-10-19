@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T05:40:43Z",
+  "generated": "2026-10-19T05:49:43Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_portable_repo_relative_cwd": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
@@ -70,6 +70,7 @@
     "test_drift_phases.AgCommandsTest.test_canonical_commands_resolve": "pass",
     "test_drift_phases.CanonicalStatusSetTest.test_canonical_statuses_match_engine": "pass",
     "test_drift_phases.CanonicalStatusSetTest.test_each_canonical_status_appears_somewhere": "pass",
+    "test_drift_phases.ContradictionDriftTest.test_retired_phrasings_are_absent": "pass",
     "test_drift_phases.DraftedLaneSectionsTest.test_lane_a_checklist_lists_every_enforced_section": "pass",
     "test_drift_phases.DraftedLaneSectionsTest.test_lane_b_checklist_lists_its_enforced_sections": "pass",
     "test_drift_phases.SpecFilenameConventionTest.test_no_wrong_nnn_spec_placeholder": "pass",

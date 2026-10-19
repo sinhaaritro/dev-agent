@@ -12,7 +12,7 @@ Approval already produced Step 1 of the spec-first lifecycle: promoted spec plus
 - Never start a build (no source edits, no `Status: BUILDING`) on any spec.
 - Never create or edit source files.
 - Never draft a new plan in this session.
-- If the spec is `Status: PROVISIONAL - AUTONOMOUS DEFAULT`, the compile still happens, but implementation waits until a human clears the tag (no decisions are recorded for autonomous defaults).
+- A spec promoted under an autonomous resolution compiles the same way (to `Status: COMPILED`); its `## 6. Gates` entry is marked autonomous and it records no topic decisions until a human clears that mark.
 
 ## 3. Compile the spec
 

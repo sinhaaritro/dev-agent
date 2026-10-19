@@ -179,5 +179,29 @@ class SpecFilenameConventionTest(unittest.TestCase):
         self.assertEqual(offenders, [], f"wrong <NNN>-<SPEC> form in: {offenders}")
 
 
+class ContradictionDriftTest(unittest.TestCase):
+    """M3: the retired contradictory phrasings must not reappear in docs."""
+
+    RETIRED = (
+        "escalate to Lane B",
+        "escalates to Lane B",
+        "A subtask is `[x]` ONLY when its `Verify`",
+        "keeps `Status: PROVISIONAL - AUTONOMOUS DEFAULT`",
+        "autonomous resolutions stay `PROVISIONAL`",
+    )
+
+    def test_retired_phrasings_are_absent(self):
+        offenders = []
+        for base in (REPO / "skills", REPO / "docs"):
+            for path in sorted(base.rglob("*.md")):
+                text = _read(path)
+                for phrase in self.RETIRED:
+                    if phrase in text:
+                        offenders.append(
+                            f"{path.relative_to(REPO)}: {phrase}"
+                        )
+        self.assertEqual(offenders, [], f"retired phrasing present: {offenders}")
+
+
 if __name__ == "__main__":
     unittest.main()
