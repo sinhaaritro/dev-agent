@@ -6,6 +6,7 @@ Verify/Expect pair), the Verify/Expect static-oracle lint, and the
 canonical Status: receipt set.
 """
 
+import argparse
 import importlib.util
 import os
 import re
@@ -598,6 +599,147 @@ class TaskSlugTest(unittest.TestCase):
             promote_spec._slug_from_title_or_name("007-SPEC-x.md", text),
             "wire-sandbox-into-the-app",
         )
+
+
+class PromotionIdentityTest(unittest.TestCase):
+    """A repeat promotion of the same plan is refused (title is the identity)."""
+
+    def test_duplicate_title_is_found_across_id_forms(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            specs = Path(tmp)
+            existing = specs / "001-SPEC-cache-layer.md"
+            existing.write_text(
+                "# 001-SPEC: Cache Layer\n\nStatus: COMPILED\n", encoding="utf-8"
+            )
+            for draft_title in (
+                "# [SPEC-ID]: Cache Layer",
+                "# 042: cache layer",
+                "# 001-SPEC:   Cache   Layer",
+            ):
+                self.assertEqual(
+                    promote_spec.find_existing_by_title(specs, draft_title),
+                    existing,
+                    draft_title,
+                )
+            self.assertIsNone(
+                promote_spec.find_existing_by_title(specs, "# [SPEC-ID]: Other Plan")
+            )
+
+    def test_draft_without_tags_fails_the_check_gate(self):
+        body = lane_b_draft()
+        body = body.split("---\n", 2)[2]
+        draft = write_draft(body)
+        self.addCleanup(draft.unlink, missing_ok=True)
+        violations = promote_spec._draft_tag_violations(draft)
+        self.assertTrue(any("missing 'tags:'" in v for v in violations), violations)
+
+
+class LaneADependsOnTest(unittest.TestCase):
+    def test_lane_a_rejects_prose_depends_on(self):
+        draft = write_draft(
+            lane_a_draft().replace("Depends On: Task 1", "Depends On: after task 1")
+        )
+        self.addCleanup(draft.unlink, missing_ok=True)
+        passed, _missing, violations = promote_spec.check_draft(draft, "A")
+        self.assertFalse(passed)
+        self.assertTrue(any("Depends On" in v for v in violations), violations)
+
+
+class BacktickExpectTest(unittest.TestCase):
+    def test_compile_normalizes_backtick_expect_in_approvals(self):
+        import hashlib
+        import json
+
+        with tempfile.TemporaryDirectory(prefix="backtick-") as tmp:
+            root = Path(tmp)
+            spec = make_group_sandbox(root)
+            spec.write_text(
+                spec.read_text(encoding="utf-8").replace(
+                    '- Expect: "SB-PASS"', "- Expect: `SB-PASS`"
+                ),
+                encoding="utf-8",
+            )
+            promote_spec.compile_spec(spec, root)
+            data = json.loads(
+                (root / "specs" / "009-APPROVALS-sandbox-group.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            entry = next(a for a in data["approvals"] if a["task"] == "Task 1")
+            self.assertEqual(entry["expect"], "SB-PASS")
+            payload = f"{entry['command']}|SB-PASS|."
+            self.assertEqual(
+                entry["fingerprint"],
+                hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+            )
+
+
+class CompileCheckGateTest(unittest.TestCase):
+    def test_compile_refuses_a_noop_verify_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory(prefix="compile-check-") as tmp:
+            root = Path(tmp)
+            spec = make_group_sandbox(root)
+            spec.write_text(
+                spec.read_text(encoding="utf-8").replace(
+                    "- Verify: `python -m unittest tests.test_sandbox -v`",
+                    "- Verify: `true`",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaises(SystemExit):
+                promote_spec.compile_spec(spec, root)
+            self.assertEqual(list((root / "specs").glob("009-TASK-*")), [])
+
+
+class TagScopeTest(unittest.TestCase):
+    def test_tag_lint_requires_tags_on_specs_and_topic_docs(self):
+        docs = {
+            "specs": [{"name": "001-SPEC-x.md", "text": "# x", "tags": []}],
+            "topics": [{"name": "auth.md", "text": "# auth", "tags": []}],
+        }
+        violations = promote_spec._tag_lint(docs)
+        self.assertTrue(
+            any("specs/001-SPEC-x.md: missing" in v for v in violations), violations
+        )
+        self.assertTrue(
+            any("docs/auth.md: missing" in v for v in violations), violations
+        )
+
+    def test_topic_docs_are_not_required_to_carry_tags_in_specs_folder(self):
+        docs = {
+            "specs": [{"name": "001-TASK-01-x.md", "text": "# t", "tags": []}],
+            "topics": [],
+        }
+        self.assertEqual(promote_spec._tag_lint(docs), [])
+
+    def test_tag_lint_scans_folder_style_topics(self):
+        with tempfile.TemporaryDirectory(prefix="tag-folder-") as tmp:
+            root = Path(tmp)
+            topic = root / "docs" / "auth" / "core.md"
+            topic.parent.mkdir(parents=True)
+            topic.write_text("# Auth core\n", encoding="utf-8")
+            docs = promote_spec._scan_docs(root)
+            violations = promote_spec._tag_lint(docs)
+            self.assertTrue(
+                any("docs/auth/core.md: missing" in v for v in violations), violations
+            )
+
+    def test_tag_rename_reaches_topic_docs(self):
+        with tempfile.TemporaryDirectory(prefix="tag-rename-") as tmp:
+            root = Path(tmp)
+            topic = root / "docs" / "auth.md"
+            topic.parent.mkdir(parents=True)
+            topic.write_text(
+                "---\ntags: [auth, cookies]\n---\n\n# Auth\n", encoding="utf-8"
+            )
+            rc = promote_spec._tag_rename(
+                argparse.Namespace(root=root, old="cookies", new="sessions")
+            )
+            self.assertEqual(rc, 0)
+            text = topic.read_text(encoding="utf-8")
+            self.assertIn("sessions", text)
+            self.assertNotIn("cookies", text)
 
 
 if __name__ == "__main__":

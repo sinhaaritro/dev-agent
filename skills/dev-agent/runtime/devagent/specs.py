@@ -111,6 +111,7 @@ from datetime import date
 from pathlib import Path
 
 from common.root import find_root
+from common.text import normalize_marker
 
 LANE_SECTIONS = {"B": {1, 4, 5}, "A": {1, 2, 3, 4, 5, 6, 7, 8}}
 PROVISIONAL_STATUS = "PROVISIONAL - AUTONOMOUS DEFAULT"
@@ -137,13 +138,11 @@ CANONICAL_STATUSES = frozenset(
 )
 
 SPEC_FOLDER = "specs"
-COMMIT_FOLDERS = ("specs",)
 TOC_START = "<!-- TOC:START -->"
 TOC_END = "<!-- TOC:END -->"
 TAG_LINE = re.compile(r"(?m)^tags:\s*\[([^\]]*)\]\s*$")
 TAG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 FM_BLOCK = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
-SUB_ID_RE = re.compile(r"^(\d{3})-([A-Z]\d{2})(?:-([A-Z]\d{2}))?$")
 
 # Spec group file types (spec 002, section 2.2): a group is NNN-SPEC-* + its
 # NNN-TASK-* / NNN-REPORT-* / NNN-APPROVALS-* / NNN-ESCALATION-* companions.
@@ -427,18 +426,14 @@ def _validate_tasks(tasks: list[dict], lane: str) -> list[str]:
         tlabel = f"Task {task['num']}"
         if not task["depends_on"]:
             violations.append(tlabel + ": missing 'Depends On:'")
-        elif (
-            lane == "B"
-            and task["depends_on"] != "None"
-            and not re.match(r"^Task\s+\d+(\s*,\s*Task\s+\d+)*$", task["depends_on"])
+        elif task["depends_on"] != "None" and not re.match(
+            r"^Task\s+\d+(\s*,\s*Task\s+\d+)*$", task["depends_on"]
         ):
             violations.append(
                 tlabel
                 + f": 'Depends On:' must be 'None' or a 'Task N' reference (got '{task['depends_on']}')"
             )
-        verify = task["verify"].strip()
-        if len(verify) >= 2 and verify.startswith("`") and verify.endswith("`"):
-            verify = verify[1:-1].strip()
+        verify = normalize_marker(task["verify"])
         if not task["verify"]:
             violations.append(tlabel + ": missing/empty 'Verify:'")
         else:
@@ -446,7 +441,7 @@ def _validate_tasks(tasks: list[dict], lane: str) -> list[str]:
                 violations.append(
                     tlabel + f": 'Verify:' is a no-op command ('{verify}')"
                 )
-            expect = task["expect"].strip().strip('"').strip()
+            expect = normalize_marker(task["expect"])
             if not task["expect"]:
                 violations.append(tlabel + ": missing/empty 'Expect:'")
             else:
@@ -642,12 +637,12 @@ def _write_approvals(specs_dir: Path, num: int, slug: str, tasks: list[dict]) ->
             {
                 "task": f"Task {t['num']}",
                 "fingerprint": _fingerprint(
-                    t["verify"].strip("`"),
-                    t["expect"].strip('"').strip(),
+                    normalize_marker(t["verify"]),
+                    normalize_marker(t["expect"]),
                     APPROVAL_CWD,
                 ),
-                "command": t["verify"].strip("`"),
-                "expect": t["expect"].strip('"').strip(),
+                "command": normalize_marker(t["verify"]),
+                "expect": normalize_marker(t["expect"]),
                 "cwd": APPROVAL_CWD,
             }
             for t in tasks
@@ -674,8 +669,8 @@ def _render_task_file(
     if not owns_lines:
         owns_lines = ["_(this task declares no Target Files)_"]
     deps = task["depends_on"] or "None"
-    verify = task["verify"].strip("`").strip() or "_(verify command)_"
-    expect = task["expect"].strip('"').strip() or "_(expect marker)_"
+    verify = normalize_marker(task["verify"]) or "_(verify command)_"
+    expect = normalize_marker(task["expect"]) or "_(expect marker)_"
     return (
         f"# TASK {num:03d}-{task['num']:02d} — {title}\n\n"
         "## Role & rules\n"
@@ -731,8 +726,19 @@ def compile_spec(spec: Path, root: Path | None = None) -> list[Path]:
         raise SystemExit(
             "error: section 5 'Target Files' failed validation; no task files written"
         )
+    lane = "A" if LANE_SECTIONS["A"] <= parse_sections(text) else "B"
+    passed, missing, violations = check_draft(spec, lane)
+    if not passed:
+        if missing:
+            print(
+                "compile error - missing sections: "
+                + ", ".join(str(n) for n in missing)
+            )
+        for v in violations:
+            print("compile error - structure: " + v)
+        raise SystemExit("error: spec failed the check gate; no task files written")
     specs_dir = spec.parent
-    written: list[Path] = []
+    rendered: list[tuple[Path, str]] = []
     for task in tasks:
         task_slug = _slug_from_title_or_name(
             spec.name, _task_line_block(text, task["num"])
@@ -746,10 +752,15 @@ def compile_spec(spec: Path, root: Path | None = None) -> list[Path]:
                 f"error: task {task['num']} file failed validation; not written"
             )
         target = specs_dir / f"{num:03d}-TASK-{task['num']:02d}-{task_slug}.md"
+        rendered.append((target, content))
+    # Stamp before writing companions: a spec that cannot be marked COMPILED
+    # must not leave a half-written group behind.
+    _stamp_compiled(spec, root)
+    written: list[Path] = []
+    for target, content in rendered:
         target.write_text(content, encoding="utf-8")
         written.append(target)
     _write_approvals(specs_dir, num, slug, tasks)
-    _stamp_compiled(spec, root)
     _refresh_toc_for(root)
     return written
 
@@ -805,12 +816,12 @@ def sync_specs_readme(root: Path) -> None:
 def _refresh_specs_readme(root: Path) -> None:
     """Regenerate the specs/README.md TOC marker block (group-aware)."""
     root = _repo_root(root)
-    _ensure_docs_readmes(root)
+    _ensure_specs_readme(root)
     docs = _scan_docs(root)
     target = root / SPEC_FOLDER / "README.md"
     if not target.is_file():
         return
-    block = _build_toc_lines(docs, "specs")
+    block = _build_toc_lines(docs)
     new_text = _write_marker_block(read_text(target), TOC_START, TOC_END, block)
     if new_text is not None:
         target.write_text(new_text, encoding="utf-8")
@@ -889,14 +900,37 @@ def slug_from_title(text: str) -> str:
     return slug or "spec"
 
 
+def _title_key(line: str) -> str:
+    """Identity key for a '#' title: drop the ID token, normalize whitespace/case.
+
+    A promoted title ('# 001-SPEC: Cache Layer'), a draft title
+    ('# [SPEC-ID]: Cache Layer'), and a sub-ID title all compare equal, so a
+    repeat promotion of the same plan is refused no matter which number the
+    engine would assign.
+    """
+    body = line.strip().lstrip("#").strip()
+    body = re.sub(
+        r"^(\[\S+\]|\d{3}-SPEC|\d{3}-[A-Z]\d{2}(?:-[A-Z]\d{2})?|\d{3})(?=:|\s)",
+        "",
+        body,
+    )
+    body = body.lstrip(":- ").strip()
+    return re.sub(r"\s+", " ", body).strip().lower()
+
+
 def find_existing_by_title(specs_dir: Path, title: str) -> Path | None:
     """Return an existing spec whose first '#' title matches the draft's.
 
     The SPEC-ID/title is the plan's identity - a repeat promotion of the
     same draft must be refused even though the sequential number is new.
-    Scans parent and sub-ID files alike, so sub-IDs never bypass the check.
+    Titles are compared with the leading ID token stripped, so re-promoting a
+    retitled-but-same plan is still refused. Scans parent and sub-ID files
+    alike, so sub-IDs never bypass the check.
     """
     if not specs_dir.is_dir():
+        return None
+    wanted = _title_key(title)
+    if not wanted:
         return None
     for entry in specs_dir.iterdir():
         if not entry.is_file() or not re.match(r"^\d{3}-", entry.name):
@@ -907,7 +941,7 @@ def find_existing_by_title(specs_dir: Path, title: str) -> Path | None:
             continue
         for line in first:
             if line.strip().startswith("# "):
-                if line.strip() == title.strip():
+                if _title_key(line) == wanted:
                     return entry
                 break
     return None
@@ -1071,13 +1105,14 @@ def _scan_docs(root: Path) -> dict:
 
     ``root`` is the repo root. Returns a dict keyed by section:
     ``"specs"`` -> ``root/specs/*.md`` and ``"topics"`` -> every topic doc
-    under ``root/docs/`` (``README.md`` and generated underscore files are
+    under ``root/docs/`` (flat files and ``docs/<topic>/*.md`` folders;
+    ``README.md``, generated underscore files, and reserved non-topic dirs are
     skipped). ``sync-docs`` still builds the separate AI routing index.
     Shared by the TOC roll-up and every tag-governance function - one
     frontmatter parse, no cross-subcommand drift.
     """
 
-    def collect(paths: list[Path]) -> list[dict]:
+    def collect(paths: list[Path], base: Path | None = None) -> list[dict]:
         entries = []
         for f in paths:
             if not f.is_file() or f.name == "README.md":
@@ -1089,9 +1124,10 @@ def _scan_docs(root: Path) -> dict:
             clean = _strip_fenced_code(text)
             m1 = re.search(r"(?m)^version_pin:\s*(\S+)", clean)
             m2 = re.search(r"(?m)^fallback_pin:\s*(\S+)", clean)
+            name = f.relative_to(base).as_posix() if base is not None else f.name
             entries.append(
                 {
-                    "name": f.name,
+                    "name": name,
                     "text": text,
                     "title": _doc_title(text),
                     "status": _ref_status(text),
@@ -1108,8 +1144,15 @@ def _scan_docs(root: Path) -> dict:
     specs = collect(sorted(spec_dir.glob("*.md"))) if spec_dir.is_dir() else []
     docs["specs"] = sorted(specs, key=lambda e: _folder_sort_key("specs", e["name"]))
     docs_dir = root / "docs"
-    topics = collect(sorted(docs_dir.glob("*.md"))) if docs_dir.is_dir() else []
-    topics = [e for e in topics if not e["name"].startswith("_")]
+    topic_paths: list[Path] = []
+    if docs_dir.is_dir():
+        for f in sorted(docs_dir.rglob("*.md")):
+            rel = f.relative_to(docs_dir)
+            if len(rel.parts) > 1 and rel.parts[0] in TOPIC_RESERVED:
+                continue  # reserved non-topic trees (reference/specs/temp)
+            topic_paths.append(f)
+    topics = collect(topic_paths, base=docs_dir)
+    topics = [e for e in topics if not e["name"].split("/")[-1].startswith("_")]
     docs["topics"] = sorted(topics, key=lambda e: e["name"])
     return docs
 
@@ -1168,7 +1211,7 @@ def _repo_root(root: Path) -> Path:
     return root
 
 
-def _ensure_docs_readmes(root: Path) -> None:
+def _ensure_specs_readme(root: Path) -> None:
     """Bootstrap specs/README.md if missing (creator half).
 
     ``root`` is the repo root. Creates ``specs/README.md`` with marker
@@ -1183,18 +1226,25 @@ def _ensure_docs_readmes(root: Path) -> None:
 
 
 def _tag_lint(docs: dict, verbose: bool = False) -> list[str]:
-    """Lint every scanned doc's tags.
+    """Lint tags across ``specs/`` and ``docs/``.
+
+    Every committed spec (``NNN-SPEC-*.md``) and every topic doc must carry a
+    ``tags:`` field; any doc that carries one is linted for shape. Companion
+    files (TASK/REPORT/APPROVALS/ESCALATION) are not tag-bearing and are
+    skipped by the presence rule.
 
     Returns violation strings; exit code is always 1 on any violation here or
     in-check (no --warn-only), so the two entry points behave identically.
     """
     violations: list[str] = []
-    for folder in COMMIT_FOLDERS:
-        for e in docs[folder]:
+    for folder, label in (("specs", "specs"), ("topics", "docs")):
+        for e in docs.get(folder, []):
             if re.search(r"(?m)^tags:\s*\[\s*\]\s*$", e["text"]):
-                violations.append(f"{folder}/{e['name']}: empty tags field")
+                violations.append(f"{label}/{e['name']}: empty tags field")
+            elif not e["tags"] and (folder == "topics" or SPEC_KIND.match(e["name"])):
+                violations.append(f"{label}/{e['name']}: missing 'tags:' field")
             for p in _lint_tags(e["tags"]):
-                violations.append(f"{folder}/{e['name']}: {p}")
+                violations.append(f"{label}/{e['name']}: {p}")
     if verbose:
         for v in violations:
             print("tag-lint: " + v)
@@ -1203,15 +1253,15 @@ def _tag_lint(docs: dict, verbose: bool = False) -> list[str]:
 
 def _tag_list(docs: dict) -> int:
     """Read-only sorted tag -> files report with counts. No writes."""
-    for folder in COMMIT_FOLDERS:
+    for folder, label in (("specs", "specs"), ("topics", "docs")):
         tagmap: dict[str, list[str]] = {}
-        for e in docs[folder]:
+        for e in docs.get(folder, []):
             for tag in e["tags"]:
                 tagmap.setdefault(tag, []).append(e["name"])
         if not tagmap:
-            print(f"{folder}: (no tags)")
+            print(f"{label}: (no tags)")
             continue
-        print(f"{folder}:")
+        print(f"{label}:")
         for tag in sorted(tagmap):
             print(f"  {tag} ({len(tagmap[tag])}): " + ", ".join(sorted(tagmap[tag])))
     return 0
@@ -1262,13 +1312,22 @@ def _tag_rename(args: argparse.Namespace) -> int:
     """The only tag writer: rewrite the frontmatter tags of matched docs."""
     root = args.root
     changed = 0
-    for folder in COMMIT_FOLDERS:
-        fdir = root / folder
+    for folder, fdir in (("specs", root / "specs"), ("docs", root / "docs")):
         if not fdir.is_dir():
             continue
-        for f in fdir.iterdir():
+        for f in sorted(fdir.rglob("*.md")):
             if not f.is_file() or f.name == "README.md":
                 continue
+            rel = f.relative_to(fdir)
+            if folder == "specs" and len(rel.parts) > 1:
+                continue  # companion trees under specs/ are not docs
+            if (
+                folder == "docs"
+                and len(rel.parts) > 1
+                and rel.parts[0] in TOPIC_RESERVED
+            ):
+                continue  # reserved non-topic trees
+            relname = rel.as_posix()
             try:
                 text = read_text(f)
             except (OSError, UnicodeDecodeError):
@@ -1286,7 +1345,7 @@ def _tag_rename(args: argparse.Namespace) -> int:
             new_text = text[: match.start()] + new_line + text[match.end() :]
             f.write_text(ensure_frontmatter_tags(new_text), encoding="utf-8")
             changed += 1
-            print(f"renamed: {folder}/{f.name}: {args.old} -> {args.new}")
+            print(f"renamed: {folder}/{relname}: {args.old} -> {args.new}")
     if not changed:
         print(f"no docs carry tag '{args.old}'")
     return 0
@@ -1409,12 +1468,8 @@ def _toc_entry_line(e: dict, rel: str) -> str:
     return line
 
 
-def _build_toc_lines(docs: dict, section: str = "specs") -> str:
-    """Render the '## Index' block as a linked, iconed directory tree.
-
-    ``section`` is ``"specs"`` for ``specs/README.md`` (specs only, linking
-    ``./NNN-…``).
-    """
+def _build_toc_lines(docs: dict) -> str:
+    """Render the '## Index' block of specs/README.md (specs only)."""
     lines = ["## Index"]
     for e in docs.get("specs", []):
         lines.append(_toc_entry_line(e, f"./{e['name']}"))
@@ -1430,12 +1485,12 @@ def _refresh_toc_for(root: Path) -> None:
     repo gets its index on the first lifecycle event.
     """
     root = _repo_root(root)
-    _ensure_docs_readmes(root)
+    _ensure_specs_readme(root)
     docs = _scan_docs(root)
     target = root / SPEC_FOLDER / "README.md"
     if not target.is_file():
         return
-    block = _build_toc_lines(docs, "specs")
+    block = _build_toc_lines(docs)
     new_text = _write_marker_block(read_text(target), TOC_START, TOC_END, block)
     if new_text is not None:
         target.write_text(new_text, encoding="utf-8")
@@ -1443,10 +1498,10 @@ def _refresh_toc_for(root: Path) -> None:
 
 def cmd_toc(args: argparse.Namespace) -> int:
     root = _repo_root(args.root)
-    _ensure_docs_readmes(root)
+    _ensure_specs_readme(root)
     docs = _scan_docs(root)
     target = root / SPEC_FOLDER / "README.md"
-    block = _build_toc_lines(docs, "specs")
+    block = _build_toc_lines(docs)
     new_text = _write_marker_block(read_text(target), TOC_START, TOC_END, block)
     if new_text is None:
         print(f"warning: no TOC markers in {target} (skipped)")
@@ -1684,22 +1739,9 @@ def cmd_topic(args: argparse.Namespace) -> int:
         decision_id, title, entry_date, args.why, args.supersedes, args.affects, None
     )
 
-    if args.dry_run:
-        print(f"target: {target}")
-        print(f"decision: {decision_id}")
-        return 0
-
-    _revise_topic(
-        target,
-        _topic_display(name, args.file),
-        tags,
-        entry,
-        args.supersedes,
-        args.state,
-    )
-    print(f"topic: {target}")
-    print(f"decision: {decision_id}")
-
+    # Validate the reciprocal side fully before any write: a rejected
+    # --reciprocal must not leave a half-applied revision behind.
+    reciprocal = None
     if args.reciprocal:
         rname = args.reciprocal
         if rname == name:
@@ -1726,6 +1768,28 @@ def cmd_topic(args: argparse.Namespace) -> int:
             None,
             ref,
         )
+        reciprocal = (rtarget, rname, rid, rentry)
+
+    if args.dry_run:
+        print(f"target: {target}")
+        print(f"decision: {decision_id}")
+        if reciprocal is not None:
+            print(f"reciprocal: {reciprocal[0]} ({reciprocal[2]})")
+        return 0
+
+    _revise_topic(
+        target,
+        _topic_display(name, args.file),
+        tags,
+        entry,
+        args.supersedes,
+        args.state,
+    )
+    print(f"topic: {target}")
+    print(f"decision: {decision_id}")
+
+    if reciprocal is not None:
+        rtarget, rname, rid, rentry = reciprocal
         _revise_topic(
             rtarget,
             _topic_display(rname, args.reciprocal_file),
@@ -1742,16 +1806,18 @@ def _draft_tag_violations(draft: Path) -> list[str]:
     """Normative lint of the draft file's own tags (check gate).
 
     The promotion gate must reject a draft whose frontmatter tags are
-    malformed, independent of the pre-existing tree. Returns [] when the
-    draft is absent or carries no tags field.
+    malformed or absent, independent of the pre-existing tree. Returns []
+    only when the draft is absent or unreadable.
     """
     try:
         text = read_text(draft)
     except (OSError, UnicodeDecodeError):
         return []
     tags = _extract_tags(text)
+    if tags is None:
+        return ["draft: missing 'tags:' field in frontmatter"]
     if not tags:
-        return []
+        return ["draft: empty tags field"]
     return _lint_tags(tags)
 
 
@@ -1787,11 +1853,13 @@ def is_framework_repo(root: Path) -> bool:
     depend on the disposable ``specs/``. The framework repo is the product -
     its ``skills/``, ``docs/``, and ``tests/`` describe the specs system by
     design - so it is exempt from its own gate.
+
+    The marker is the *source* runtime (``skills/dev-agent/runtime/devagent``),
+    which only exists in the framework checkout. Consumer repos install the
+    runtime under ``.agents/scripts/devagent``, so they never match - and a
+    consumer that happens to keep a top-level ``skills/`` tree stays strict.
     """
-    if not (root / ".agents" / "rules" / "dev-agent-framework.md").is_file():
-        return False
-    skills = root / "skills"
-    return skills.is_dir() and any(skills.glob("*/SKILL.md"))
+    return (root / "skills" / "dev-agent" / "runtime" / "devagent").is_dir()
 
 
 def scan_specs_references(root: Path) -> list[tuple[str, int, str]]:
@@ -2155,6 +2223,9 @@ def main() -> int:
     if args.command == "promote":
         if args.root is None:
             args.root = root_default
+        # Resolve the root before deriving specs_dir: a nested --root such as
+        # <repo>/docs must not materialize <repo>/docs/specs/.
+        args.root = _repo_root(args.root)
         if args.specs_dir is None:
             args.specs_dir = args.root / SPEC_FOLDER
     if args.command == "toc" and args.root is None:

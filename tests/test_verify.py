@@ -694,5 +694,63 @@ class BranchPossibleTest(unittest.TestCase):
         self.assertFalse(ok)
 
 
+class SuggestTest(SandboxCase):
+    def test_suggest_prints_canonical_commands_without_running(self):
+        buf = StringIO()
+        with redirect_stdout(buf):
+            rc = verify.cmd_run(
+                _ns(
+                    command=None,
+                    suggest=True,
+                    task_id="007-Task 1",
+                    state_dir=self.tmp / "specs" / "temp",
+                )
+            )
+        self.assertEqual(rc, 0)
+        self.assertIn("Build: python -m compileall .", buf.getvalue())
+        self.assertIn("Test: python -m unittest", buf.getvalue())
+
+
+class NonSpecPathTest(SandboxCase):
+    def test_doctor_rejects_a_non_spec_path_without_traceback(self):
+        buf = StringIO()
+        with redirect_stdout(buf):
+            rc = verify.cmd_doctor(_ns(spec="AGENTS.md"))
+        self.assertEqual(rc, 1)
+        self.assertIn("NNN-SPEC", buf.getvalue())
+
+    def test_report_rejects_a_non_spec_path_without_traceback(self):
+        buf = StringIO()
+        with redirect_stdout(buf):
+            rc = verify.cmd_report(_ns(spec="AGENTS.md"))
+        self.assertEqual(rc, 2)
+        self.assertIn("NNN-SPEC", buf.getvalue())
+
+
+class MissingApprovalsTest(SandboxCase):
+    def test_doctor_flags_a_group_without_an_approvals_file(self):
+        spec = _spec_file(self.tmp)
+        _task_file(self.tmp)
+        gaps = verify.doctor(spec)
+        self.assertTrue(any(g.startswith("7:") for g in gaps), gaps)
+
+
+class StatusRootTest(SandboxCase):
+    def test_status_uses_the_supplied_root_not_find_root(self):
+        task_file = _task_file(self.tmp)
+        verify._write_evidence(task_file, _evidence_for(self.tmp, task_file))
+        other = Path(self._tmp.name) / "other"
+        other.mkdir()
+        _sandbox(other)
+        (other / "src.py").write_text("VALUE = 2\n", encoding="utf-8")
+        old = os.getcwd()
+        os.chdir(other)
+        try:
+            # find_root() would resolve to `other` and report STALE.
+            self.assertEqual(verify.status(task_file, self.tmp), "MET")
+        finally:
+            os.chdir(old)
+
+
 if __name__ == "__main__":
     unittest.main()

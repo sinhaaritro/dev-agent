@@ -88,7 +88,7 @@ tags: [lowercase-kebab, ...]
 
 2–30 chars per tag, max 7 per doc, no empty field. The **filename is the single identity** — there is no `name:` field anywhere. A topic doc may optionally add `version_pin: <git-tag>` or `fallback_pin: <commit-hash>` in the same block.
 
-For topic docs the `tags:` list is the source of the `covers:` line in `docs/_topics.md` (the AI-routing keywords). `tag-lint` (also run inside `check`) lints the `specs/` docs; the governance subcommands are:
+For topic docs the `tags:` list is the source of the `covers:` line in `docs/_topics.md` (the AI-routing keywords). Every committed spec and every topic doc must carry a `tags:` field (a missing field fails `check`/`tag-lint`); `tag-lint` (also run inside `check`) lints both `specs/` and `docs/`; the governance subcommands are:
 
 | Subcommand | Behavior |
 | :--- | :--- |

@@ -150,7 +150,8 @@ class FrameworkRepoExemptionTest(SpecsLintBase):
 
     def _make_framework_repo(self):
         write(
-            self.root / ".agents" / "rules" / "dev-agent-framework.md", "# rule" + "\n"
+            self.root / "skills" / "dev-agent" / "runtime" / "devagent" / "__init__.py",
+            "" + "\n",
         )
         write(self.root / "skills" / "demo" / "SKILL.md", "# Demo" + "\n")
         write(self.root / "docs" / "guide.md", "See specs/001-SPEC-x.md." + "\n")
@@ -166,6 +167,9 @@ class FrameworkRepoExemptionTest(SpecsLintBase):
         self.assertIn("skipped", proc.stdout)
 
     def test_consumer_repo_is_not_exempt(self):
+        # A consumer that keeps a top-level skills/ tree is still strict: only
+        # the source runtime marks the framework checkout.
+        write(self.root / "skills" / "installed" / "SKILL.md", "# Installed" + "\n")
         write(self.root / "docs" / "guide.md", "See specs/001-SPEC-x.md." + "\n")
         self.assertFalse(promote_spec.is_framework_repo(self.root))
         proc = self.run_lint()

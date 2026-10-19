@@ -52,8 +52,6 @@ from common.root import find_root
 def read_autonomy(root: Path) -> str:
     """Parse `autonomy_level:` from AGENTS.md or AGENTS.md frontmatter; default supervised."""
     agent_file = root / "AGENTS.md"
-    if not agent_file.is_file():
-        agent_file = root / "AGENTS.md"
     try:
         text = agent_file.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
@@ -112,8 +110,8 @@ def escalation_entry(
             lines.append(f"- {opt}")
     lines.append("")
     lines.append("## 5. State Preserved")
-    lines.append("- Dirty edits reverted: yes")
-    lines.append("- Working tree state: clean (no changes were made)")
+    lines.append("- Dirty edits reverted: no (a run never reverts mid-build)")
+    lines.append("- Working tree state: left as-is for human inspection")
     lines.append("- Related artifacts: specs/temp/<files>")
     lines.append("")
     return "\n".join(lines)
@@ -193,6 +191,18 @@ ACTIVE_STATUSES = (
     "REVIEWED",
     "PLAN_REVISION_REQUIRED",
 )
+PLANNING_STATUSES = ("DRAFTED", "APPROVED", "PROVISIONAL")
+BUILD_STATUSES = ("BUILDING", "BUILT", "REVIEWED")
+
+
+def _status_token(path: Path) -> str:
+    """The 'Status:' token of a plan/spec file ('' when absent/unreadable)."""
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    match = re.search(r"(?m)^Status:\s*([A-Z_]+)", text)
+    return match.group(1) if match else ""
 
 
 def find_active_spec(root: Path) -> Path | None:
@@ -214,16 +224,27 @@ def find_active_spec(root: Path) -> Path | None:
 
 
 def resolve_gate_target(root: Path, spec_arg: str | None) -> Path | None:
-    """Pick where the audit entry belongs: --spec, active spec, draft plan."""
+    """Pick where the audit entry belongs: --spec, the in-flight draft, active spec.
+
+    Planning-stage work owns the draft: while the active spec is merely
+    COMPILED (or similar) and a DRAFTED/APPROVED draft exists, the gate belongs
+    to the draft. A spec that is actually being built (BUILDING/BUILT/REVIEWED)
+    keeps ownership so a stale draft cannot capture mid-build gates.
+    """
     if spec_arg:
         target = Path(spec_arg)
         if not target.is_absolute():
             target = root / target
         return target
+    draft = root / "specs" / "temp" / "draft-plan.md"
+    draft_status = _status_token(draft) if draft.is_file() else ""
     active = find_active_spec(root)
     if active is not None:
+        if _status_token(active) in BUILD_STATUSES:
+            return active
+        if draft_status in PLANNING_STATUSES:
+            return draft
         return active
-    draft = root / "specs" / "temp" / "draft-plan.md"
     if draft.is_file():
         return draft
     return None
@@ -293,7 +314,10 @@ def main() -> int:
     parser.add_argument(
         "--spec",
         default=None,
-        help="plan/spec to record the gate in (default: draft-plan, then active spec)",
+        help=(
+            "plan/spec to record the gate in (default: the in-flight draft "
+            "while planning, otherwise the newest active spec)"
+        ),
     )
     args = parser.parse_args()
 

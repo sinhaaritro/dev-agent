@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T08:48:57Z",
+  "generated": "2026-10-19T11:08:29Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_portable_repo_relative_cwd": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
@@ -127,6 +127,15 @@
     "test_generate_map.SnapshotTest.test_snapshot_is_deterministic_and_content_sensitive": "pass",
     "test_no_leak.NoLeakTest.test_every_workspace_skill_is_internal": "pass",
     "test_no_leak.NoLeakTest.test_workspace_is_nonempty": "pass",
+    "test_promote_spec.BacktickExpectTest.test_compile_normalizes_backtick_expect_in_approvals": "pass",
+    "test_promote_spec.CompileCheckGateTest.test_compile_refuses_a_noop_verify_and_writes_nothing": "pass",
+    "test_promote_spec.LaneADependsOnTest.test_lane_a_rejects_prose_depends_on": "pass",
+    "test_promote_spec.PromotionIdentityTest.test_draft_without_tags_fails_the_check_gate": "pass",
+    "test_promote_spec.PromotionIdentityTest.test_duplicate_title_is_found_across_id_forms": "pass",
+    "test_promote_spec.TagScopeTest.test_tag_lint_requires_tags_on_specs_and_topic_docs": "pass",
+    "test_promote_spec.TagScopeTest.test_tag_lint_scans_folder_style_topics": "pass",
+    "test_promote_spec.TagScopeTest.test_tag_rename_reaches_topic_docs": "pass",
+    "test_promote_spec.TagScopeTest.test_topic_docs_are_not_required_to_carry_tags_in_specs_folder": "pass",
     "test_promote_spec.TaskSlugTest.test_long_title_truncates_without_trailing_hyphen": "pass",
     "test_promote_spec.TaskSlugTest.test_short_title_is_kept_whole": "pass",
     "test_promote_spec.TestCanonicalStatuses.test_canonical_set": "pass",
@@ -173,10 +182,12 @@
     "test_resolve_gate.AutonomyDefaultTest.test_default_is_supervised": "pass",
     "test_resolve_gate.GateBlockStatusTest.test_fail_closed_parks_the_target_spec": "pass",
     "test_resolve_gate.GateBlockStatusTest.test_fail_closed_without_target_writes_only_escalation": "pass",
+    "test_resolve_gate.GateTargetOrderTest.test_planning_draft_wins_over_a_compiled_spec": "pass",
     "test_resolve_gate.InteractiveTest.test_blocking_interactive_halts": "pass",
     "test_resolve_gate.InteractiveTest.test_session_and_lane_are_case_insensitive": "pass",
     "test_resolve_gate.NonBlockingTest.test_non_blocking_proceeds_in_both_sessions": "pass",
     "test_resolve_gate.SupervisedFailClosedTest.test_blocking_noni_supervised_fails_closed": "pass",
+    "test_resolve_gate.SupervisedFailClosedTest.test_escalation_report_matches_the_never_reverts_contract": "pass",
     "test_resolve_gate.UsageTest.test_invalid_gate_argument_exits": "pass",
     "test_resolve_gate.UsageTest.test_invalid_lane_argument_exits": "pass",
     "test_resolve_gate.UsageTest.test_parse_options_splits_and_defaults": "pass",
@@ -272,6 +283,9 @@
     "test_verify.EvidenceStatusTest.test_stale_when_owned_file_changes": "pass",
     "test_verify.FingerprintTest.test_executor_dropped": "pass",
     "test_verify.FingerprintTest.test_fields_affect_fingerprint": "pass",
+    "test_verify.MissingApprovalsTest.test_doctor_flags_a_group_without_an_approvals_file": "pass",
+    "test_verify.NonSpecPathTest.test_doctor_rejects_a_non_spec_path_without_traceback": "pass",
+    "test_verify.NonSpecPathTest.test_report_rejects_a_non_spec_path_without_traceback": "pass",
     "test_verify.OutcomeObservationTest.test_all_observed_passes_review": "pass",
     "test_verify.OutcomeObservationTest.test_missing_observation_fails_review": "pass",
     "test_verify.OutcomeObservationTest.test_one_observation_line_per_r": "pass",
@@ -294,6 +308,8 @@
     "test_verify.StatusAdvanceTest.test_report_advances_built_to_reviewed": "pass",
     "test_verify.StatusAdvanceTest.test_single_task_pass_sets_built": "pass",
     "test_verify.StatusCommandTest.test_status_on_task_file_prints_derived": "pass",
-    "test_verify.StatusCommandTest.test_status_without_evidence": "pass"
+    "test_verify.StatusCommandTest.test_status_without_evidence": "pass",
+    "test_verify.StatusRootTest.test_status_uses_the_supplied_root_not_find_root": "pass",
+    "test_verify.SuggestTest.test_suggest_prints_canonical_commands_without_running": "pass"
   }
 }

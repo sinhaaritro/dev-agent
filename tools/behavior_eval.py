@@ -50,7 +50,7 @@ All Reviews" to download `feedback.json`; save it at `<run>/feedback.json` and
 run `feedback` to turn it into a revision digest.
 
 `accept` records a checked run as the case's baseline under
-`tests/fixtures/behavior/baselines/<case>.json`, pinning the hashes of the
+`tests/fixtures/behavior/cases/baselines/<case>.json`, pinning the hashes of the
 skills under test and the case fixture. `baseline` re-hashes those offline, so a
 skill edit after `accept` shows up as drift until the case is re-run and
 re-accepted.
@@ -112,7 +112,7 @@ SCOPES = ("repo", "run")
 STEPS_DIR = "steps"
 BASE_SNAPSHOT_DIR = "_base_repo"
 
-# Accepted-run baselines: tests/fixtures/behavior/baselines/<case>.json
+# Accepted-run baselines: tests/fixtures/behavior/cases/baselines/<case>.json
 BASELINES_DIR = "baselines"
 IGNORE_DIRS = {"__pycache__", ".git", ".venv", "node_modules"}
 

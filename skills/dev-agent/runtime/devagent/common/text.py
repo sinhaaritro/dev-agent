@@ -12,6 +12,21 @@ ASCII_MAP = {
 }
 
 
+def normalize_marker(value: str) -> str:
+    """Strip a Verify/Expect field's surrounding backticks or quotes.
+
+    The plan template accepts ``Expect: "OK"``, ``Expect: `OK```, and a bare
+    ``Expect: OK``. Both engines (compile's approval fingerprints and the
+    verifier's lookups) must normalize the same way or a pre-approved command
+    is refused at run time (audit finding: backtick Expect mismatch).
+    """
+    v = (value or "").strip()
+    for _ in range(2):
+        if len(v) >= 2 and v[0] == v[-1] and v[0] in "`\"'":
+            v = v[1:-1].strip()
+    return v
+
+
 def sanitize_ascii(text: str) -> str:
     """Map common Unicode punctuation to ASCII and drop everything non-ASCII.
 

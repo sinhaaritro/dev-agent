@@ -125,6 +125,27 @@ class SupervisedFailClosedTest(GateBase):
         self.assertTrue(self.escalation().exists())
         self.assertFalse(self.gate_log().exists())
 
+    def test_escalation_report_matches_the_never_reverts_contract(self):
+        code, _out = self.run_gate(
+            "--gate",
+            "blocking",
+            "--session",
+            "non-interactive",
+            "--lane",
+            "B",
+            "--autonomy",
+            "supervised",
+            "--question",
+            "q",
+            "--options",
+            "A (Recommended): x; B: y",
+        )
+        self.assertEqual(code, 2)
+        text = self.escalation().read_text(encoding="utf-8")
+        self.assertIn("Dirty edits reverted: no", text)
+        self.assertNotIn("Dirty edits reverted: yes", text)
+        self.assertIn("left as-is", text)
+
 
 class AutonomousResolveTest(GateBase):
     def test_blocking_noni_autonomous_resolves_into_gates_section(self):
@@ -386,6 +407,30 @@ class GateBlockStatusTest(GateBase):
         )
         self.assertEqual(code, 2, out)
         self.assertTrue(self.escalation().exists())
+
+
+class GateTargetOrderTest(GateBase):
+    def test_planning_draft_wins_over_a_compiled_spec(self):
+        draft = self.write_draft()
+        spec = self.root / "specs" / "001-SPEC-x.md"
+        spec.write_text("# Spec\n\nStatus: COMPILED\n\n## 6. Gates\n", encoding="utf-8")
+        code, out = self.run_gate(
+            "--gate",
+            "blocking",
+            "--session",
+            "non-interactive",
+            "--lane",
+            "B",
+            "--autonomy",
+            "autonomous",
+            "--question",
+            "q",
+            "--options",
+            "A: x; B: y",
+        )
+        self.assertEqual(code, 0, out)
+        self.assertIn("Choice made: A", draft.read_text(encoding="utf-8"))
+        self.assertNotIn("Choice made", spec.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

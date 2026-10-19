@@ -115,9 +115,8 @@ Modes:
 
     detect   devagent verify detect [--root <dir>]
               Scan repo manifests and print the framework + its reference page
-              (pyproject.toml -> python, package.json -> node-npm,
-              Cargo.toml -> rust-cargo, go.mod -> go, *.csproj -> dotnet).
-              Exit 0.
+              (pyproject.toml -> python, package.json -> node-npm). Anything
+              else reports 'none' with the generic fallback. Exit 0.
 
 Usage:
     python .agents/scripts/devagent/main.py verify \
@@ -145,6 +144,7 @@ import time
 from pathlib import Path
 
 from common.root import find_root
+from common.text import normalize_marker
 
 MAX_ATTEMPTS = 3
 DEFAULT_TIMEOUT = 300
@@ -160,8 +160,6 @@ APPROVAL_CWD = "."
 FRAMEWORK_MANIFESTS = [
     ("pyproject.toml", "python"),
     ("package.json", "node-npm"),
-    ("Cargo.toml", "rust-cargo"),
-    ("go.mod", "go"),
 ]
 INTERACTIVE_TOKENS = ("--interactive", "--watch", "--live-reload")
 
@@ -462,10 +460,12 @@ def _all_tasks_met(root: Path, spec: Path) -> bool:
     tasks = _section5_tasks(text)
     if not tasks:
         return False
-    num = int(spec.name[:3])
+    num = _spec_num(spec)
+    if num is None:
+        return False
     for task in tasks:
         tf = task_file_for(root, num, f"Task {task['num']}")
-        if tf is None or status(tf) != "MET":
+        if tf is None or status(tf, root) != "MET":
             return False
     return True
 
@@ -752,18 +752,22 @@ def read_evidence(task_file: Path) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
-def status(task: Path) -> str:
+def status(task: Path, root: Path | None = None) -> str:
     """Derive a task file's completion from its evidence block.
 
     MET: passing evidence and every owned file's current hash matches.
     NOT MET: no passing evidence (or the command no longer exists in the file).
     STALE: an owned file changed since the evidence was recorded.
     NO-EVIDENCE: no evidence block at all.
+
+    ``root`` is the repo root the owned-file hashes resolve against; callers
+    that already resolved it must pass it so a sandbox does not fall back to
+    the engine's own repo.
     """
     evidence = read_evidence(task)
     if evidence is None:
         return "NO-EVIDENCE"
-    root = find_root()
+    root = root or find_root()
     hashes = evidence.get("files") or {}
     if not hashes:
         return "NOT MET"
@@ -917,7 +921,7 @@ def _outcome_observations(
         observed = bool(nums)
         for n in nums:
             tf = task_file_for(root, num, f"Task {n}")
-            if tf is None or status(tf) != "MET":
+            if tf is None or status(tf, root) != "MET":
                 observed = False
                 break
         out.append((rid, observed, nums))
@@ -947,6 +951,11 @@ def _dag_ok(tasks: list[dict]) -> tuple[bool, str]:
         deps = task.get("depends_on") or ""
         if deps == "None":
             continue
+        if not re.fullmatch(r"Task\s+\d+(\s*,\s*Task\s+\d+)*", deps):
+            return (
+                False,
+                f"Task {task['num']} has malformed Depends On '{deps}'",
+            )
         for m in re.finditer(r"Task\s+(\d+)", deps):
             if int(m.group(1)) not in nums:
                 return False, f"Task {task['num']} depends on missing Task {m.group(0)}"
@@ -976,12 +985,7 @@ def _dag_ok(tasks: list[dict]) -> tuple[bool, str]:
 
 def _clean(value: str) -> str:
     """Strip a field's surrounding backticks/quotes (spec section 5 'Verify:'/'Expect:')."""
-    v = value.strip()
-    if len(v) >= 2 and v.startswith("`") and v.endswith("`"):
-        v = v[1:-1].strip()
-    if len(v) >= 2 and v.startswith('"') and v.endswith('"'):
-        v = v[1:-1].strip()
-    return v
+    return normalize_marker(value)
 
 
 def _verify_preapproved(root: Path, num: int, text: str) -> tuple[bool, str]:
@@ -989,7 +993,10 @@ def _verify_preapproved(root: Path, num: int, text: str) -> tuple[bool, str]:
         p for p in (root / "specs").glob(f"{num:03d}-APPROVALS-*.json") if p.is_file()
     ]
     if not candidates:
-        return True, ""  # no pre-approval store yet; approvals are recorded at compile
+        return (
+            False,
+            f"no {num:03d}-APPROVALS-*.json pre-approval file for this spec group",
+        )
     for path in candidates:
         try:
             data = json.loads(path.read_text(encoding="utf-8-sig"))
@@ -1008,17 +1015,28 @@ def _verify_preapproved(root: Path, num: int, text: str) -> tuple[bool, str]:
     return True, ""
 
 
+def _canonical_command_list(root: Path) -> list[tuple[str, str]]:
+    """(label, command) pairs from AGENTS.md Commands; placeholders skipped."""
+    agents = root / "AGENTS.md"
+    if not agents.is_file():
+        return []
+    try:
+        text = agents.read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeDecodeError):
+        return []
+    commands: list[tuple[str, str]] = []
+    for line in text.splitlines():
+        m = re.match(r"^\s*-\s*(Build|Test|Lint)\s*:\s*(.+)$", line.strip())
+        if m and m.group(2).strip() != "<command>":
+            commands.append((m.group(1), m.group(2).strip()))
+    return commands
+
+
 def _canonical_commands(root: Path) -> tuple[bool, str]:
     agents = root / "AGENTS.md"
     if not agents.is_file():
         return False, "AGENTS.md missing"
-    text = agents.read_text(encoding="utf-8-sig")
-    commands: list[str] = []
-    for line in text.splitlines():
-        m = re.match(r"^\s*-\s*(Build|Test|Lint)\s*:\s*(.+)$", line.strip())
-        if m and m.group(2).strip() != "<command>":
-            commands.append(m.group(2).strip())
-    if not commands:
+    if not _canonical_command_list(root):
         return False, "AGENTS.md Build/Test/Lint commands are placeholders"
     return True, ""
 
@@ -1081,6 +1099,9 @@ def doctor(spec: Path) -> list[str]:
     root = find_root()
     if root is None or not (root / "AGENTS.md").is_file():
         return ["1: repo root not resolved"]
+    num = _spec_num(spec)
+    if num is None:
+        return ["4: spec file is not NNN-SPEC-<slug>.md"]
     ok, detail = _engine_importable(root)
     if not ok:
         gaps.append("2: engine script not importable: " + detail)
@@ -1097,9 +1118,7 @@ def doctor(spec: Path) -> list[str]:
         pass
     tasks = _section5_tasks(text)
     missing_tasks = [
-        t["num"]
-        for t in tasks
-        if task_file_for(root, int(spec.name[:3]), f"Task {t['num']}") is None
+        t["num"] for t in tasks if task_file_for(root, num, f"Task {t['num']}") is None
     ]
     if missing_tasks:
         gaps.append(
@@ -1108,7 +1127,7 @@ def doctor(spec: Path) -> list[str]:
     ok, detail = _dag_ok(tasks)
     if not ok:
         gaps.append("6: " + detail)
-    ok, detail = _verify_preapproved(root, int(spec.name[:3]), text)
+    ok, detail = _verify_preapproved(root, num, text)
     if not ok:
         gaps.append("7: " + detail)
     ok, detail = _canonical_commands(root)
@@ -1132,7 +1151,7 @@ def _task_verify_command(task_file: Path) -> str:
     return fence.group(1).strip() if fence else ""
 
 
-def _rereun_verify(root: Path, num: int, text: str) -> list[str]:
+def _rerun_verify(root: Path, num: int, text: str) -> list[str]:
     """Review: fresh re-run of every task's verify command (pass/fail lines).
 
     The command source is the task file's '## Verification' fenced block (the
@@ -1188,8 +1207,10 @@ def report(spec: Path) -> Path:
     """Regenerate NNN-REPORT-<slug>.md from the spec group's current state."""
     root = find_root()
     m = SPEC_KIND.match(spec.name)
-    num = int(m.group(1)) if m else int(spec.name[:3])
-    slug = m.group(2) if m else "spec"
+    num = _spec_num(spec)
+    if m is None or num is None:
+        raise SystemExit(f"error: '{spec.name}' is not an NNN-SPEC-<slug>.md file")
+    slug = m.group(2)
     try:
         text = spec.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeDecodeError):
@@ -1212,7 +1233,7 @@ def report(spec: Path) -> Path:
             lines.append(f"- Task {task['num']}: NO TASK FILE")
             not_met.append(f"Task {task['num']}")
             continue
-        derived = status(tf)
+        derived = status(tf, root)
         lines.append(f"- Task {task['num']}: {derived} ({tf.name})")
         if derived != "MET":
             not_met.append(f"Task {task['num']}")
@@ -1224,7 +1245,7 @@ def report(spec: Path) -> Path:
         "",
         "## Review (fresh re-run of verify commands)",
     ]
-    lines.extend(_rereun_verify(root, num, text))
+    lines.extend(_rerun_verify(root, num, text))
     missing = [rid for rid, observed, _ in observations if not observed]
     reasons = []
     if missing:
@@ -1236,7 +1257,7 @@ def report(spec: Path) -> Path:
         "Review: " + ("PASS" if not reasons else "FAIL (" + "; ".join(reasons) + ")"),
     ]
     target = spec.parent / f"{num:03d}-REPORT-{slug}.md"
-    target.write_text("\n".join(lines), encoding="utf-8")
+    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return target
 
 
@@ -1256,7 +1277,12 @@ def _is_noop_verify(cmd: str) -> bool:
 def cmd_run(args: argparse.Namespace) -> int:
     if not args.command:
         if args.suggest:
-            print("suggest (no command run) - detected: " + (args.suggest or "none"))
+            print("suggest (no command run):")
+            commands = _canonical_command_list(find_root())
+            if not commands:
+                print("  (no canonical Build/Test/Lint commands in AGENTS.md)")
+            for label, cmd in commands:
+                print(f"  {label}: {cmd}")
             return 0
         print(
             "error: no command - provide --command, or --suggest for canonical commands"
@@ -1284,7 +1310,10 @@ def cmd_run(args: argparse.Namespace) -> int:
                 + "): command not approved - "
                 + "refused before execution, no state change, not an attempt"
             )
-            hint = "approve: python .agents/scripts/devagent/main.py verify approve --command " + shlex.quote(args.command)
+            hint = (
+                "approve: python .agents/scripts/devagent/main.py verify approve --command "
+                + shlex.quote(args.command)
+            )
             if args.expect:
                 hint += " --expect " + shlex.quote(args.expect)
             print(hint)
@@ -1432,7 +1461,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     task_file, _ = resolve_task(args.task_id, root, num)
     if task_file is not None:
         print("task: " + task_file.name)
-        print("state: " + status(task_file))
+        print("state: " + status(task_file, root))
         return 0
     state = read_state(args.state_dir)
     task = state["tasks"].get(
@@ -1484,10 +1513,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 0
 
 
-def _spec_num(spec: Path) -> int:
-    """The NNN of an NNN-SPEC-<slug>.md path (best effort)."""
+def _spec_num(spec: Path) -> int | None:
+    """The NNN of an NNN-SPEC-<slug>.md path, or None for any other file."""
     m = SPEC_KIND.match(spec.name)
-    return int(m.group(1)) if m else int(spec.name[:3])
+    return int(m.group(1)) if m else None
 
 
 def cmd_report(args: argparse.Namespace) -> int:
@@ -1499,6 +1528,10 @@ def cmd_report(args: argparse.Namespace) -> int:
     if spec is None:
         print("report: " + err)
         return 2
+    num = _spec_num(spec)
+    if num is None:
+        print(f"report: '{spec.name}' is not an NNN-SPEC-<slug>.md file")
+        return 2
     try:
         text = spec.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeDecodeError):
@@ -1506,9 +1539,7 @@ def cmd_report(args: argparse.Namespace) -> int:
     tasks = _section5_tasks(text)
     missing = [
         rid
-        for rid, observed, _ in _outcome_observations(
-            root, _spec_num(spec), text, tasks
-        )
+        for rid, observed, _ in _outcome_observations(root, num, text, tasks)
         if not observed
     ]
     all_met = _all_tasks_met(root, spec)
@@ -1534,12 +1565,6 @@ def cmd_detect(args: argparse.Namespace) -> int:
             print("framework: " + framework)
             print("reference: references/frameworks/" + framework + ".md")
             return 0
-    if root.is_dir():
-        for entry in root.iterdir():
-            if entry.suffix.lower() == ".csproj":
-                print("framework: dotnet")
-                print("reference: references/frameworks/dotnet.md")
-                return 0
     print("framework: none")
     print("reference: (no framework page - ask Socratically or use AGENTS.md Commands)")
     return 0
