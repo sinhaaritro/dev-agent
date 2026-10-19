@@ -14,7 +14,7 @@ section 5 and is written by the orchestrator; it is **not** copied into task fil
 It validates **every file it writes** with `validate_task_file(text)` — a missing or
 misordered heading, or a missing `Verification` fence / `Expect`, is an error and the file
 is not written. It also writes pre-approvals for every task's verify command into
-`NNN-APPROVALS-<slug>.json` (gitignored) and stamps `Status: COMPILED` on the spec.
+`NNN-APPROVALS-<slug>.json` (committed with the group) and stamps `Status: COMPILED` on the spec.
 
 A task file is a **self-contained briefing** (copied, not referenced, so the coder never
 needs the full spec). Everything the coder might need is copied in.

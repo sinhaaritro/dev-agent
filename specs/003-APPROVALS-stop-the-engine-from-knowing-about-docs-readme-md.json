@@ -3,45 +3,45 @@
   "approvals": [
     {
       "task": "Task 1",
-      "fingerprint": "grep -o \"CLEAN\" .agents/skills/spec-builder/scripts/promote_spec.py | tail -1|CLEAN|/mnt/HDD2TB/Projects/dev-agent",
+      "fingerprint": "68fec752f39858176040130532034ec03fa136549e734c10711d2af22e8597ff",
       "command": "grep -o \"CLEAN\" .agents/skills/spec-builder/scripts/promote_spec.py | tail -1",
       "expect": "CLEAN",
-      "cwd": "/mnt/HDD2TB/Projects/dev-agent"
+      "cwd": "."
     },
     {
       "task": "Task 2",
-      "fingerprint": "grep -o \"ABSENT\" docs/README.md | tail -1|ABSENT|/mnt/HDD2TB/Projects/dev-agent",
+      "fingerprint": "63746132ffcbc23d625407963c132233ae5facd99e7921735afa2ef5113733db",
       "command": "grep -o \"ABSENT\" docs/README.md | tail -1",
       "expect": "ABSENT",
-      "cwd": "/mnt/HDD2TB/Projects/dev-agent"
+      "cwd": "."
     },
     {
       "task": "Task 3",
-      "fingerprint": "grep -o \"CLEAN\" .agents/rules/system.md | tail -1|CLEAN|/mnt/HDD2TB/Projects/dev-agent",
+      "fingerprint": "22c1f339e73133c9ae39149de5ac96a755e8552a60c2eea84dc4846c19687c2b",
       "command": "grep -o \"CLEAN\" .agents/rules/system.md | tail -1",
       "expect": "CLEAN",
-      "cwd": "/mnt/HDD2TB/Projects/dev-agent"
+      "cwd": "."
     },
     {
       "task": "Task 4",
-      "fingerprint": "grep -o \"ABSENT\" docs/005-docs-architecture-and-spec-lifecycle.md | tail -1|ABSENT|/mnt/HDD2TB/Projects/dev-agent",
+      "fingerprint": "fdd128ea3ef70bfa0a06fc5a9a80d86229ba45b9e850004200711f62ff7871d6",
       "command": "grep -o \"ABSENT\" docs/005-docs-architecture-and-spec-lifecycle.md | tail -1",
       "expect": "ABSENT",
-      "cwd": "/mnt/HDD2TB/Projects/dev-agent"
+      "cwd": "."
     },
     {
       "task": "Task 5",
-      "fingerprint": "python -m unittest tests.test_promote_spec_docs_root -v|OK|/mnt/HDD2TB/Projects/dev-agent",
+      "fingerprint": "1fa71b9071e36acf2f84520a7d80e76919a7816ff1741dc6f0f2ba165479f17d",
       "command": "python -m unittest tests.test_promote_spec_docs_root -v",
       "expect": "OK",
-      "cwd": "/mnt/HDD2TB/Projects/dev-agent"
+      "cwd": "."
     },
     {
       "task": "Task 6",
-      "fingerprint": "grep -o \"SPEC\" .agents/skills/spec-builder/scripts/promote_spec.py | tail -1|SPEC|/mnt/HDD2TB/Projects/dev-agent",
+      "fingerprint": "2308a2a2d6f443ae309a52c2d856a809dbd65e75cd388db5e288348286d18bc8",
       "command": "grep -o \"SPEC\" .agents/skills/spec-builder/scripts/promote_spec.py | tail -1",
       "expect": "SPEC",
-      "cwd": "/mnt/HDD2TB/Projects/dev-agent"
+      "cwd": "."
     }
   ]
 }

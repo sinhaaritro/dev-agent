@@ -121,6 +121,16 @@ class CompileRunApprovalTest(unittest.TestCase):
         self.assertEqual(entry["command"], RUN_COMMAND)
         self.assertEqual(entry["expect"], "MARKER")
 
+    def test_compile_writes_portable_repo_relative_cwd(self):
+        self._compile()
+        raw = self.approvals.read_text(encoding="utf-8")
+        entry = json.loads(raw)["approvals"][0]
+        # H5: the fingerprint's cwd term is the repo root repo-relative
+        # ('.'), never a machine-absolute path, so the committed companion
+        # is portable across clones and operating systems.
+        self.assertEqual(entry["cwd"], ".")
+        self.assertNotIn(str(self.tmp), raw)
+
     def test_doctor_precondition_7_accepts_compile_preapproval(self):
         self._compile()
         gaps = verify.doctor(self.spec)

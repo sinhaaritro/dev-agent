@@ -50,7 +50,7 @@ Optional at run time: `--hypothesis "<text>"` and `--options "<A (Recommended): 
 A `Verify` command is shell code written by the AI; approving the spec does not approve its commands.
 
 - Pre-approvals happen at **compile**: the spec group carries a `NNN-APPROVALS-<slug>.json` with the fingerprint of each verify command, so a human's pre-approval matches a coder's later run. A coder can also approve inline (idempotent): `python .agents/skills/verification-runner/scripts/verify.py approve --command "<cmd>" --expect "<marker>"`
-- The fingerprint is `sha256(command | expect | cwd)`. The **executor is deliberately excluded** (VERIFY-D02) so a human's pre-approval matches a coder's run of the same command. Any change to the command, `Expect`, or CWD re-arms approval; cached re-runs are free.
+- The fingerprint is `sha256(command | expect | cwd)`, with `cwd` the repo root recorded repo-relative (`.`) so a committed `NNN-APPROVALS` file is portable across clones. The **executor is deliberately excluded** (VERIFY-D02) so a human's pre-approval matches a coder's run of the same command. Any change to the command or `Expect` re-arms approval; cached re-runs are free.
 - `run --lane <A|B>` on an unapproved command exits **4 before execution** — no state change, not a retry attempt. Approve, then re-run.
 - Lanes C/D (or no `--lane`) are exempt.
 - Approvals travel with the spec group (committed as the group's companion), not per-session scratch.

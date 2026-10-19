@@ -286,6 +286,19 @@ class ReferenceResolutionTest(SandboxCase):
         self.assertIsNone(path)
         self.assertIn("ambiguous", err)
 
+    def test_resolution_is_root_anchored_not_cwd(self):
+        # H5: a reference resolves from the repo root, never the process
+        # CWD - a same-named file elsewhere must not shadow the real one.
+        other = self.tmp / "elsewhere"
+        (other / "specs").mkdir(parents=True)
+        ghost = other / "specs" / "007-SPEC-do-things.md"
+        ghost.write_text("# ghost\n", encoding="utf-8")
+        os.chdir(other)
+        path, err = verify.resolve_spec("specs/007-SPEC-do-things.md", self.tmp)
+        self.assertEqual(err, "")
+        self.assertEqual(path, self.spec.resolve())
+        self.assertNotEqual(path, ghost.resolve())
+
     def test_status_derives_from_task_id(self):
         buf = StringIO()
         with redirect_stdout(buf):
@@ -330,7 +343,7 @@ class DoctorTest(SandboxCase):
         self.spec = _spec_file(self.tmp)
         _task_file(self.tmp)
         fp = verify.command_fingerprint(
-            "python -c \"print('MARKER')\"", "MARKER", str(self.tmp)
+            "python -c \"print('MARKER')\"", "MARKER", verify.APPROVAL_CWD
         )
         (self.tmp / "specs" / "007-APPROVALS-do-things.json").write_text(
             json.dumps(
@@ -342,7 +355,7 @@ class DoctorTest(SandboxCase):
                             "fingerprint": fp,
                             "command": "python -c \"print('MARKER')\"",
                             "expect": "MARKER",
-                            "cwd": str(self.tmp),
+                            "cwd": verify.APPROVAL_CWD,
                         }
                     ],
                 }

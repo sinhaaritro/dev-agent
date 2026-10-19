@@ -6,7 +6,7 @@ ephemeral specs/temp/ scratchpad on human acceptance. In the new world the
 scratchpad holds ONLY draft-stage scratch (draft-plan.md, active-task.md, flow
 diagrams): per-task verification evidence lives in the task files under
 specs/, the gate log lives in the spec's `Gates:` section, and approvals are a
-gitignored per-spec file (NNN-APPROVALS-<slug>.json). So the scratchpad is
+per-spec file committed with the group (NNN-APPROVALS-<slug>.json). So the scratchpad is
 safe to purge on approval - there is no append-only audit file to preserve.
 
 The engine never decides whether the task was accepted - the agent calls it when

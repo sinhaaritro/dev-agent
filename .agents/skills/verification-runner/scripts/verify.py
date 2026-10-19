@@ -41,16 +41,18 @@ Modes:
               fingerprint sha256(command|expect|cwd) against the approvals
               store; a miss is exit 4 BEFORE execution - no state change, not
               a retry attempt. Lanes C/D (or no --lane) are exempt. Any change
-              to the command, Expect, or CWD changes the fingerprint and
-              re-arms approval; cached re-runs are free.
+              to the command or Expect changes the fingerprint and re-arms
+              approval; cached re-runs are free.
 
               The command always runs with cwd=<repo root> (find_root()), so
-              approval fingerprints and AGENTS.md commands are root-relative
-              and a human's pre-approval matches the coder's run (no
-              executor in the fingerprint). On PASS with --expect the task
-              file's evidence block (when the task file is found among the
-              spec group) is stamped with the command, the pass timestamp,
-              and a sha256 of every owned file at that moment.
+              AGENTS.md commands are root-relative and a human's pre-approval
+              matches the coder's run (no executor in the fingerprint). The
+              fingerprint's cwd term is the repo root recorded repo-relative
+              ('.'), never an absolute path, so a committed NNN-APPROVALS file
+              is portable across clones and operating systems. On PASS with
+              --expect the task file's evidence block (when the task file is
+              found among the spec group) is stamped with the command, the pass
+              timestamp, and a sha256 of every owned file at that moment.
 
               On PASS the spec's build status advances (build owner): a
               COMPILED spec becomes BUILDING on the first pass, and a
@@ -85,8 +87,9 @@ Modes:
               a task file
               exists for every task in section 5; Depends On forms a valid DAG;
               every verify command is pre-approved (fingerprint =
-              command | expect | cwd); the canonical AGENTS.md commands
-              resolve; a branch can be created off the default branch
+              command | expect | cwd, with cwd the root as '.'); the
+              canonical AGENTS.md commands resolve; a branch can be created
+              off the default branch
               (main/master). <ref> is a spec number ('003' / '3'), a file name,
               a relative path, or an absolute path. Prints PRECONDITIONS
               OK on success, else a named list of gaps + exit 1.
@@ -148,6 +151,10 @@ ESCALATION_FILE = "escalation.md"
 APPROVALS_FILE = "approvals.json"
 APPROVAL_REQUIRED_LANES = {"A", "B"}
 EXECUTOR = "verify.py"
+# The working directory recorded in approval fingerprints. Commands always
+# run at the repo root; recording it repo-relative ('.') instead of an
+# absolute path keeps NNN-APPROVALS-*.json portable across clones and OSes.
+APPROVAL_CWD = "."
 FRAMEWORK_MANIFESTS = [
     ("pyproject.toml", "python"),
     ("package.json", "node-npm"),
@@ -164,7 +171,8 @@ def find_root() -> Path:
     self-contained sandbox that has its own AGENTS.md) resolves to that repo,
     not the engine's own tree. Falls back to walking up from the script
     location when the CWD has no marker. Commands run with cwd=<root> and
-    the approval fingerprint uses this root (spec 002, section 2.5).
+    the approval fingerprint records this root repo-relative (spec 002,
+    section 2.5).
     """
     for start in (Path.cwd(), Path(__file__).resolve().parent):
         current = start
@@ -251,12 +259,14 @@ def command_fingerprint(command: str, expect: str, cwd: str,
                         executor: str = "") -> str:
     """sha256(command | expect | cwd) - the approval key.
 
-    Any change to the command, the Expect marker, or the working directory
-    yields a new fingerprint and re-arms approval; identical re-runs match the
-    cached fingerprint and are free. The executor is deliberately out of the
-    payload: a human's pre-approval must match the coder's run (spec 002,
-    section 2.5). The ``executor`` argument is accepted for backward
-    compatibility but never hashed.
+    Any change to the command or the Expect marker yields a new fingerprint
+    and re-arms approval; identical re-runs match the cached fingerprint and
+    are free. ``cwd`` is the repo root recorded repo-relative (see
+    ``APPROVAL_CWD``), never an absolute path, so pre-approvals are portable
+    across clones. The executor is deliberately out of the payload: a human's
+    pre-approval must match the coder's run (spec 002, section 2.5). The
+    ``executor`` argument is accepted for backward compatibility but never
+    hashed.
     """
     payload = "|".join((command.strip(), (expect or "").strip(), cwd))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
@@ -571,13 +581,18 @@ def task_file_for(root: Path, num: int, task_id: str) -> Path | None:
 
 
 def _candidate_file(raw: str, root: Path) -> Path | None:
-    """An existing file for a raw path (as given, or relative to the root)."""
-    for cand in (Path(raw), root / raw):
-        try:
-            if cand.is_file():
-                return cand
-        except OSError:
-            continue
+    """An existing file for a raw path, resolved from the repo root.
+
+    An absolute ``raw`` is used as-is (``root / raw`` yields it unchanged);
+    every other ``raw`` is resolved relative to the repo root, never the
+    process CWD.
+    """
+    try:
+        cand = root / raw
+        if cand.is_file():
+            return cand
+    except OSError:
+        pass
     return None
 
 
@@ -592,10 +607,10 @@ def _spec_index(root: Path) -> list[Path]:
 def resolve_spec(raw: str, root: Path) -> tuple[Path | None, str]:
     """Resolve a spec reference to its file.
 
-    Accepts any of: an absolute path, a path relative to the CWD or the repo
-    root, a bare file name (``003-SPEC-slug.md``), or a spec number (``003`` /
-    ``3``). Returns ``(path, "")`` on success, or ``(None, reason)`` when
-    nothing matches or the reference is ambiguous.
+    Accepts any of: an absolute path, a path relative to the repo root, a bare
+    file name (``003-SPEC-slug.md``), or a spec number (``003`` / ``3``).
+    Returns ``(path, "")`` on success, or ``(None, reason)`` when nothing
+    matches or the reference is ambiguous.
     """
     raw = str(raw or "").strip().strip('"').strip("'")
     direct = _candidate_file(raw, root)
@@ -614,7 +629,7 @@ def resolve_spec(raw: str, root: Path) -> tuple[Path | None, str]:
     if len(matches) == 1:
         return matches[0].resolve(), ""
     if not matches:
-        return None, f"no spec matches '{raw}' under {root / 'specs'}"
+        return None, f"no spec matches '{raw}' under specs/"
     names = ", ".join(p.name for p in matches)
     return None, f"ambiguous spec '{raw}': matches {names}"
 
@@ -648,8 +663,8 @@ def resolve_task(
 ) -> tuple[Path | None, str]:
     """Resolve a task reference to its task file.
 
-    Accepts any of: an absolute path, a path relative to the CWD or the repo
-    root, a bare file name (``007-TASK-01-slug.md``), or a task id such as
+    Accepts any of: an absolute path, a path relative to the repo root, a bare
+    file name (``007-TASK-01-slug.md``), or a task id such as
     ``007-Task 1``, ``007-01`` (optionally ``--spec``-qualified via ``num``), or
     a bare ``Task 1``. Returns ``(path, "")`` on success, or ``(None, reason)``.
     """
@@ -682,7 +697,7 @@ def resolve_task(
     if len(hits) == 1:
         return hits[0].resolve(), ""
     if not hits:
-        return None, f"no task file matches '{raw}' under {root / 'specs'}"
+        return None, f"no task file matches '{raw}' under specs/"
     names = ", ".join(p.name for p in hits)
     return None, f"ambiguous task '{raw}': matches {names}"
 
@@ -997,7 +1012,7 @@ def _verify_preapproved(root: Path, num: int, text: str) -> tuple[bool, str]:
             expect = _clean(task.get("expect") or "")
             if not verify:
                 continue
-            fp = command_fingerprint(verify, expect, str(find_root()))
+            fp = command_fingerprint(verify, expect, APPROVAL_CWD)
             if fp not in approved:
                 return False, f"Task {task['num']} verify command not pre-approved"
         break
@@ -1261,7 +1276,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     # no state change and no attempt counted.
     lane = getattr(args, "lane", None)
     if lane in APPROVAL_REQUIRED_LANES:
-        fingerprint = command_fingerprint(args.command, args.expect or "", str(root))
+        fingerprint = command_fingerprint(args.command, args.expect or "", APPROVAL_CWD)
         approved = read_approvals(args.state_dir)["approvals"]
         if fingerprint not in approved and fingerprint not in spec_preapprovals(
             root, args.task_id
@@ -1386,7 +1401,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 def cmd_approve(args: argparse.Namespace) -> int:
     """Record the command's fingerprint in the approvals store (idempotent)."""
-    cwd = str(find_root())
+    cwd = APPROVAL_CWD
     fingerprint = command_fingerprint(args.command, args.expect or "", cwd)
     data = read_approvals(args.state_dir)
     if fingerprint in data["approvals"]:

@@ -3,7 +3,7 @@
 Covers spec 002 TASK-12: the new scratchpad scope. The scratchpad now holds
 ONLY draft-stage scratch (draft-plan.md, active-task.md, flow diagrams) -
 per-task evidence lives in the task files under specs/, the gate log lives in
-the spec's `Gates:` section, and approvals are a gitignored per-spec file. So
+the spec's `Gates:` section, and approvals are a per-spec file committed with the spec group. So
 the default purge preserves only `.gitignore` (gate-log.md / verify-state.json
 / approvals.json are retired as scratch concepts).
 

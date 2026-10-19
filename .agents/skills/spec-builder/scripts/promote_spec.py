@@ -586,19 +586,26 @@ def _slug_from_title_or_name(name: str, text: str) -> str:
     return ident[1] if ident else "spec"
 
 
-def _fingerprint(command: str, expect: str, cwd: Path) -> str:
+# The working directory recorded in approval fingerprints. Commands run at
+# the repo root; recording it repo-relative ('.') keeps NNN-APPROVALS-*.json
+# portable across clones (matches verify.py's APPROVAL_CWD).
+APPROVAL_CWD = "."
+
+
+def _fingerprint(command: str, expect: str, cwd: str) -> str:
     """The verify-approval fingerprint: sha256(command | expect | cwd).
 
     Must match verify.py's ``command_fingerprint`` byte-for-byte: a
     compile-time pre-approval only satisfies a lane-A/B ``verify.py run``
-    when both engines hash the same payload (audit finding C1).
+    when both engines hash the same payload (audit finding C1). ``cwd`` is
+    the repo root recorded repo-relative (``.``), never an absolute path.
     """
-    payload = "|".join((command.strip(), expect.strip(), str(cwd)))
+    payload = f"{command.strip()}|{expect.strip()}|{cwd}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _write_approvals(specs_dir: Path, num: int, slug: str,
-                     tasks: list[dict], root: Path) -> Path:
+                     tasks: list[dict]) -> Path:
     """Write NNN-APPROVALS-<slug>.json pre-approving every task verify command."""
     import json
     approvals = {
@@ -606,10 +613,14 @@ def _write_approvals(specs_dir: Path, num: int, slug: str,
         "approvals": [
             {
                 "task": f"Task {t['num']}",
-                "fingerprint": _fingerprint(t["verify"].strip("`"), t["expect"].strip('"').strip(), root),
+                "fingerprint": _fingerprint(
+                    t["verify"].strip("`"),
+                    t["expect"].strip('"').strip(),
+                    APPROVAL_CWD,
+                ),
                 "command": t["verify"].strip("`"),
                 "expect": t["expect"].strip('"').strip(),
-                "cwd": str(root),
+                "cwd": APPROVAL_CWD,
             }
             for t in tasks
         ],
@@ -707,7 +718,7 @@ def compile_spec(spec: Path, root: Path | None = None) -> list[Path]:
         target = specs_dir / f"{num:03d}-TASK-{task['num']:02d}-{task_slug}.md"
         target.write_text(content, encoding="utf-8")
         written.append(target)
-    _write_approvals(specs_dir, num, slug, tasks, root)
+    _write_approvals(specs_dir, num, slug, tasks)
     _stamp_compiled(spec, root)
     _refresh_toc_for(root)
     return written

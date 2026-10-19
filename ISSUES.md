@@ -276,6 +276,8 @@ Parse the section-5 Outcomes table and emit one observation line per `R#`, with 
 
 ### H5 — Approval files: "gitignored" vs committed, and non-portable CWDs
 
+**Status: ✅ Fixed (2026-10-19).** One model: approvals are **committed with the spec group**. Both engines record the fingerprint's cwd term as the repo root repo-relative (`.`) instead of an absolute path, so `NNN-APPROVALS-*.json` is portable across clones; `verify.py` resolves `--spec`/`--task` references from the repo root (never the process CWD) and prints repo-relative errors; the four "gitignored" lines now say "committed with the group"; the tracked `specs/003-APPROVALS-*.json` was regenerated (sha256 + `.`). Regression tests: `test_approval_integration.CompileRunApprovalTest.test_compile_writes_portable_repo_relative_cwd`, `test_verify.ReferenceResolutionTest.test_resolution_is_root_anchored_not_cwd`. Remaining absolute paths are non-artifact diagnostics/runtime (the `find_root()` return, the `AGENTS.md not found` error text, subprocess `cwd=`, `bootstrap --target`, `detect --root` default); `specs/002-TASK-02-…md:17` is left untouched as the historical build record.
+
 **Docs saying gitignored**
 
 - `docs/decision-records.md:75`
