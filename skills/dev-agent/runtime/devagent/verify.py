@@ -81,7 +81,7 @@ Modes:
               Exit 0 (or 2 when --spec cannot be resolved).
 
     doctor   devagent verify doctor --spec <ref> [--root <dir>]
-              Run the 9 ordered per-spec preconditions (spec 002, section 2.6):
+              Run the 9 ordered per-spec preconditions:
               repo root resolved; engine scripts importable; state files
               parseable; the spec is Status: COMPILED/BUILDING (canonical);
               a task file
@@ -236,7 +236,7 @@ def command_fingerprint(command: str, expect: str, cwd: str, executor: str = "")
     are free. ``cwd`` is the repo root recorded repo-relative (see
     ``APPROVAL_CWD``), never an absolute path, so pre-approvals are portable
     across clones. The executor is deliberately out of the payload: a human's
-    pre-approval must match the coder's run (spec 002, section 2.5). The
+    pre-approval must match the coder's run. The
     ``executor`` argument is accepted for backward compatibility but never
     hashed.
     """
@@ -268,8 +268,7 @@ def write_approvals(state_dir: Path, data: dict) -> None:
 def spec_preapprovals(root: Path, task_id: str = "") -> set[str]:
     """Fingerprints pre-approved at compile in ``specs/NNN-APPROVALS-*.json``.
 
-    A compiled spec carries a group-level approvals companion (spec 002,
-    section 2.5). A lane-A/B run must honor it without a separate manual
+    A compiled spec carries a group-level approvals companion. A lane-A/B run must honor it without a separate manual
     ``verify approve``. Scoped to the task's ``NNN`` prefix when the task id
     carries one; otherwise every spec's approvals are considered.
     """
@@ -1090,7 +1089,7 @@ def _branch_possible(root: Path) -> tuple[bool, str]:
 
 
 def doctor(spec: Path) -> list[str]:
-    """The 9 ordered per-spec preconditions (spec 002, section 2.6).
+    """The 9 ordered per-spec preconditions.
 
     Returns the named list of gaps (empty when all preconditions hold);
     ``PRECONDITIONS OK`` is the caller's success output.
@@ -1380,7 +1379,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
                 "output_sha256": hashlib.sha256(log.encode("utf-8")).hexdigest(),
             }
-            # Stamp the task file's evidence block (spec 002, section 2.5):
+            # Stamp the task file's evidence block:
             # the command, the pass timestamp, and a sha256 of every owned
             # file at that moment.
             m = re.match(r"^(\d{3})-", args.task_id)

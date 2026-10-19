@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T12:04:23Z",
+  "generated": "2026-10-19T12:45:12Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_portable_repo_relative_cwd": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
@@ -239,6 +239,12 @@
     "test_specs_lint.AllowedDirectionTest.test_clean_tree_passes": "pass",
     "test_specs_lint.AllowedDirectionTest.test_specs_file_linking_out_passes": "pass",
     "test_specs_lint.AllowedDirectionTest.test_specs_folder_absence_is_fine": "pass",
+    "test_specs_lint.DanglingFrameworkRefTest.test_adr_id_in_source_fails": "pass",
+    "test_specs_lint.DanglingFrameworkRefTest.test_framework_repo_scans_only_shipped_skills": "pass",
+    "test_specs_lint.DanglingFrameworkRefTest.test_installed_runtime_is_scanned": "pass",
+    "test_specs_lint.DanglingFrameworkRefTest.test_spec_id_in_docs_fails": "pass",
+    "test_specs_lint.DanglingFrameworkRefTest.test_vendored_skill_creator_is_skipped": "pass",
+    "test_specs_lint.DanglingFrameworkRefTest.test_workflow_specs_path_is_not_a_dangling_ref": "pass",
     "test_specs_lint.EncodingGuardTest.test_non_utf8_console_does_not_crash": "pass",
     "test_specs_lint.FrameworkRepoExemptionTest.test_consumer_repo_is_not_exempt": "pass",
     "test_specs_lint.FrameworkRepoExemptionTest.test_framework_repo_is_exempt": "pass",

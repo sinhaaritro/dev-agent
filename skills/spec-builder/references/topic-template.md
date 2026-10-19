@@ -3,7 +3,8 @@
 The single source of format truth for Topic-Based decision docs. Every topic doc
 filed under `docs/` must match this structure, which is why topic creation and
 revision run through the spec-builder engine (the runtime's `spec topic` command) instead of
-judgment. One topic doc per subsystem, not one ADR per decision.
+judgment. One topic doc per subsystem; the Decision Log records the decisions the human
+asks to keep.
 
 ```text
 ---

@@ -32,7 +32,7 @@ Load when the compiled spec + task files exist (Step 1 complete; drafted.md sect
 - [ ] Every task's `Verify` is `MET` (evidence recorded, owned-file hashes match), or the task is `FAILED`/`BLOCKED` with a non-empty reason (reported as a visible hand-back)
 - [ ] No scope creep — or reclassified lane announced
 - [ ] No unresolved blocking gate; fail-closed respected in non-interactive `supervised` sessions
-- [ ] Any NEW architectural decision surfaced during build recorded as a topic log entry (spec-builder instruction 5)
+- [ ] Any NEW architectural decision surfaced during build recorded as a topic log entry only when the human asks; otherwise update the topic's Current State without a log entry (spec-builder instruction 5)
 - [ ] If any task is `FAILED` or unmet, the response halts for hand-back — never reports "done"
 
 Proceed to `references/reviewed.md`.

@@ -1,6 +1,6 @@
 ---
 name: spec-builder
-description: Spec lifecycle - drafts implementation plans in specs/temp/, enforces templates, promotes approved specs to specs/ at approval, compiles task files + pre-approvals at compile, records architectural decisions as topic log entries
+description: Spec lifecycle - drafts implementation plans in specs/temp/, enforces templates, promotes approved specs to specs/ at approval, compiles task files + pre-approvals at compile, records decisions the human asks to keep as topic log entries
 tags:
   - spec
   - plan draft
@@ -21,7 +21,7 @@ You own plan drafting, spec promotion, topic decision recording, and spec compil
 ## When to Use
 
 - Lane B or A planning (`plan.md` section 2): draft the implementation plan into `specs/temp/draft-plan.md` under the enforced template.
-- Approval-step promotion (`plan.md` section 5): on plan approval, promote `specs/temp/draft-plan.md` to `specs/`, record a topic log entry for every architectural decision, then compile the task files at compile — before implementation starts (spec-first, two-step lifecycle).
+- Approval-step promotion (`plan.md` section 5): on plan approval, promote `specs/temp/draft-plan.md` to `specs/`, record a topic log entry only for a decision the human asks to keep, then compile the task files at compile - before implementation starts (spec-first, two-step lifecycle).
 - Review finalization (`reviewed.md` section 3): confirm the build matches the promoted spec and sync its checkboxes.
 - Any request to "draft a plan", "write a spec", "promote", "record a decision", or check an implementation plan's format — even if the user does not name the skill.
 
@@ -43,7 +43,7 @@ You own plan drafting, spec promotion, topic decision recording, and spec compil
 4. **Promote through the approval gate.** Promotion happens at the end of planning, on plan approval — never during review, never before implementation. It requires human acceptance or a compliant autonomous resolution (which leaves audit entries under the plan's `## 6. Gates` — carried into the promoted spec — and marks the spec provisional). Run with the status matching the gate that actually passed:
    `python .agents/scripts/devagent/main.py spec promote specs/temp/draft-plan.md --lane <B|A> --status <APPROVED|PROVISIONAL>`
    The engine validates the draft, computes the next sequential number by scanning `specs/` (never guess), derives the slug from the title, and refuses to overwrite. `APPROVED` = human acceptance; `PROVISIONAL` records an autonomous resolution — the spec still compiles to `COMPILED`, but its `## 6. Gates` entry is marked autonomous and it records no topic decisions until a human clears that mark. The engine is mechanics only — the gate is asserted by the status you pass, so never promote without the gate. Both lanes promote (B: sections 1/4/5).
- 5. **Topic decisions are triggered by the decision, not the lane.** Any architectural decision at any lane (schema, public API, auth/security, new dependency) gets a permanent entry in its topic doc directly under `docs/` (one doc per subsystem — format truth: `references/topic-template.md`). Lane A: one per section-2 decision; Lane B: only when a decision surfaces (no section 2). At approval, file it via:
+ 5. **Record decisions only when the human asks.** Landing a change updates the topic's `## Current State`; add a `<TOPIC>-D<nn>` entry to the `## Decision Log` only when the human asks to record it (or explicitly confirms at approval). Never log speculative or unrequested decisions. One topic doc per subsystem — format truth: `references/topic-template.md`. When recording, file it via:
     `python .agents/scripts/devagent/main.py spec topic <name> --why <text> [--title <t>] [--file <sub>] [--tags a,b] [--state <text>]`
     The engine creates the topic doc from the template when missing, allocates the next `<TOPIC>-D<nn>` by scanning every file of the topic (topic-global), and appends the Decision Log entry (`Date` / `Why` / `Supersedes` / `Affects` / `Ref`). Reversing a decision is a **revision**, never "delete + recreate": `--supersedes <ID>` marks the old entry `(superseded)` and the new entry takes the next ID; `--affects <target>` records a one-way ripple pointer; `--reciprocal <topic>` writes the terse `Ref` entry in the affected topic. Entries are recorded only alongside `APPROVED`; autonomous resolutions record none until a human clears the tag. No silent / unrequested topic edits in any lane (dev-agent-framework.md section 3). After any topic-doc edit, rebuild the index:
     `python .agents/scripts/devagent/main.py map sync-docs`

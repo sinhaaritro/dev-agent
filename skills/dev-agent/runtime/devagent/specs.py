@@ -46,7 +46,7 @@ Modes:
                   [--reciprocal-why <text>] [--reciprocal-state <text>]
                   [--reciprocal-title <text>] [--date YYYY-MM-DD]
                   [--docs-dir <dir>] [--dry-run]
-              The Topic-Based ADR path: create a topic doc
+              The topic-doc path: create a topic doc
               (docs/<name>.md or docs/<name>/<sub>.md) or revise an existing
               one. A revision allocates the next <TOPIC>-D<nn> by scanning
               every file of the topic (IDs are topic-global, never reused),
@@ -116,7 +116,7 @@ from common.text import normalize_marker
 LANE_SECTIONS = {"B": {1, 4, 5}, "A": {1, 2, 3, 4, 5, 6, 7, 8}}
 PROVISIONAL_STATUS = "PROVISIONAL - AUTONOMOUS DEFAULT"
 
-# Canonical Status: receipt set (spec 002, section 2.1) - past-tense receipts of the
+# Canonical Status receipt set - past-tense receipts of the
 # last completed engine action, one per lifecycle status plus the gate/failure
 # receipts. The two decimal consensus gates (Vetting, Sign-off) carry
 # no receipt of their own.
@@ -144,7 +144,7 @@ TAG_LINE = re.compile(r"(?m)^tags:\s*\[([^\]]*)\]\s*$")
 TAG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 FM_BLOCK = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
 
-# Spec group file types (spec 002, section 2.2): a group is NNN-SPEC-* + its
+# Spec group file types: a group is NNN-SPEC-* + its
 # NNN-TASK-* / NNN-REPORT-* / NNN-APPROVALS-* / NNN-ESCALATION-* companions.
 # The engine's NNN scan and the specs/README TOC recognize only NNN-SPEC-* as
 # spec files; the companions are group-internal (never indexed as specs).
@@ -152,8 +152,8 @@ SPEC_KIND = re.compile(r"^(\d{3})-SPEC-(.+)\.md$")
 TASK_KIND = re.compile(r"^(\d{3})-TASK-(\d{2})-(.+)\.md$")
 GROUP_COMPANION_RE = re.compile(r"^(\d{3})-(TASK|REPORT|APPROVALS|ESCALATION)-")
 
-# Canonical task-file headings, in the order the engine requires (spec 002 section 2.3,
-# references/task-file-format.md). validate_task_file enforces them.
+# Canonical task-file headings, in the order the engine requires
+# (references/task-file-format.md). validate_task_file enforces them.
 TASK_FILE_HEADINGS = (
     "Role & rules",
     "Project overview",
@@ -276,6 +276,15 @@ SPECS_LINT_SKIP_DIRS = frozenset(
     )
 )
 
+# Dangling framework references: a shipped/durable file must not point at the
+# framework's own spec or legacy decision-record IDs; those do not exist in a
+# consumer repo. This is separate from the one-way ``specs/`` rule: workflow
+# paths such as ``specs/temp/draft-plan.md`` are legitimate.
+DANGLING_REF_RE = re.compile(r"\b(?:spec\s+00\d|ADR-\d+)\b", re.IGNORECASE)
+# A consumer repo installs the runtime + skills under `.agents/`, so scan it;
+# the one-way rule still skips it because those are shipped workflow docs.
+DANGLING_SKIP_DIRS = SPECS_LINT_SKIP_DIRS - {".agents"}
+
 
 def _is_noop_verify(cmd: str) -> bool:
     """True when a Verify command cannot fail (tautological oracle).
@@ -342,7 +351,7 @@ def _parse_target_files(value: str) -> list[dict]:
 def _parse_tasks(body: str) -> list[dict]:
     """Parse '### Task N:' blocks of a section-5 body into structured task dicts.
 
-    New template (spec 002, section 2.2/section 2.7): each task block carries a
+    New template: each task block carries a
     Target Files: line, a Depends On: line (may be 'None'), and a
     Verify:/Expect: pair. Field lines are '- <Label>: <value>' inside the
     block; any other '###' heading (e.g. an outcomes sub-heading) terminates
@@ -501,7 +510,7 @@ def check_draft(draft: Path, lane: str) -> tuple[bool, list[int], list[str]]:
 
 
 def validate_task_file(text: str) -> list[str]:
-    """Structural violations for a canonical task file (spec 002 section 2.3).
+    """Structural violations for a canonical task file.
 
     Enforces the required ``##`` headings in order (references/
     task-file-format.md), the ``### Progress`` sub-heading under ``## Task``,
@@ -1183,7 +1192,7 @@ def _specs_readme_stub() -> str:
         "Permanent functional & technical specs. Promotion pipeline:\n\n"
         "- Draft: `specs/temp/draft-plan.md` (gitignored)\n"
         "- Acceptance: promoted to `specs/<NNN>-SPEC-<slug>.md` and committed\n\n"
-        "Naming: `NNN-SPEC-<slug>.md` (e.g. `001-SPEC-topic-based-adr.md`). Sub-documents use\n"
+        "Naming: `NNN-SPEC-<slug>.md` (e.g. `001-SPEC-topic-decisions.md`). Sub-documents use\n"
         "sub-IDs that share the parent `NNN` prefix: `NNN-<letter><NN>` (e.g. `001-A01`),\n"
         "deeper `NNN-<letter><NN>-<letter><NN>` (e.g. `001-A01-B01`). Parent and child\n"
         "share the `NNN` so a worktree can claim the subtree.\n\n"
@@ -1704,7 +1713,7 @@ def _revise_topic(
 
 
 def cmd_topic(args: argparse.Namespace) -> int:
-    """Create or revise a Topic-Based ADR topic doc (the decision path)."""
+    """Create or revise a topic doc (Current State + Decision Log)."""
     name = args.name
     if not (2 <= len(name) <= 30) or not TOPIC_NAME_RE.match(name):
         print(f"error: topic name '{name}' must be lowercase-kebab (2-30 chars)")
@@ -1891,21 +1900,78 @@ def scan_specs_references(root: Path) -> list[tuple[str, int, str]]:
     return hits
 
 
+def scan_dangling_refs(
+    base: Path, skip_dirs: frozenset[str] | None = None
+) -> list[tuple[str, int, str]]:
+    """Find references to the framework's own spec/decision IDs in durable files.
+
+    A consumer repo has no framework spec or legacy decision-record IDs to point
+    at. Workflow paths (``specs/temp/draft-plan.md``) do not match this pattern
+    and stay legitimate. For the framework repo, pass ``skills/`` so only the
+    shipped product is scanned.
+    """
+    base = Path(base)
+    if not base.is_dir():
+        return []
+    skip = set(DANGLING_SKIP_DIRS if skip_dirs is None else skip_dirs)
+    hits: list[tuple[str, int, str]] = []
+    for path in sorted(base.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(base)
+        if any(part in skip for part in rel.parts[:-1]):
+            continue
+        if "skill-creator" in rel.parts:
+            continue  # vendored third-party skill; not ours to reword
+        if path.suffix.lower() not in SPECS_LINT_SUFFIXES:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for lineno, line in enumerate(text.splitlines(), 1):
+            if DANGLING_REF_RE.search(line):
+                hits.append((rel.as_posix(), lineno, line.strip()))
+    return hits
+
+
 def cmd_specs_lint(args: argparse.Namespace) -> int:
     root = args.root if args.root is not None else find_root()
-    if is_framework_repo(root):
+    framework = is_framework_repo(root)
+    if framework:
         print(
             "specs-ref: skipped (framework repo - the product describes specs/ by design)"
         )
-        return 0
-    hits = scan_specs_references(root)
-    if not hits:
-        print("specs-ref: ok (docs/ and source reference nothing under specs/)")
-        return 0
-    for rel, lineno, line in hits:
-        print(f"specs-ref: {rel}:{lineno}: {line}")
-    print(f"specs-ref: {len(hits)} reference(s) into specs/ (specs/ is disposable)")
-    return 1
+        spec_hits: list[tuple[str, int, str]] = []
+        dangling = scan_dangling_refs(root / "skills")
+    else:
+        spec_hits = scan_specs_references(root)
+        dangling = scan_dangling_refs(root)
+
+    failed = False
+    if not framework:
+        if spec_hits:
+            for rel, lineno, line in spec_hits:
+                print(f"specs-ref: {rel}:{lineno}: {line}")
+            print(
+                f"specs-ref: {len(spec_hits)} reference(s) into specs/ "
+                "(specs/ is disposable)"
+            )
+            failed = True
+        else:
+            print("specs-ref: ok (docs/ and source reference nothing under specs/)")
+
+    if dangling:
+        for rel, lineno, line in dangling:
+            print(f"framework-ref: {rel}:{lineno}: {line}")
+        print(
+            f"framework-ref: {len(dangling)} dangling framework spec/decision "
+            "reference(s) - these do not exist in a consumer repo"
+        )
+        failed = True
+    else:
+        print("framework-ref: ok (no dangling framework spec/decision references)")
+    return 1 if failed else 0
 
 
 def cmd_check(args: argparse.Namespace) -> int:
@@ -2082,7 +2148,7 @@ def main() -> int:
     toc_p.set_defaults(func=cmd_toc)
 
     topic_p = sub.add_parser(
-        "topic", help="create/revise a topic doc decision (Topic-Based ADR)"
+        "topic", help="create/revise a topic doc decision (Decision Log)"
     )
     topic_p.add_argument(
         "name", help="topic name (lowercase-kebab; e.g. auth, data-storage)"

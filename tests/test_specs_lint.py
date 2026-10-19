@@ -176,6 +176,61 @@ class FrameworkRepoExemptionTest(SpecsLintBase):
         self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
 
 
+class DanglingFrameworkRefTest(SpecsLintBase):
+    """References to the framework's own spec/ADR IDs are dangling in consumers."""
+
+    def test_spec_id_in_docs_fails(self):
+        write(self.root / "docs" / "guide.md", "See spec 002, section 2.1.\n")
+        proc = self.run_lint()
+        self.assertEqual(proc.returncode, 1, proc.stdout)
+        self.assertIn("framework-ref", proc.stdout)
+        self.assertIn("spec 002", proc.stdout)
+
+    def test_adr_id_in_source_fails(self):
+        write(self.root / "src" / "app.py", "# see ADR-001\n")
+        proc = self.run_lint()
+        self.assertEqual(proc.returncode, 1, proc.stdout)
+        self.assertIn("framework-ref", proc.stdout)
+
+    def test_workflow_specs_path_is_not_a_dangling_ref(self):
+        write(
+            self.root / ".agents" / "skills" / "spec-builder" / "SKILL.md",
+            "Write the draft to specs/temp/draft-plan.md.\n",
+        )
+        proc = self.run_lint()
+        self.assertEqual(proc.returncode, 0, proc.stdout)
+
+    def test_installed_runtime_is_scanned(self):
+        write(
+            self.root / ".agents" / "scripts" / "devagent" / "engine.py",
+            "# Canonical statuses (spec 002)\n",
+        )
+        proc = self.run_lint()
+        self.assertEqual(proc.returncode, 1, proc.stdout)
+        self.assertIn("framework-ref", proc.stdout)
+
+    def test_vendored_skill_creator_is_skipped(self):
+        write(
+            self.root / ".agents" / "skills" / "skill-creator" / "notes.md",
+            "ADR-001\n",
+        )
+        proc = self.run_lint()
+        self.assertEqual(proc.returncode, 0, proc.stdout)
+
+    def test_framework_repo_scans_only_shipped_skills(self):
+        write(
+            self.root / "skills" / "dev-agent" / "runtime" / "devagent" / "__init__.py",
+            "",
+        )
+        write(self.root / "docs" / "guide.md", "See spec 002.\n")
+        proc = self.run_lint()
+        self.assertEqual(proc.returncode, 0, proc.stdout)
+        write(self.root / "skills" / "demo" / "SKILL.md", "See spec 002.\n")
+        proc = self.run_lint()
+        self.assertEqual(proc.returncode, 1, proc.stdout)
+        self.assertIn("framework-ref", proc.stdout)
+
+
 class EncodingGuardTest(SpecsLintBase):
     def test_non_utf8_console_does_not_crash(self):
         write(

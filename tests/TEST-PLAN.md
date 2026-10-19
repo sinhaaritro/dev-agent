@@ -105,9 +105,9 @@ Location: `tests/*.py` · Runner: `python -m unittest discover -s tests -v`
   - **When** `setup`, `--check`, or `--update` runs
   - **Then** the install is idempotent, `.gitignore` is appended (not overwritten), self-bootstrap is refused, and the overwrite policy holds
 - **U1.12** `test_specs_lint.py`
-  - **Given** docs/source that may reference `specs/`
+  - **Given** docs/source that may reference `specs/` or the framework's own spec/decision IDs
   - **When** `specs-lint` runs
-  - **Then** inbound references fail, outbound links pass, ignored/vendored trees are skipped, and the framework repo is exempt
+  - **Then** inbound `specs/` links fail, dangling framework refs fail, workflow paths/outbound links pass, ignored/vendored trees are skipped, and the framework repo scans only its shipped `skills/`
 - **U1.13** `test_gate_labels.py`
   - **Given** a lane-A plan's section 6
   - **When** `check` lints it

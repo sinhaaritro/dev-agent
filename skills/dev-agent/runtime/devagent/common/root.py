@@ -1,6 +1,6 @@
 """Repository-root discovery shared by every engine.
 
-The contract (spec 002, section 2.5 and the framework rulebook): the project
+The contract (the framework rulebook): the project
 root is the nearest directory containing an ``AGENTS.md`` marker, preferring a
 walk up from the current working directory so a globally-installed skill still
 resolves the project it runs in. The script-location walk-up is a fallback for

@@ -135,7 +135,10 @@ Rules that make the split real:
 
 - **Compile happens at "approve draft", never during review** and never before implementation. The engine is mechanics only, so never compile without the gate having passed.
 - `COMPILED` is the **only** state a run may start from — it is unreachable without passing the compile gate. A spec compiled under an autonomous resolution keeps its `Gates:` record marked **autonomous** and records **no topic decisions** until a human clears that mark.
-- Topic log entries are triggered by **the decision, not the lane**: any architectural decision at any lane (schema, public API, auth/security, new dependency) gets a permanent entry in its topic. Lane A: one per section 2 decision; Lane B: only when one surfaces.
+- Topic log entries are written only when the **human asks to record a decision**;
+  otherwise the change is captured in `## Current State` without a new log entry.
+  With a human request, Lane A may record one per section-2 decision; Lane B only
+  when one surfaces.
 - The compile step validates plan-readiness (the `check` oracles pass). Idempotent; `--dry-run` prints without writing.
 - Lanes C/D have no plan or approval step, so **no compile applies** — never look for or create a compiled spec for C/D tasks.
 - A session that compiled a spec MUST NOT start a build in the same session — a run is an explicit, separately-triggered execution.
