@@ -124,8 +124,12 @@ Location: `tests/*.py` · Runner: `python -m unittest discover -s tests -v`
   - **Given** a compile-time `NNN-APPROVALS-*.json`
   - **When** a lane-A/B `verify run` uses the same fingerprint
   - **Then** the pre-approval is honored and an unapproved command exits `4`
+- **U1.17** `test_common_specparse.py`
+  - **Given** the shared runtime helpers
+  - **When** approval fingerprints and section-5 parsing are exercised
+  - **Then** compile/run hashes and task fields agree from one implementation
 
-## Group 2 — Behavior / E2E tests
+## Group 2 - Behavior / E2E tests
 
 Location: a **bootstrapped target-repo fixture** · Runner: `tools/behavior_eval.py` ·
 Cases: `tests/fixtures/behavior/cases/`. Each case below mirrors its

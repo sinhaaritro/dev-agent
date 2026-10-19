@@ -1,6 +1,7 @@
 # Dev Agent — Shared Runtime Refactor Plan
 
-> **Status:** Proposed (not started)
+> **Status:** Complete (shared runtime; common hashing/specparse dedupe landed;
+> T10's dogfood mirror was superseded by the dogfood-removal work)
 > **Scope:** Restructure the shipped framework so all engine code lives in one
 > shared runtime package per consumer project, the wrapper skills become thin,
 > and install/update/global-install behave deterministically.
@@ -517,3 +518,22 @@ Update `README.md`, `AGENTS.md` (maintainer briefing, repo map, commands),
   behavior harness's `map` setup step now runs the installed runtime instead of
   the deleted `map-generator/scripts/generate_map.py` (the b5-1 case expectation
   followed). `promote` re-mirrored; all gates held.
+
+**Dedupe pass (T1's deferred second half) - done.**
+
+- `common/hashing.py`: one `APPROVAL_CWD` + `approval_fingerprint` (plus
+  `sha256_file`/`sha256_text`); `specs._fingerprint` and
+  `verify.command_fingerprint` now delegate to it, so compile and run cannot
+  drift.
+- `common/specparse.py`: one parser for section headings, section 5 task
+  blocks (title, Target Files, Depends On, Verify/Expect, Outcomes), status
+  tokens, spec/task identity, spec-group lookup, task-file lookup, the R# IDs,
+  and the task-file verification oracle; both engines import it.
+- `common/scratchpad.py`: one `ensure_scratchpad_guard` for the gate and verify
+  engines.
+- `common/text.py`: shared `strip_fenced_code` and `split_options`.
+- `tests/test_common_specparse.py` locks the approval key and the section-5
+  parser; 334 tests, `ruff`/`compileall` clean, `suite_report` no drift.
+- T10's dogfood mirror (`tools/promote.py`, local `.agents/scripts/devagent/`)
+  was intentionally removed by the dogfood-removal work; the canonical runtime
+  and installer remain.

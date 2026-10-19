@@ -133,7 +133,6 @@ not a retry attempt).
 """
 
 import argparse
-import hashlib
 import json
 import os
 import re
@@ -143,8 +142,36 @@ import sys
 import time
 from pathlib import Path
 
+from common.hashing import (
+    APPROVAL_CWD,
+    approval_fingerprint,
+    sha256_file,
+    sha256_text,
+)
 from common.root import find_root
-from common.text import normalize_marker
+from common.scratchpad import ensure_scratchpad_guard
+from common.specparse import (
+    CANONICAL_STATUSES,
+    SPEC_KIND,
+    TASK_KIND,
+    is_noop_verify,
+    section5_body,
+    section5_outcome_ids,
+    section5_tasks,
+    section_body_by_name,
+    status_token_file,
+    task_verify_command,
+)
+from common.specparse import (
+    spec_group_files as _common_spec_group_files,
+)
+from common.specparse import (
+    spec_path as _common_spec_path,
+)
+from common.specparse import (
+    task_file_for as _common_task_file_for,
+)
+from common.text import normalize_marker, split_options
 
 MAX_ATTEMPTS = 3
 DEFAULT_TIMEOUT = 300
@@ -153,10 +180,6 @@ ESCALATION_FILE = "escalation.md"
 APPROVALS_FILE = "approvals.json"
 APPROVAL_REQUIRED_LANES = {"A", "B"}
 EXECUTOR = "devagent"
-# The working directory recorded in approval fingerprints. Commands always
-# run at the repo root; recording it repo-relative ('.') instead of an
-# absolute path keeps NNN-APPROVALS-*.json portable across clones and OSes.
-APPROVAL_CWD = "."
 FRAMEWORK_MANIFESTS = [
     ("pyproject.toml", "python"),
     ("package.json", "node-npm"),
@@ -172,47 +195,6 @@ def read_state(state_dir: Path) -> dict:
         return json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
         return {"version": 1, "tasks": {}}
-
-
-def ensure_scratchpad_guard(state_dir: Path) -> None:
-    """Scratchpad guard: a root .gitignore entry for the dir and the inner stub.
-
-    The inner stub (``*`` + ``!.gitignore``) is the effective protection - git
-    refuses to descend into a gitignored directory even without a root
-    .gitignore - while the root entry documents the exclusion for viewers that
-    stop at the top level. Idempotent.
-
-    The repo-root ``.gitignore`` is only written when the state dir resolves
-    to a real repo (``AGENTS.md`` + ``.agents`` within 4 levels up). A
-    sandboxed ``--state-dir`` test run (e.g. ``/tmp/...``) is outside any repo,
-    so only the inner stub is written and no foreign ``.gitignore`` is touched.
-    """
-    inner = state_dir / ".gitignore"
-    if not inner.is_file():
-        inner.write_text("*\n!.gitignore\n", encoding="utf-8")
-
-    root = state_dir
-    found = False
-    for _ in range(4):
-        if (root / "AGENTS.md").is_file() and (root / ".agents").is_dir():
-            found = True
-            break
-        root = root.parent
-    if not found:
-        return  # sandbox/external state dir - never write a foreign .gitignore
-    root_ignore = root / ".gitignore"
-    if not root_ignore.is_file():
-        root_ignore.write_text("# DEV Agent framework\n", encoding="utf-8")
-    lines = root_ignore.read_text(encoding="utf-8").splitlines()
-    if not any(
-        ln.strip().strip("/") in ("specs", "specs/temp")
-        for ln in lines
-        if ln.strip() and not ln.strip().startswith("#")
-    ):
-        text = root_ignore.read_text(encoding="utf-8")
-        if text and not text.endswith("\n"):
-            text += "\n"
-        root_ignore.write_text(text + "\nspecs/temp\n", encoding="utf-8")
 
 
 def write_state(state_dir: Path, state: dict) -> None:
@@ -231,17 +213,11 @@ def task_state(state: dict, task_id: str) -> dict:
 def command_fingerprint(command: str, expect: str, cwd: str, executor: str = "") -> str:
     """sha256(command | expect | cwd) - the approval key.
 
-    Any change to the command or the Expect marker yields a new fingerprint
-    and re-arms approval; identical re-runs match the cached fingerprint and
-    are free. ``cwd`` is the repo root recorded repo-relative (see
-    ``APPROVAL_CWD``), never an absolute path, so pre-approvals are portable
-    across clones. The executor is deliberately out of the payload: a human's
-    pre-approval must match the coder's run. The
-    ``executor`` argument is accepted for backward compatibility but never
-    hashed.
+    One implementation lives in ``common.hashing``; the ``executor`` argument is
+    accepted for backward compatibility but never hashed (a human's pre-approval
+    must match the coder's run).
     """
-    payload = "|".join((command.strip(), (expect or "").strip(), cwd))
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    return approval_fingerprint(command, expect, cwd)
 
 
 def read_approvals(state_dir: Path) -> dict:
@@ -327,10 +303,8 @@ def is_interactive(command: str) -> bool:
 
 
 def parse_options(options: str) -> list[str]:
-    """Normalize the guided options list: semicolon- or newline-separated."""
-    if not options:
-        return []
-    return [part.strip() for part in re.split(r"[;\n]", options) if part.strip()]
+    """Normalize the guided options list (semicolon- or newline-separated)."""
+    return split_options(options)
 
 
 def format_escalation(
@@ -433,12 +407,7 @@ def _set_spec_status(spec: Path, status: str) -> None:
 
 def _status_token(path: Path) -> str:
     """The first token of the spec's 'Status:' value ('' when absent)."""
-    try:
-        text = path.read_text(encoding="utf-8-sig")
-    except OSError:
-        return ""
-    m = re.search(r"(?m)^Status:\s*(\S+)", text)
-    return m.group(1) if m else ""
+    return status_token_file(path)
 
 
 def spec_for_task(root: Path, task_id: str) -> Path | None:
@@ -479,9 +448,6 @@ def _advance_build_status(root: Path, spec: Path) -> None:
         _set_spec_status(spec, "BUILT")
 
 
-SPEC_KIND = re.compile(r"^(\d{3})-SPEC-(.+)\.md$")
-TASK_KIND = re.compile(r"^(\d{3})-TASK-(\d{2})-(.+)\.md$")
-GROUP_COMPANION_RE = re.compile(r"^(\d{3})-(TASK|REPORT|APPROVALS|ESCALATION)-")
 EVIDENCE_START = "<!-- VERIFY:EVIDENCE:START -->"
 EVIDENCE_END = "<!-- VERIFY:EVIDENCE:END -->"
 AGENT_SCRIPT_GLOBS = (
@@ -493,67 +459,17 @@ AGENT_SCRIPT_GLOBS = (
 
 def spec_path(root: Path, num: int) -> Path:
     """The NNN-SPEC-*.md file for a spec number."""
-    specs_dir = root / "specs"
-    if specs_dir.is_dir():
-        for entry in sorted(specs_dir.iterdir()):
-            if not entry.is_file():
-                continue
-            m = SPEC_KIND.match(entry.name)
-            if m and int(m.group(1)) == num:
-                return entry
-    return specs_dir / f"{num:03d}-SPEC-unknown.md"
+    return _common_spec_path(root / "specs", num)
 
 
 def spec_group_files(root: Path, num: int) -> list[Path]:
     """Every file of the spec group for ``num`` (SPEC + companions)."""
-    specs_dir = root / "specs"
-    files: list[Path] = []
-    if not specs_dir.is_dir():
-        return files
-    for entry in specs_dir.iterdir():
-        if not entry.is_file():
-            continue
-        m = SPEC_KIND.match(entry.name)
-        if m:
-            if int(m.group(1)) == num:
-                files.append(entry)
-            continue
-        m = GROUP_COMPANION_RE.match(entry.name)
-        if m and int(m.group(1)) == num:
-            files.append(entry)
-    return files
+    return _common_spec_group_files(root / "specs", num)
 
 
 def task_file_for(root: Path, num: int, task_id: str) -> Path | None:
-    """Locate the task file whose title names ``task_id`` (e.g. 'Task 3').
-
-    Prefers the NNN-TASK-NN-*.md companion group; falls back to any
-    NNN-TASK-*.md (the repo's hand-written task files) whose '# TASK' title
-    contains the id. Returns None when nothing matches.
-    """
-    m = re.match(r"^Task\s+(\d+)$", task_id) or re.match(r"^(\d+)$", task_id)
-    if m:
-        target = f"{num:03d}-TASK-{int(m.group(1)):02d}-"
-        for path in spec_group_files(root, num):
-            if path.name.startswith(target):
-                return path
-    # Fallback: a NNN-TASK-NN-* file whose NN matches a trailing number in the
-    # task id (run passes task ids like '007-Task 1' or 'Task 1').
-    for path in spec_group_files(root, num):
-        if not path.name.startswith(f"{num:03d}-TASK-"):
-            continue
-        tm = TASK_KIND.match(path.name)
-        if tm:
-            trailing = re.search(r"(\d+)\s*$", task_id)
-            if trailing and int(trailing.group(1)) == int(tm.group(2)):
-                return path
-        try:
-            head = path.read_text(encoding="utf-8-sig", errors="replace")
-        except OSError:
-            continue
-        if task_id in head.split("\n", 1)[0]:
-            return path
-    return None
+    """Locate the task file whose title names ``task_id`` (e.g. 'Task 3')."""
+    return _common_task_file_for(root / "specs", num, task_id)
 
 
 def _candidate_file(raw: str, root: Path) -> Path | None:
@@ -683,18 +599,14 @@ def resolve_task(
 def _file_hash(path: Path) -> str:
     if not path.is_file():
         return "missing"
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return sha256_file(path)
 
 
 def _owned_files(task_file: Path, root: Path) -> list[Path]:
     """The task file's '## Owns' paths, resolved against the repo root."""
-    m = re.search(
-        r"(?ms)^##\s+Owns\s*$(.*?)(?=^##\s|\Z)", task_file.read_text(encoding="utf-8")
-    )
-    if not m:
-        return []
+    body = section_body_by_name(task_file.read_text(encoding="utf-8"), "Owns")
     owned: list[Path] = []
-    for line in m.group(1).splitlines():
+    for line in body.splitlines():
         s = line.strip()
         if not s.startswith("-"):
             continue
@@ -807,22 +719,12 @@ def _state_files_parseable(root: Path) -> tuple[bool, str]:
     return True, ""
 
 
-CANONICAL_STATUSES = frozenset(
-    (
-        "DRAFTED",
-        "APPROVED",
-        "PROVISIONAL",
-        "COMPILED",
-        "BUILDING",
-        "BUILT",
-        "REVIEWED",
-        "COMPLETED",
-        "PLAN_REVISION_REQUIRED",
-        "REVIEW_REVISION_REQUIRED",
-        "ESCALATED",
-        "ABORTED",
-    )
-)
+_section5_body = section5_body
+_section5_tasks = section5_tasks
+_section5_outcome_ids = section5_outcome_ids
+_task_verify_command = task_verify_command
+_is_noop_verify = is_noop_verify
+
 
 # A run starts from COMPILED and resumes from BUILDING; any other canonical
 # status (not yet compiled, review-only, terminal, or escalated) fails the gate.
@@ -847,58 +749,6 @@ def _spec_runnable(path: Path) -> tuple[bool, str]:
             "spec Status is " + token + " (a run starts from COMPILED/BUILDING)",
         )
     return True, ""
-
-
-def _section5_body(text: str) -> str:
-    """The text of the '## 5.' section ('' when absent)."""
-    lines = text.splitlines()
-    start = None
-    for i, line in enumerate(lines):
-        if re.match(r"^##\s+5\.", line.strip()):
-            start = i + 1
-            break
-    if start is None:
-        return ""
-    end = len(lines)
-    for j in range(start, len(lines)):
-        if re.match(r"^##\s", lines[j].strip()):
-            end = j
-            break
-    return "\n".join(lines[start:end])
-
-
-def _section5_tasks(text: str) -> list[dict]:
-    """Minimal parse of the '## 5.' section's '### Task N:' blocks."""
-    body = _section5_body(text)
-    tasks: list[dict] = []
-    current: dict | None = None
-    for raw in body.splitlines():
-        stripped = raw.strip()
-        if not stripped:
-            continue
-        m = re.match(r"^###\s+Task\s+(\d+)\s*:\s*(.*)$", stripped)
-        if m:
-            current = {"num": int(m.group(1)), "depends_on": "", "outcomes": ""}
-            tasks.append(current)
-            continue
-        if current is None:
-            continue
-        if stripped.startswith("###"):
-            current = None
-            continue
-        m = re.match(r"^-\s*(Depends On|Verify|Expect|Outcomes)\s*:\s*(.*)$", stripped)
-        if m:
-            current[m.group(1).lower().replace(" ", "_")] = m.group(2).strip()
-    return tasks
-
-
-def _section5_outcome_ids(text: str) -> list[str]:
-    """The 'R#' IDs declared in section 5's Outcomes table, in table order."""
-    ids: list[str] = []
-    for m in re.finditer(r"(?m)^\|\s*(R\d+)\s*\|", _section5_body(text)):
-        if m.group(1) not in ids:
-            ids.append(m.group(1))
-    return ids
 
 
 def _outcome_observations(
@@ -1138,18 +988,6 @@ def doctor(spec: Path) -> list[str]:
     return gaps
 
 
-def _task_verify_command(task_file: Path) -> str:
-    """The task file's '## Verification' fenced command block (the canonical oracle)."""
-    body = re.search(
-        r"(?ms)^##\s+Verification\s*$(.*?)(?=^##\s|\Z)",
-        task_file.read_text(encoding="utf-8"),
-    )
-    if not body:
-        return ""
-    fence = re.search(r"```[a-z]*\s*\n(.*?)```", body.group(1), re.DOTALL)
-    return fence.group(1).strip() if fence else ""
-
-
 def _rerun_verify(root: Path, num: int, text: str) -> list[str]:
     """Review: fresh re-run of every task's verify command (pass/fail lines).
 
@@ -1260,19 +1098,6 @@ def report(spec: Path) -> Path:
     return target
 
 
-def _is_noop_verify(cmd: str) -> bool:
-    c = cmd.strip()
-    if len(c) >= 2 and c.startswith("`") and c.endswith("`"):
-        c = c[1:-1].strip()
-    if not c:
-        return True
-    if c in ("true", ":"):
-        return True
-    if re.match(r"^exit(\s+0*)?$", c):
-        return True
-    return c.split()[0] == "echo"
-
-
 def cmd_run(args: argparse.Namespace) -> int:
     if not args.command:
         if args.suggest:
@@ -1377,7 +1202,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 "expect": args.expect,
                 "matched": True,
                 "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-                "output_sha256": hashlib.sha256(log.encode("utf-8")).hexdigest(),
+                "output_sha256": sha256_text(log),
             }
             # Stamp the task file's evidence block:
             # the command, the pass timestamp, and a sha256 of every owned

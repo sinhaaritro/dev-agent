@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T12:45:12Z",
+  "generated": "2026-10-19T12:59:11Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_portable_repo_relative_cwd": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
@@ -101,6 +101,16 @@
     "test_clean.ScratchpadGuardTest.test_cli_refuses_root_target": "pass",
     "test_clean.ScratchpadGuardTest.test_refuses_above_root": "pass",
     "test_clean.ScratchpadGuardTest.test_refuses_repo_root": "pass",
+    "test_common_specparse.ApprovalFingerprintTest.test_is_the_documented_payload": "pass",
+    "test_common_specparse.ApprovalFingerprintTest.test_none_safe_and_stripped": "pass",
+    "test_common_specparse.NoopVerifyTest.test_real_commands_are_kept": "pass",
+    "test_common_specparse.NoopVerifyTest.test_tautologies_are_rejected": "pass",
+    "test_common_specparse.ParseTargetFilesTest.test_ops_inherit_and_backticks_are_stripped": "pass",
+    "test_common_specparse.ParseTasksTest.test_parses_every_field_either_engine_reads": "pass",
+    "test_common_specparse.ParseTasksTest.test_section5_uses_the_same_parser": "pass",
+    "test_common_specparse.SpecLookupTest.test_identity_group_and_task_lookup": "pass",
+    "test_common_specparse.StatusTest.test_file_token_tolerates_absence": "pass",
+    "test_common_specparse.StatusTest.test_token_ignores_trailing_metadata": "pass",
     "test_consumer_rulebook.ConsumerRulebookTest.test_directional_allowance_is_stated": "pass",
     "test_consumer_rulebook.ConsumerRulebookTest.test_gate_type_is_visible_at_plan_time": "pass",
     "test_consumer_rulebook.ConsumerRulebookTest.test_shipped_rules_file_exists": "pass",

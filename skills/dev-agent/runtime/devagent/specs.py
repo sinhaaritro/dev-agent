@@ -104,38 +104,30 @@ Exit codes: 0 = ok; 1 = check failed, exists, or violation/error.
 """
 
 import argparse
-import hashlib
 import re
 import sys
 from datetime import date
 from pathlib import Path
 
+from common.hashing import APPROVAL_CWD, approval_fingerprint
 from common.root import find_root
-from common.text import normalize_marker
+from common.specparse import (
+    CANONICAL_STATUSES,
+    SPEC_KIND,
+    is_noop_verify,
+    parse_sections,
+    parse_tasks,
+    section_body,
+    section_body_by_name,
+    spec_group_files,
+    spec_identity,
+    status_token,
+    status_value,
+)
+from common.text import normalize_marker, strip_fenced_code
 
 LANE_SECTIONS = {"B": {1, 4, 5}, "A": {1, 2, 3, 4, 5, 6, 7, 8}}
 PROVISIONAL_STATUS = "PROVISIONAL - AUTONOMOUS DEFAULT"
-
-# Canonical Status receipt set - past-tense receipts of the
-# last completed engine action, one per lifecycle status plus the gate/failure
-# receipts. The two decimal consensus gates (Vetting, Sign-off) carry
-# no receipt of their own.
-CANONICAL_STATUSES = frozenset(
-    (
-        "DRAFTED",
-        "APPROVED",
-        "PROVISIONAL",
-        "COMPILED",
-        "BUILDING",
-        "BUILT",
-        "REVIEWED",
-        "COMPLETED",
-        "PLAN_REVISION_REQUIRED",
-        "REVIEW_REVISION_REQUIRED",
-        "ESCALATED",
-        "ABORTED",
-    )
-)
 
 SPEC_FOLDER = "specs"
 TOC_START = "<!-- TOC:START -->"
@@ -143,14 +135,6 @@ TOC_END = "<!-- TOC:END -->"
 TAG_LINE = re.compile(r"(?m)^tags:\s*\[([^\]]*)\]\s*$")
 TAG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 FM_BLOCK = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
-
-# Spec group file types: a group is NNN-SPEC-* + its
-# NNN-TASK-* / NNN-REPORT-* / NNN-APPROVALS-* / NNN-ESCALATION-* companions.
-# The engine's NNN scan and the specs/README TOC recognize only NNN-SPEC-* as
-# spec files; the companions are group-internal (never indexed as specs).
-SPEC_KIND = re.compile(r"^(\d{3})-SPEC-(.+)\.md$")
-TASK_KIND = re.compile(r"^(\d{3})-TASK-(\d{2})-(.+)\.md$")
-GROUP_COMPANION_RE = re.compile(r"^(\d{3})-(TASK|REPORT|APPROVALS|ESCALATION)-")
 
 # Canonical task-file headings, in the order the engine requires
 # (references/task-file-format.md). validate_task_file enforces them.
@@ -166,16 +150,6 @@ TASK_FILE_HEADINGS = (
 )
 
 
-def parse_sections(text: str) -> set[int]:
-    """Collect the section numbers present as '## N.' headings."""
-    found: set[int] = set()
-    for line in text.splitlines():
-        match = re.match(r"^##\s+(\d+)\.", line.strip())
-        if match:
-            found.add(int(match.group(1)))
-    return found
-
-
 def read_text(path: Path) -> str:
     """Read UTF-8, tolerating a BOM (utf-8-sig strips it).
 
@@ -185,31 +159,6 @@ def read_text(path: Path) -> str:
     """
     return path.read_text(encoding="utf-8-sig")
 
-
-def _section_body(text: str, number: int) -> str:
-    """Return the body of the '## <number>.' section (up to the next '## ' heading).
-
-    Level-2 headings terminate the section; '### ' sub-headings are part of the
-    body (the Task DAG's task blocks and completion-rules list live inside
-    section 5). Returns '' when the section is absent.
-    """
-    lines = text.splitlines()
-    start = None
-    for i, line in enumerate(lines):
-        if re.match(r"^##\s+" + str(number) + r"\.", line.strip()):
-            start = i + 1
-            break
-    if start is None:
-        return ""
-    end = len(lines)
-    for j in range(start, len(lines)):
-        if re.match(r"^##\s", lines[j].strip()):
-            end = j
-            break
-    return "\n".join(lines[start:end])
-
-
-NOOP_VERIFY_RE = re.compile(r"^(true|:|exit(\s+0*)?)$")
 
 # Section-6 decision plan (B3.7): every planned decision is a '- **D<n> ...'
 # bullet that MUST carry a blocking / non-blocking label, so the human chooses
@@ -286,23 +235,6 @@ DANGLING_REF_RE = re.compile(r"\b(?:spec\s+00\d|ADR-\d+)\b", re.IGNORECASE)
 DANGLING_SKIP_DIRS = SPECS_LINT_SKIP_DIRS - {".agents"}
 
 
-def _is_noop_verify(cmd: str) -> bool:
-    """True when a Verify command cannot fail (tautological oracle).
-
-    Rejects empty commands, 'true', ':', 'exit'/'exit 0', and any command whose
-    first token is 'echo' (echo always exits 0, so it proves nothing). A
-    surrounding pair of backticks (inline-code command) is stripped first.
-    """
-    c = cmd.strip()
-    if len(c) >= 2 and c.startswith("`") and c.endswith("`"):
-        c = c[1:-1].strip()
-    if not c:
-        return True
-    if NOOP_VERIFY_RE.match(c):
-        return True
-    return c.split()[0] == "echo"
-
-
 def _unfailable_expect(verify: str, expect: str) -> str:
     """A static hint that a Verify/Expect oracle is trivially satisfied.
 
@@ -320,77 +252,6 @@ def _unfailable_expect(verify: str, expect: str) -> str:
     if first in ("echo", "printf"):
         return f"'Expect:' is emitted unconditionally by a bare '{first}'"
     return ""
-
-
-def _parse_target_files(value: str) -> list[dict]:
-    """Parse a '- Target Files:' value into [{'op': ..., 'path': ...}].
-
-    Segments are comma-separated; each may carry its own '[OP]' tag or inherit
-    the previous segment's tag (so '[MODIFY] a, b' gives both a MODIFY op). The
-    recognized ops are NEW/MODIFY/DELETE/RENAME; surrounding backticks and
-    whitespace are stripped from each path. An entry with an empty op is left
-    for the validator to reject.
-    """
-    entries: list[dict] = []
-    op = ""
-    for raw in value.split(","):
-        segment = raw.strip()
-        if not segment:
-            continue
-        match = re.match(r"^\[(NEW|MODIFY|DELETE|RENAME)\]\s*(.*)$", segment)
-        if match:
-            op = match.group(1)
-            segment = match.group(2).strip()
-        segment = segment.strip("`").strip()
-        if not segment:
-            continue
-        entries.append({"op": op, "path": segment})
-    return entries
-
-
-def _parse_tasks(body: str) -> list[dict]:
-    """Parse '### Task N:' blocks of a section-5 body into structured task dicts.
-
-    New template: each task block carries a
-    Target Files: line, a Depends On: line (may be 'None'), and a
-    Verify:/Expect: pair. Field lines are '- <Label>: <value>' inside the
-    block; any other '###' heading (e.g. an outcomes sub-heading) terminates
-    the block.
-    """
-    tasks: list[dict] = []
-    current: dict | None = None
-    for raw in body.splitlines():
-        stripped = raw.strip()
-        if not stripped:
-            continue
-        task_m = re.match(r"^###\s+Task\s+(\d+)\s*:\s*(.*)$", stripped)
-        if task_m:
-            current = {
-                "num": int(task_m.group(1)),
-                "title": task_m.group(2).strip(),
-                "depends_on": "",
-                "verify": "",
-                "expect": "",
-                "target_files": [],
-            }
-            tasks.append(current)
-            continue
-        if current is None:
-            continue
-        if stripped.startswith("###"):
-            current = None
-            continue
-        field_m = re.match(
-            r"^-\s*(Depends On|Verify|Expect|Target Files)\s*:\s*(.*)$", stripped
-        )
-        if field_m:
-            label = field_m.group(1)
-            value = field_m.group(2).strip()
-            if label == "Target Files":
-                current["target_files"] = _parse_target_files(value)
-            else:
-                current[label.lower().replace(" ", "_")] = value
-    return tasks
 
 
 def _validate_target_files(tasks: list[dict]) -> list[str]:
@@ -446,7 +307,7 @@ def _validate_tasks(tasks: list[dict], lane: str) -> list[str]:
         if not task["verify"]:
             violations.append(tlabel + ": missing/empty 'Verify:'")
         else:
-            if _is_noop_verify(verify):
+            if is_noop_verify(verify):
                 violations.append(
                     tlabel + f": 'Verify:' is a no-op command ('{verify}')"
                 )
@@ -502,9 +363,9 @@ def check_draft(draft: Path, lane: str) -> tuple[bool, list[int], list[str]]:
     if token and token not in CANONICAL_STATUSES:
         violations.append("Status: " + repr(token) + " is not a canonical receipt")
     if 5 in found:
-        violations += _validate_tasks(_parse_tasks(_section_body(text, 5)), lane)
+        violations += _validate_tasks(parse_tasks(section_body(text, 5)), lane)
     if lane == "A" and 6 in found:
-        violations += _validate_gate_labels(_section_body(text, 6))
+        violations += _validate_gate_labels(section_body(text, 6))
     passed = not missing and not violations
     return passed, missing, violations
 
@@ -545,62 +406,17 @@ def validate_task_file(text: str) -> list[str]:
             violations.append(f"duplicate heading '## {heading}'")
 
     if "Task" in seen:
-        task_body = _section_body_by_name(text, "Task")
+        task_body = section_body_by_name(text, "Task")
         if "### Progress" not in task_body:
             violations.append("'## Task' has no '### Progress' sub-heading")
 
     if "Verification" in seen:
-        ver_body = _section_body_by_name(text, "Verification")
+        ver_body = section_body_by_name(text, "Verification")
         if not re.search(r"^\s*```", ver_body, re.MULTILINE):
             violations.append("'## Verification' has no fenced command block")
         if not re.search(r"(?m)^\s*\*\*Expect:\*\*", ver_body):
             violations.append("'## Verification' has no '**Expect:**' line")
     return violations
-
-
-def _section_body_by_name(text: str, name: str) -> str:
-    """The body of the '## <name>' section (up to the next '## ' heading)."""
-    lines = text.splitlines()
-    start = None
-    for i, line in enumerate(lines):
-        if re.match(r"^##\s+" + re.escape(name) + r"\s*$", line.strip()):
-            start = i + 1
-            break
-    if start is None:
-        return ""
-    end = len(lines)
-    for j in range(start, len(lines)):
-        if re.match(r"^##\s", lines[j].strip()):
-            end = j
-            break
-    return "\n".join(lines[start:end])
-
-
-def _spec_identity(name: str) -> tuple[int, str] | None:
-    """Decode an NNN-SPEC-<slug>.md name to (number, slug); None otherwise."""
-    match = SPEC_KIND.match(name)
-    if not match:
-        return None
-    return (int(match.group(1)), match.group(2))
-
-
-def _spec_group_files(specs_dir: Path, num: int) -> list[Path]:
-    """Every file of the spec group for ``num`` (SPEC + all companions)."""
-    files: list[Path] = []
-    if not specs_dir.is_dir():
-        return files
-    for entry in specs_dir.iterdir():
-        if not entry.is_file():
-            continue
-        m = SPEC_KIND.match(entry.name)
-        if m:
-            if int(m.group(1)) == num:
-                files.append(entry)
-            continue
-        m = GROUP_COMPANION_RE.match(entry.name)
-        if m and int(m.group(1)) == num:
-            files.append(entry)
-    return files
 
 
 def _slug_from_title_or_name(name: str, text: str) -> str:
@@ -614,26 +430,8 @@ def _slug_from_title_or_name(name: str, text: str) -> str:
         if "-" in cut:
             cut = cut[: cut.rfind("-")]
         return cut.rstrip("-") or raw[:40].rstrip("-") or "task"
-    ident = _spec_identity(name)
+    ident = spec_identity(name)
     return ident[1] if ident else "spec"
-
-
-# The working directory recorded in approval fingerprints. Commands run at
-# the repo root; recording it repo-relative ('.') keeps NNN-APPROVALS-*.json
-# portable across clones (matches the verify engine's APPROVAL_CWD).
-APPROVAL_CWD = "."
-
-
-def _fingerprint(command: str, expect: str, cwd: str) -> str:
-    """The verify-approval fingerprint: sha256(command | expect | cwd).
-
-    Must match the verify engine's ``command_fingerprint`` byte-for-byte: a
-    compile-time pre-approval only satisfies a lane-A/B ``verify run``
-    when both engines hash the same payload (audit finding C1). ``cwd`` is
-    the repo root recorded repo-relative (``.``), never an absolute path.
-    """
-    payload = f"{command.strip()}|{expect.strip()}|{cwd}"
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _write_approvals(specs_dir: Path, num: int, slug: str, tasks: list[dict]) -> Path:
@@ -645,7 +443,7 @@ def _write_approvals(specs_dir: Path, num: int, slug: str, tasks: list[dict]) ->
         "approvals": [
             {
                 "task": f"Task {t['num']}",
-                "fingerprint": _fingerprint(
+                "fingerprint": approval_fingerprint(
                     normalize_marker(t["verify"]),
                     normalize_marker(t["expect"]),
                     APPROVAL_CWD,
@@ -668,7 +466,7 @@ def _render_task_file(
     """Render one task file in the canonical shape (task-file-format.md)."""
     title = task["title"] or f"Task {task['num']}"
     # Project overview: the spec's section 1 body (trimmed), or a fallback.
-    overview = _section_body(spec_text, 1).strip() or "_(project overview)_"
+    overview = section_body(spec_text, 1).strip() or "_(project overview)_"
     # Owns: this task's own section-5 'Target Files' (one file = one task = one
     # writer; the spec-level section 4 inventory is not copied into task files).
     owns_lines = [
@@ -721,11 +519,11 @@ def compile_spec(spec: Path, root: Path | None = None) -> list[Path]:
         text = read_text(spec)
     except (OSError, UnicodeDecodeError):
         raise SystemExit(f"error: cannot read spec {spec}")
-    ident = _spec_identity(spec.name)
+    ident = spec_identity(spec.name)
     if ident is None:
         raise SystemExit(f"error: '{spec.name}' is not an NNN-SPEC-<slug>.md file")
     num, slug = ident
-    tasks = _parse_tasks(_section_body(text, 5))
+    tasks = parse_tasks(section_body(text, 5))
     if not tasks:
         raise SystemExit(f"error: no '### Task N:' blocks in section 5 of {spec.name}")
     target_violations = _validate_target_files(tasks)
@@ -806,12 +604,12 @@ def _stamp_compiled(spec: Path, root: Path) -> None:
 def purge_spec(spec: Path, root: Path | None = None) -> None:
     """Remove the whole spec group (SPEC + companions), then regenerate the TOC."""
     root = root or find_root()
-    ident = _spec_identity(spec.name)
+    ident = spec_identity(spec.name)
     if ident is None:
         raise SystemExit(f"error: '{spec.name}' is not an NNN-SPEC-<slug>.md file")
     num = ident[0]
     specs_dir = spec.parent
-    for f in _spec_group_files(specs_dir, num):
+    for f in spec_group_files(specs_dir, num):
         f.unlink()
         print(f"purged: {f.name}")
     _refresh_specs_readme(root)
@@ -1035,30 +833,10 @@ def draft_title(text: str) -> str:
     Frontmatter (and code fences) are stripped first so a 'tags:' or any
     other frontmatter line can never be mistaken for the title.
     """
-    for line in _strip_fenced_code(_fm_stripped(text)).splitlines():
+    for line in strip_fenced_code(_fm_stripped(text)).splitlines():
         if line.strip().startswith("# "):
             return line.strip()
     return ""
-
-
-def status_value(text: str) -> str:
-    """The current 'Status:' header value ('' if absent).
-
-    The Status line is the single lifecycle receipt (e.g. "COMPILED",
-    "BUILDING"), so callers match on its exact value.
-    """
-    match = re.search(r"(?m)^Status:\s*(\S.*)$", text)
-    return match.group(1).strip() if match else ""
-
-
-def status_token(text: str) -> str:
-    """The first token of the 'Status:' value ('' when absent).
-
-    Decoration after the token (' - AUTONOMOUS DEFAULT', ' | Date: ...') is
-    not part of the lifecycle receipt.
-    """
-    value = status_value(text)
-    return value.split()[0] if value else ""
 
 
 def _folder_sort_key(folder: str, name: str) -> tuple:
@@ -1077,22 +855,9 @@ def _folder_sort_key(folder: str, name: str) -> tuple:
     return (0, name)
 
 
-def _strip_fenced_code(text: str) -> str:
-    """Blank out fenced code blocks so they cannot fake frontmatter lines."""
-    out: list[str] = []
-    fence = 0
-    for line in text.splitlines():
-        if line.strip().startswith("```"):
-            fence ^= 1
-            out.append("")
-            continue
-        out.append(line if fence == 0 else "")
-    return "\n".join(out)
-
-
 def _doc_title(text: str) -> str:
     """First '#' heading outside code fences, minus its leading number token."""
-    for line in _strip_fenced_code(text).splitlines():
+    for line in strip_fenced_code(text).splitlines():
         if line.strip().startswith("# "):
             t = line.strip()[1:].strip()
             return re.sub(r"^(\d{3}:|\[\S+\]:\s*)", "", t).strip() or t
@@ -1103,7 +868,7 @@ def _doc_backlinks(text: str) -> list[str]:
     """The 'Source:'/'Governed-by:' backlink targets on the status header."""
     links = []
     for label in ("Source", "Governed-by"):
-        match = re.search(r"(?m)^" + label + r":\s*(\S.*)$", _strip_fenced_code(text))
+        match = re.search(r"(?m)^" + label + r":\s*(\S.*)$", strip_fenced_code(text))
         if match:
             links.append(match.group(1).strip())
     return links
@@ -1130,7 +895,7 @@ def _scan_docs(root: Path) -> dict:
                 text = read_text(f)
             except (OSError, UnicodeDecodeError):
                 continue
-            clean = _strip_fenced_code(text)
+            clean = strip_fenced_code(text)
             m1 = re.search(r"(?m)^version_pin:\s*(\S+)", clean)
             m2 = re.search(r"(?m)^fallback_pin:\s*(\S+)", clean)
             name = f.relative_to(base).as_posix() if base is not None else f.name
@@ -1452,7 +1217,7 @@ def _ref_status(text: str) -> str:
     Reference docs carry no lifecycle and may embed template examples in
     fenced code blocks - only the real header region counts.
     """
-    body = _strip_fenced_code(text)
+    body = strip_fenced_code(text)
     cut = body.find("\n## ")
     head = body if cut == -1 else body[:cut]
     return status_value(head)

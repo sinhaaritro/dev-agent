@@ -47,6 +47,9 @@ import sys
 from pathlib import Path
 
 from common.root import find_root
+from common.scratchpad import ensure_scratchpad_guard
+from common.specparse import status_token_file
+from common.text import split_options
 
 
 def read_autonomy(root: Path) -> str:
@@ -62,10 +65,7 @@ def read_autonomy(root: Path) -> str:
 
 def parse_options(options_text: str) -> list[str]:
     """Split "--options 'A (Recommended): x; B: y'" into option lines."""
-    parts = [p.strip() for p in options_text.split(";") if p.strip()]
-    if not parts:
-        return ["A (Recommended): <not provided>"]
-    return parts
+    return split_options(options_text, default=["A (Recommended): <not provided>"])
 
 
 def gate_log_entry(
@@ -115,33 +115,6 @@ def escalation_entry(
     lines.append("- Related artifacts: specs/temp/<files>")
     lines.append("")
     return "\n".join(lines)
-
-
-def ensure_scratchpad_guard(root: Path, temp_dir: Path) -> None:
-    """Scratchpad guard: the dir, a root .gitignore entry for it, and the inner stub.
-
-    The inner stub (``*`` + ``!.gitignore``) is the effective protection - git
-    refuses to descend into a gitignored directory even without a root
-    .gitignore - while the root entry documents the exclusion for viewers that
-    stop at the top level. Idempotent; only touched when acting on the default
-    specs/temp/ location.
-    """
-    root_ignore = root / ".gitignore"
-    if not root_ignore.is_file():
-        root_ignore.write_text("# DEV Agent framework\n", encoding="utf-8")
-    lines = root_ignore.read_text(encoding="utf-8").splitlines()
-    if not any(
-        ln.strip().strip("/") in ("specs", "specs/temp")
-        for ln in lines
-        if ln.strip() and not ln.strip().startswith("#")
-    ):
-        text = root_ignore.read_text(encoding="utf-8")
-        if text and not text.endswith("\n"):
-            text += "\n"
-        root_ignore.write_text(text + "\nspecs/temp\n", encoding="utf-8")
-    inner = temp_dir / ".gitignore"
-    if not inner.is_file():
-        inner.write_text("*\n!.gitignore\n", encoding="utf-8")
 
 
 def append_gate_entry(target: Path, entry: str) -> None:
@@ -197,12 +170,7 @@ BUILD_STATUSES = ("BUILDING", "BUILT", "REVIEWED")
 
 def _status_token(path: Path) -> str:
     """The 'Status:' token of a plan/spec file ('' when absent/unreadable)."""
-    try:
-        text = path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return ""
-    match = re.search(r"(?m)^Status:\s*([A-Z_]+)", text)
-    return match.group(1) if match else ""
+    return status_token_file(path)
 
 
 def find_active_spec(root: Path) -> Path | None:
@@ -250,11 +218,11 @@ def resolve_gate_target(root: Path, spec_arg: str | None) -> Path | None:
     return None
 
 
-def write_escalation(root: Path, report: str) -> None:
+def write_gate_escalation(root: Path, report: str) -> None:
     """Write the fail-closed report to specs/temp/escalation.md (ephemeral scratchpad)."""
     temp_dir = root / "specs" / "temp"
     temp_dir.mkdir(parents=True, exist_ok=True)
-    ensure_scratchpad_guard(root, temp_dir)
+    ensure_scratchpad_guard(temp_dir, root=root)
     (temp_dir / "escalation.md").write_text(report, encoding="utf-8")
 
 
@@ -364,7 +332,7 @@ def main() -> int:
     lane_a_surface = args.lane_a_surface or args.lane == "A"
     if autonomy == "supervised" or lane_a_surface:
         report = escalation_entry(args.question, option_lines, args.lane, args.session)
-        write_escalation(root, report)
+        write_gate_escalation(root, report)
         mark_revision_required(root, args.spec)
         reason = (
             "Lane-A surface (schema/auth/public-API) - always fail closed, "
