@@ -102,9 +102,12 @@ class InstallTest(BootstrapBase):
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         for rel in SEED_FILES:
             self.assertTrue((self.target / rel).is_file(), rel)
-        self.assertEqual(
-            (self.target / "AGENTS.md").read_bytes(),
-            (REFERENCE / "AGENTS.md").read_bytes(),
+        # AGENTS.md carries the template inside a marker-managed block.
+        agents = (self.target / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("<!-- dev-agent:begin -->", agents)
+        self.assertIn("<!-- dev-agent:end -->", agents)
+        self.assertIn(
+            (REFERENCE / "AGENTS.md").read_text(encoding="utf-8").strip(), agents
         )
 
     def test_install_writes_runtime_and_manifest(self):
@@ -155,15 +158,53 @@ class GitignoreTest(BootstrapBase):
         )
 
 
-class OverwriteTest(BootstrapBase):
-    def test_divergent_seed_is_overwritten(self):
-        (self.target / "AGENTS.md").write_text("# Old contract\n", encoding="utf-8")
+class AgentsMergeTest(BootstrapBase):
+    def test_existing_agents_md_is_merged_not_overwritten(self):
+        (self.target / "AGENTS.md").write_text(
+            "# Astro notes\n\nRun `npm run dev`.\n", encoding="utf-8"
+        )
+        proc = self.setup_target()
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("appended: AGENTS.md", proc.stdout)
+        text = (self.target / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("# Astro notes", text)
+        self.assertIn("Run `npm run dev`.", text)
+        self.assertIn("Read `.agents/rules/dev-agent-framework.md`", text)
+        self.assertEqual(text.count("<!-- dev-agent:begin -->"), 1)
+
+    def test_rerun_does_not_duplicate_the_block(self):
+        (self.target / "AGENTS.md").write_text("# Astro notes\n", encoding="utf-8")
+        self.setup_target()
+        before = (self.target / "AGENTS.md").read_text(encoding="utf-8")
+        proc = self.setup_target()
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("unchanged: AGENTS.md", proc.stdout)
+        self.assertEqual(
+            (self.target / "AGENTS.md").read_text(encoding="utf-8"), before
+        )
+
+    def test_managed_block_is_replaced_in_place(self):
+        self.setup_target()
+        text = (self.target / "AGENTS.md").read_text(encoding="utf-8")
+        stale = text.replace(
+            "Read `.agents/rules/dev-agent-framework.md`", "STALE EDIT"
+        )
+        (self.target / "AGENTS.md").write_text(stale, encoding="utf-8")
         proc = self.setup_target()
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         self.assertIn("updated: AGENTS.md", proc.stdout)
+        after = (self.target / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertNotIn("STALE EDIT", after)
+        self.assertEqual(after.count("<!-- dev-agent:begin -->"), 1)
+
+    def test_divergent_non_agents_seed_is_still_overwritten(self):
+        (self.target / ".cursorrules").write_text("old rules\n", encoding="utf-8")
+        proc = self.setup_target()
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("updated: .cursorrules", proc.stdout)
         self.assertEqual(
-            (self.target / "AGENTS.md").read_bytes(),
-            (REFERENCE / "AGENTS.md").read_bytes(),
+            (self.target / ".cursorrules").read_bytes(),
+            (REFERENCE / ".cursorrules").read_bytes(),
         )
 
 
@@ -212,12 +253,10 @@ class RefusalTest(BootstrapBase):
             errors="replace",
         )
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
-        self.assertIn("self-bootstrap guard skipped", proc.stdout)
         self.assertNotIn("refusing to bootstrap", proc.stdout + proc.stderr)
-        self.assertEqual(
-            (consumer / "AGENTS.md").read_bytes(),
-            (REFERENCE / "AGENTS.md").read_bytes(),
-        )
+        agents = (consumer / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("# My project", agents)
+        self.assertIn("Read `.agents/rules/dev-agent-framework.md`", agents)
         self.assertTrue((consumer / MANIFEST_REL).is_file())
 
     def test_catalog_without_the_framework_grouping_is_not_refused(self):

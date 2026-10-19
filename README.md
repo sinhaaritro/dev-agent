@@ -36,7 +36,7 @@ python <dev-agent-skill>/scripts/bootstrap.py setup --target .
 
 `<dev-agent-skill>` is wherever the skills CLI put the `dev-agent` folder (for a `-g` install, `~/.config/opencode/skills/dev-agent/`; for a project install, `.agents/skills/dev-agent/`). Preview first with `--dry-run`. Setup seeds:
 
-- `AGENTS.md`, `.gitignore`, `.cursorrules`, `.windsurfrules` at the repo root
+- `AGENTS.md`, `.gitignore`, `.cursorrules`, `.windsurfrules` at the repo root. An existing `AGENTS.md` is preserved: the framework's contract is appended inside `<!-- dev-agent:begin -->` … `<!-- dev-agent:end -->` markers and replaced in place on later runs. `.gitignore` only gains missing patterns.
 - `.agents/rules/dev-agent-framework.md` (the gateway rulebook) and `.agents/agents/coder.md` (the coder contract)
 - the shared runtime at `.agents/scripts/devagent/`, plus the `.agents/.devagent.json` manifest
 

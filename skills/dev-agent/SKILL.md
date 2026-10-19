@@ -26,12 +26,17 @@ does two jobs:
 
    | Source (skill-local) | Destination (target repo) |
    | :--- | :--- |
-   | `reference/AGENTS.md` | `AGENTS.md` (repo root) |
+   | `reference/AGENTS.md` | `AGENTS.md` (repo root, as a managed block) |
    | `reference/.gitignore` | `.gitignore` (repo root) |
    | `reference/rules/dev-agent-framework.md` | `.agents/rules/dev-agent-framework.md` |
    | `reference/agents/coder.md` | `.agents/agents/coder.md` |
    | `reference/.cursorrules` | `.cursorrules` (repo root) |
    | `reference/.windsurfrules` | `.windsurfrules` (repo root) |
+
+   `AGENTS.md` is merged, never replaced: the seeded contract lives inside
+   `<!-- dev-agent:begin -->` … `<!-- dev-agent:end -->` markers. An existing file
+   keeps all of its content, the block is appended, and later runs replace only
+   the block (idempotent).
 
 2. **Installs the shared runtime** bundled with this skill (`runtime/devagent/`)
    into `<target>/.agents/scripts/devagent/`, then writes the project-owned
@@ -82,12 +87,14 @@ file, the trivial direct-fix exception).
    `--target <abs-path> --dry-run` alone behaves the same.
 
 3. **Overwrite policy.** Seeds marked `overwrite:` are replaced by the canonical
-   seed (e.g. a filled-in `AGENTS.md` is lost) — confirm before a real run that
-   overwrites anything. A target where every seed is `new:`/`ok:` needs no
-   confirmation. **`.gitignore` is never overwritten:** an existing one only
-   receives the seed's missing ignore patterns (idempotent). Runtime files are
-   owned by the framework; `--update` writes a `*.bak` next to any file the user
-   had modified before replacing it.
+   seed — confirm before a real run that overwrites anything. A target where every
+   seed is `new:`/`ok:` needs no confirmation. **`AGENTS.md` and `.gitignore` are
+   never overwritten:** `AGENTS.md` keeps its existing content and receives the
+   template as a `<!-- dev-agent:begin -->` … `<!-- dev-agent:end -->` block
+   (appended on first install, replaced in place afterwards), and `.gitignore`
+   only receives the seed's missing ignore patterns. Both are idempotent. Runtime
+   files are owned by the framework; `--update` writes a `*.bak` next to any file
+   the user had modified before replacing it.
 
 4. **Run setup:**
    `python <this-skill>/scripts/bootstrap.py setup --target <abs-path>`
@@ -131,9 +138,9 @@ skill-relative command; every other command is project-relative.
 
 ## Output Contract
 
-- Dry-run: the per-file list (`new:` / `ok:` / `overwrite:` / `append:`) verbatim
-  in block 2; block 4 states the real run proceeds only on confirmation when any
-  `overwrite:` is present.
+- Dry-run: the per-file list (`new:` / `ok:` / `overwrite:` / `append:` /
+  `updated:`) verbatim in block 2; block 4 states the real run proceeds only on
+  confirmation when any `overwrite:` is present.
 - Setup: the per-file lines plus the `dev-agent setup complete:` summary
   verbatim; block 4 states the target is set up and names the next step.
 - Check: the `ok` / `stale` / `modified` / `missing` / `orphan` lines and the

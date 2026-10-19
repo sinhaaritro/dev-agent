@@ -69,6 +69,9 @@ FRAMEWORK = "dev-agent"
 PYTHON_REQUIRES = ">=3.10"
 SOURCE_CATALOG = "skills.sh.json"
 LOCK_FILE = "skills-lock.json"
+BLOCK_SEEDS = ("AGENTS.md",)
+BLOCK_BEGIN = "<!-- dev-agent:begin -->"
+BLOCK_END = "<!-- dev-agent:end -->"
 
 
 # --------------------------------------------------------------------------- #
@@ -283,6 +286,22 @@ def parse_gitignore(content: str):
     return header, patterns
 
 
+def _managed_block_span(text: str) -> tuple[int, int] | None:
+    """Start/end offsets of the managed block (markers included), if present."""
+    start = text.find(BLOCK_BEGIN)
+    if start == -1:
+        return None
+    end = text.find(BLOCK_END, start + len(BLOCK_BEGIN))
+    if end == -1:
+        return None
+    return start, end + len(BLOCK_END)
+
+
+def _managed_block(template: str) -> str:
+    """Wrap a seed in markers so later runs can replace it in place."""
+    return BLOCK_BEGIN + "\n" + template.strip("\n") + "\n" + BLOCK_END
+
+
 def plan_seeds(skill_root: Path, target: Path) -> list:
     results = []  # (seed_rel, dest_rel, status)
     for seed_rel, dest_rel in SEED_FILES:
@@ -293,6 +312,8 @@ def plan_seeds(skill_root: Path, target: Path) -> list:
             _eh, existing_patterns = parse_gitignore(dst.read_text(encoding="utf-8"))
             missing = [p for p in seed_patterns if p not in set(existing_patterns)]
             status = "append" if missing else "ok"
+        elif seed_rel in BLOCK_SEEDS and dst.exists():
+            status = _block_status(src, dst)
         elif not dst.exists():
             status = "new"
         elif dst.is_file() and dst.read_bytes() == src.read_bytes():
@@ -303,13 +324,43 @@ def plan_seeds(skill_root: Path, target: Path) -> list:
     return results
 
 
+def _block_status(src: Path, dst: Path) -> str:
+    """Decide how a marker-managed seed relates to the file already on disk."""
+    existing = dst.read_text(encoding="utf-8")
+    span = _managed_block_span(existing)
+    if span is None:
+        return "append"
+    start, end = span
+    template = src.read_text(encoding="utf-8")
+    return "ok" if existing[start:end] == _managed_block(template) else "update"
+
+
+def _write_managed_block(dst: Path, template: str) -> None:
+    """Append the block, adopt a legacy whole-file seed, or replace it in place."""
+    block = _managed_block(template)
+    existing = dst.read_text(encoding="utf-8") if dst.exists() else ""
+    span = _managed_block_span(existing)
+    if span is not None:
+        start, end = span
+        text = existing[:start] + block + existing[end:]
+    elif existing.strip() == template.strip():
+        # A repo seeded before markers existed: adopt the same content in place.
+        text = block + "\n"
+    else:
+        body = existing.rstrip("\n")
+        text = (body + "\n\n" if body else "") + block + "\n"
+    dst.write_text(text, encoding="utf-8")
+
+
 def write_seed(
     skill_root: Path, target: Path, seed_rel: str, dest_rel: str, status: str
 ) -> None:
     src = skill_root / "reference" / seed_rel
     dst = target / dest_rel
     dst.parent.mkdir(parents=True, exist_ok=True)
-    if status == "append":
+    if seed_rel in BLOCK_SEEDS:
+        _write_managed_block(dst, src.read_text(encoding="utf-8"))
+    elif status == "append":
         seed_header, seed_patterns = parse_gitignore(src.read_text(encoding="utf-8"))
         existing = dst.read_text(encoding="utf-8")
         _eh, existing_patterns = parse_gitignore(existing)
@@ -364,9 +415,6 @@ def _resolve_target(raw: str) -> Path:
 def _guard_self_bootstrap(target: Path) -> None:
     source_root = find_source_repo_root(target)
     if source_root is None:
-        print(
-            "note: target is not the framework's source checkout; self-bootstrap guard skipped"
-        )
         return
     sys.exit(
         "error: refusing to bootstrap the framework's own source tree ("

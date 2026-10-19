@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T14:16:30Z",
+  "generated": "2026-10-19T14:35:48Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_portable_repo_relative_cwd": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
@@ -66,6 +66,10 @@
     "test_behavior_harness.ReviewAndFeedbackTest.test_grading_uses_viewer_contract": "pass",
     "test_behavior_harness.ReviewAndFeedbackTest.test_missing_feedback_is_a_named_error": "pass",
     "test_behavior_harness.ReviewAndFeedbackTest.test_review_html_and_feedback_template": "pass",
+    "test_bootstrap.AgentsMergeTest.test_divergent_non_agents_seed_is_still_overwritten": "pass",
+    "test_bootstrap.AgentsMergeTest.test_existing_agents_md_is_merged_not_overwritten": "pass",
+    "test_bootstrap.AgentsMergeTest.test_managed_block_is_replaced_in_place": "pass",
+    "test_bootstrap.AgentsMergeTest.test_rerun_does_not_duplicate_the_block": "pass",
     "test_bootstrap.AtomicityTest.test_interrupted_install_is_detectable": "pass",
     "test_bootstrap.AtomicityTest.test_leftover_staging_dir_is_replaced": "pass",
     "test_bootstrap.CheckTest.test_check_is_clean_after_setup": "pass",
@@ -78,7 +82,6 @@
     "test_bootstrap.InstallTest.test_install_writes_runtime_and_manifest": "pass",
     "test_bootstrap.InstallTest.test_second_run_is_idempotent": "pass",
     "test_bootstrap.InstallTest.test_success_summary_counts_every_file": "pass",
-    "test_bootstrap.OverwriteTest.test_divergent_seed_is_overwritten": "pass",
     "test_bootstrap.RefusalTest.test_catalog_without_the_framework_grouping_is_not_refused": "pass",
     "test_bootstrap.RefusalTest.test_downgrade_is_refused": "pass",
     "test_bootstrap.RefusalTest.test_missing_target_is_an_error": "pass",
