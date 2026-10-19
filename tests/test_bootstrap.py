@@ -105,13 +105,13 @@ class InstallTest(BootstrapBase):
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         for rel in SEED_FILES:
             self.assertTrue((self.target / rel).is_file(), rel)
-        # AGENTS.md carries the template inside a marker-managed block.
+        # AGENTS.md gets the project scaffold plus the contract in a managed block.
         agents = (self.target / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("<!-- dev-agent:begin -->", agents)
         self.assertIn("<!-- dev-agent:end -->", agents)
-        self.assertIn(
-            (REFERENCE / "AGENTS.md").read_text(encoding="utf-8").strip(), agents
-        )
+        self.assertIn("# Project - [PROJECT_NAME]", agents)
+        self.assertIn("Read `.agents/rules/dev-agent-framework.md`", agents)
+        self.assertEqual(agents.count("# DEV AGENT"), 1)
 
     def test_install_writes_runtime_and_manifest(self):
         self.setup_target()
@@ -173,7 +173,23 @@ class AgentsMergeTest(BootstrapBase):
         self.assertIn("# Astro notes", text)
         self.assertIn("Run `npm run dev`.", text)
         self.assertIn("Read `.agents/rules/dev-agent-framework.md`", text)
+        # Only the framework contract is appended; the project scaffold is not
+        # duplicated into a repo that already has its own header.
+        self.assertNotIn("Project - [PROJECT_NAME]", text)
         self.assertEqual(text.count("<!-- dev-agent:begin -->"), 1)
+
+    def test_legacy_unmarked_template_is_adopted_in_place(self):
+        (self.target / "AGENTS.md").write_bytes((REFERENCE / "AGENTS.md").read_bytes())
+        proc = self.setup_target()
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        text = (self.target / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("# Project - [PROJECT_NAME]", text)
+        self.assertEqual(text.count("# DEV AGENT"), 1)
+        self.assertEqual(text.count("<!-- dev-agent:begin -->"), 1)
+        self.assertLess(
+            text.index("# Project - [PROJECT_NAME]"),
+            text.index("<!-- dev-agent:begin -->"),
+        )
 
     def test_rerun_does_not_duplicate_the_block(self):
         (self.target / "AGENTS.md").write_text("# Astro notes\n", encoding="utf-8")

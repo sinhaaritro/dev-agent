@@ -73,6 +73,7 @@ LOCK_FILE = "skills-lock.json"
 BLOCK_SEEDS = ("AGENTS.md",)
 BLOCK_BEGIN = "<!-- dev-agent:begin -->"
 BLOCK_END = "<!-- dev-agent:end -->"
+FRAMEWORK_HEADING = "# DEV AGENT"
 
 
 # --------------------------------------------------------------------------- #
@@ -299,9 +300,22 @@ def _managed_block_span(text: str) -> tuple[int, int] | None:
     return start, end + len(BLOCK_END)
 
 
-def _managed_block(template: str) -> str:
-    """Wrap a seed in markers so later runs can replace it in place."""
-    return BLOCK_BEGIN + "\n" + template.strip("\n") + "\n" + BLOCK_END
+def _split_template(template: str) -> tuple[str, str]:
+    """Split the seed into its project scaffold and the framework contract.
+
+    The scaffold (title, description, stack, repo map, commands) is written only
+    for a new file; the contract (from ``FRAMEWORK_HEADING`` on) is what gets
+    appended to an existing file so a project never ends up with two copies.
+    """
+    idx = template.find(FRAMEWORK_HEADING)
+    if idx == -1:
+        return "", template
+    return template[:idx], template[idx:]
+
+
+def _managed_block(framework: str) -> str:
+    """Wrap the framework contract in markers so later runs can replace it."""
+    return BLOCK_BEGIN + "\n" + framework.strip("\n") + "\n" + BLOCK_END
 
 
 def plan_seeds(skill_root: Path, target: Path) -> list:
@@ -327,27 +341,41 @@ def plan_seeds(skill_root: Path, target: Path) -> list:
 
 
 def _block_status(src: Path, dst: Path) -> str:
-    """Decide how a marker-managed seed relates to the file already on disk."""
+    """Decide how the framework contract relates to the file already on disk."""
     existing = dst.read_text(encoding="utf-8")
+    _scaffold, framework = _split_template(src.read_text(encoding="utf-8"))
+    block = _managed_block(framework)
     span = _managed_block_span(existing)
-    if span is None:
-        return "append"
-    start, end = span
-    template = src.read_text(encoding="utf-8")
-    return "ok" if existing[start:end] == _managed_block(template) else "update"
+    if span is not None:
+        start, end = span
+        return "ok" if existing[start:end] == block else "update"
+    if framework.strip("\n") and framework.strip("\n") in existing:
+        # A repo seeded before markers existed: adopt the same text in place.
+        return "update"
+    return "append"
 
 
 def _write_managed_block(dst: Path, template: str) -> None:
-    """Append the block, adopt a legacy whole-file seed, or replace it in place."""
-    block = _managed_block(template)
+    """Write only the framework contract, appending or replacing in place.
+
+    A new file gets the full template (project scaffold + contract). An existing
+    file keeps its content untouched: a legacy unmarked contract is wrapped where
+    it already sits, and anything else gets the contract appended once.
+    """
+    scaffold, framework = _split_template(template)
+    block = _managed_block(framework)
+    marker = framework.strip("\n")
     existing = dst.read_text(encoding="utf-8") if dst.exists() else ""
     span = _managed_block_span(existing)
     if span is not None:
         start, end = span
         text = existing[:start] + block + existing[end:]
-    elif existing.strip() == template.strip():
-        # A repo seeded before markers existed: adopt the same content in place.
-        text = block + "\n"
+    elif not dst.exists():
+        body = scaffold.rstrip("\n")
+        text = (body + "\n\n" if body else "") + block + "\n"
+    elif marker and marker in existing:
+        at = existing.index(marker)
+        text = existing[:at] + block + existing[at + len(marker) :]
     else:
         body = existing.rstrip("\n")
         text = (body + "\n\n" if body else "") + block + "\n"

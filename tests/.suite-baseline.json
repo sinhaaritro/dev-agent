@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T14:50:21Z",
+  "generated": "2026-10-19T14:53:41Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_portable_repo_relative_cwd": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
@@ -68,6 +68,7 @@
     "test_behavior_harness.ReviewAndFeedbackTest.test_review_html_and_feedback_template": "pass",
     "test_bootstrap.AgentsMergeTest.test_divergent_non_agents_seed_is_still_overwritten": "pass",
     "test_bootstrap.AgentsMergeTest.test_existing_agents_md_is_merged_not_overwritten": "pass",
+    "test_bootstrap.AgentsMergeTest.test_legacy_unmarked_template_is_adopted_in_place": "pass",
     "test_bootstrap.AgentsMergeTest.test_managed_block_is_replaced_in_place": "pass",
     "test_bootstrap.AgentsMergeTest.test_rerun_does_not_duplicate_the_block": "pass",
     "test_bootstrap.AtomicityTest.test_interrupted_install_is_detectable": "pass",

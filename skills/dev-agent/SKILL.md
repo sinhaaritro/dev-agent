@@ -33,10 +33,12 @@ does two jobs:
    | `reference/.cursorrules` | `.cursorrules` (repo root) |
    | `reference/.windsurfrules` | `.windsurfrules` (repo root) |
 
-   `AGENTS.md` is merged, never replaced: the seeded contract lives inside
-   `<!-- dev-agent:begin -->` … `<!-- dev-agent:end -->` markers. An existing file
-   keeps all of its content, the block is appended, and later runs replace only
-   the block (idempotent).
+   `AGENTS.md` is merged, never replaced: the framework contract (from
+   `# DEV AGENT` on) lives inside `<!-- dev-agent:begin -->` …
+   `<!-- dev-agent:end -->` markers. An existing file keeps all of its content
+   and only receives that contract block; the project scaffold (title,
+   description, stack, repo map, commands) is written only when the file does
+   not exist. Later runs replace only the block (idempotent).
 
 2. **Installs the shared runtime** bundled with this skill (`runtime/devagent/`)
    into `<target>/.agents/scripts/devagent/`, then writes the project-owned
@@ -90,8 +92,9 @@ file, the trivial direct-fix exception).
    seed — confirm before a real run that overwrites anything. A target where every
    seed is `new:`/`ok:` needs no confirmation. **`AGENTS.md` and `.gitignore` are
    never overwritten:** `AGENTS.md` keeps its existing content and receives the
-   template as a `<!-- dev-agent:begin -->` … `<!-- dev-agent:end -->` block
-   (appended on first install, replaced in place afterwards), and `.gitignore`
+   framework contract (from `# DEV AGENT` on) as a `<!-- dev-agent:begin -->` …
+   `<!-- dev-agent:end -->` block — appended on first install, replaced in place
+   afterwards; the project scaffold is written only for a new file. `.gitignore`
    only receives the seed's missing ignore patterns. Both are idempotent. Runtime
    files are owned by the framework; `--update` writes a `*.bak` next to any file
    the user had modified before replacing it.
