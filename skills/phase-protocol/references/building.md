@@ -6,7 +6,7 @@ Load when the compiled spec + task files exist (Step 1 complete; drafted.md sect
 
 ## 1. Execute the task list (the DAG) in order
 
-1. Work strictly from the compiled spec at `specs/<NNN>-<SPEC>-<slug>.md` and its task files — never add scope silently. (The spec replaced the draft at compile.)
+1. Work strictly from the compiled spec at `specs/<NNN>-SPEC-<slug>.md` and its task files — never add scope silently. (The spec replaced the draft at compile.)
 2. Stamp the spec `Status: BUILDING` in its header when work starts.
 3. The execution unit is the **task**, dispatched to a coder subagent that owns exactly one task file. Read build order from `Depends On`: start a task only when every task in its `Depends On` is `MET`. Within a task, the coder works its `### Progress` checklist one subtask at a time.
 4. Update subtask state in real time (inside the task file): `- [ ]` pending -> `- [/]` in progress -> `- [x]` done. A subtask is `[x]` ONLY when its `Verify` passes with recorded evidence (section 2) — never exit-0 alone, never without evidence.

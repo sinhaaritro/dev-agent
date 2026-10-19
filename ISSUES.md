@@ -3,7 +3,7 @@
 - **Date:** 2026-10-19
 - **Scope:** full repo — shipped skills (`skills/`), dogfood mirror (`.agents/`), engines, docs, specs, tests, maintainer tools
 - **Method:** manual read-through plus the canonical commands (see [Checks run](#checks-run))
-- **Status:** C1–C4, H2 and H7 have since been fixed (see those entries); all other findings are unchanged.
+- **Status:** C1–C4, H1, H2 and H7 have since been fixed (see those entries); all other findings are unchanged.
 
 > These are captured here at the repo root because the request was to preserve the audit in one place. Entries that are promoted into work should move to `BACKLOG.md` (or a spec) using its five-field format.
 
@@ -15,7 +15,7 @@
 | C2 | Critical | ✅ **Fixed 2026-10-19** — each compiled task file's `## Owns` now comes from its own section-5 `Target Files`; `check`/`compile` reject missing or overlapping targets |
 | C3 | Critical | ✅ **Fixed 2026-10-19** — the circuit-breaker writes the durable `NNN-ESCALATION-<slug>.md` and stamps `ESCALATED` (scratchpad only as the no-spec fallback) |
 | C4 | Critical | ✅ **Fixed 2026-10-19** — `APPROVED`/`PROVISIONAL` are canonical; build/report/gate own their transitions; `check`/`doctor` validate and a drift test guards `specs/` |
-| H1 | High | `drafted.md` Lane-A section map is stale and fails `check` |
+| H1 | High | ✅ **Fixed 2026-10-19** — `drafted.md` Lane-A now lists the real 1–8 template (Gates/Verification/Rollback in the right slots) |
 | H2 | High | ✅ **Fixed 2026-10-19** — the documented convention is `NNN-SPEC-<slug>.md` everywhere; the fresh README scaffold and the dead tag-index block are corrected |
 | H3 | High | Documented CLI invocations (`doctor/report/status --spec|--task <NNN>`) do not work; `report` writes a stray file |
 | H4 | High | `verify.py report` omits the `R#` outcome observations the docs require |
@@ -183,6 +183,8 @@ A plan authored by following the shipped checklist omits Gates/8 and fails `chec
 **Suggested fix**
 
 Rewrite section 2 of `drafted.md` to the actual 0–8 template (or, for Lane B, 1/4/5).
+
+**Status: ✅ Fixed (2026-10-19).** `drafted.md` §2 now matches the engine: Lane A = **eight** sections (1–8) with the template's real names — 2 The Change (end state, by area), 5 Tasks & Outcomes, **6 Gates, 7 Verification Commands, 8 Rollback Strategy** (the old list put Verification at 6 and Rollback at 7 and omitted 8, so a plan written from it failed `check` with `missing section 8` and mis-ran the section-6 gate-label lint); Lane B = 1/4/5 (name 5 `Tasks & Outcomes`). The same cleanup fixed the wrong `specs/<NNN>-<SPEC>-<slug>.md` placeholder in `drafted.md`, `building.md`, `implementation-plan-template.md`, and the framework rule (repo + bootstrap seed). Regression test: `tests/test_drift_phases.py::DraftedLaneSectionsTest` (Lane A/B checklists track `promote_spec.LANE_SECTIONS`).
 
 ---
 

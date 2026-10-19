@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T03:54:20Z",
+  "generated": "2026-10-19T04:03:06Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_doctor_precondition_7_accepts_compile_preapproval": "pass",
@@ -69,6 +69,9 @@
     "test_drift_phases.AgCommandsTest.test_canonical_commands_resolve": "pass",
     "test_drift_phases.CanonicalStatusSetTest.test_canonical_statuses_match_engine": "pass",
     "test_drift_phases.CanonicalStatusSetTest.test_each_canonical_status_appears_somewhere": "pass",
+    "test_drift_phases.DraftedLaneSectionsTest.test_lane_a_checklist_lists_every_enforced_section": "pass",
+    "test_drift_phases.DraftedLaneSectionsTest.test_lane_b_checklist_lists_its_enforced_sections": "pass",
+    "test_drift_phases.SpecFilenameConventionTest.test_no_wrong_nnn_spec_placeholder": "pass",
     "test_drift_phases.SpecStatusDriftTest.test_every_spec_status_is_canonical": "pass",
     "test_gate_labels.GateLabelLintTest.test_blocking_label_passes": "pass",
     "test_gate_labels.GateLabelLintTest.test_empty_gates_section_still_passes": "pass",

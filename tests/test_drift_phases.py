@@ -134,5 +134,50 @@ class SpecStatusDriftTest(unittest.TestCase):
 
 
 
+class DraftedLaneSectionsTest(unittest.TestCase):
+    """H1: the Lane checklists in drafted.md match the engine's LANE_SECTIONS."""
+
+    def _line(self, prefix):
+        text = _read(
+            REPO / ".agents" / "skills" / "phase-protocol" / "references" / "drafted.md"
+        )
+        for line in text.splitlines():
+            if line.strip().startswith(prefix):
+                return line
+        self.fail(f"drafted.md has no line starting with {prefix!r}")
+
+    def _section_list(self, prefix):
+        line = self._line(prefix)
+        self.assertIn("\u2014", line, "checklist should separate the list with an em dash")
+        return line.split("\u2014")[-1]
+
+    def test_lane_a_checklist_lists_every_enforced_section(self):
+        tail = self._section_list("2. Lane A:")
+        self.assertNotIn("all seven", tail)
+        for n in sorted(_promote_spec.LANE_SECTIONS["A"]):
+            self.assertRegex(
+                tail, rf"\b{n}\b", f"section {n} missing from the Lane A checklist"
+            )
+
+    def test_lane_b_checklist_lists_its_enforced_sections(self):
+        tail = self._section_list("1. Lane B:")
+        for n in sorted(_promote_spec.LANE_SECTIONS["B"]):
+            self.assertRegex(
+                tail, rf"\b{n}\b", f"section {n} missing from the Lane B checklist"
+            )
+
+
+class SpecFilenameConventionTest(unittest.TestCase):
+    """H2: shipped docs use the single NNN-SPEC-<slug>.md convention."""
+
+    def test_no_wrong_nnn_spec_placeholder(self):
+        offenders = []
+        for root in (REPO / "skills", REPO / ".agents" / "rules"):
+            for path in sorted(root.rglob("*.md")):
+                if "specs/<NNN>-<SPEC>-" in _read(path):
+                    offenders.append(str(path.relative_to(REPO)))
+        self.assertEqual(offenders, [], f"wrong <NNN>-<SPEC> form in: {offenders}")
+
+
 if __name__ == "__main__":
     unittest.main()
