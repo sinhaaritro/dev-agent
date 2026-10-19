@@ -40,12 +40,12 @@ def _read(path: Path) -> str:
         return ""
 
 
-def _agent_sources() -> list[tuple[str, str]]:
-    """(label, text) for every markdown file under .agents/."""
-    agents = REPO / ".agents"
+def _product_sources() -> list[tuple[str, str]]:
+    """(label, text) for every markdown file under skills/ (the product)."""
+    product = REPO / "skills"
     out = []
-    if agents.is_dir():
-        for f in sorted(agents.rglob("*.md")):
+    if product.is_dir():
+        for f in sorted(product.rglob("*.md")):
             out.append((str(f.relative_to(REPO)), _read(f)))
     return out
 
@@ -66,7 +66,7 @@ def _root_sources() -> list[tuple[str, str]]:
 
 
 def _sources() -> list[tuple[str, str]]:
-    return _agent_sources() + _root_sources()
+    return _product_sources() + _root_sources()
 
 
 class CanonicalStatusSetTest(unittest.TestCase):
@@ -89,12 +89,12 @@ class CanonicalStatusSetTest(unittest.TestCase):
         self.assertEqual(set(CANONICAL_STATUSES), expected)
 
     def test_each_canonical_status_appears_somewhere(self):
-        """Every canonical status is referenced in .agents, README.md, AGENTS.md, docs/."""
+        """Every canonical status is referenced in skills, README.md, AGENTS.md, docs/."""
         sources = _sources()
         for status in CANONICAL_STATUSES:
             self.assertTrue(
                 any(status in text for _, text in sources),
-                f"canonical status {status!r} not found in .agents / README.md / AGENTS.md / docs",
+                f"canonical status {status!r} not found in skills / README.md / AGENTS.md / docs",
             )
 
 
@@ -128,7 +128,7 @@ class AgCommandsTest(unittest.TestCase):
         import subprocess
 
         proc = subprocess.run(
-            [sys.executable, "-m", "compileall", "-q", ".agents", "tests"],
+            [sys.executable, "-m", "compileall", "-q", "skills", "tools", "tests"],
             cwd=REPO,
             capture_output=True,
             text=True,
@@ -158,9 +158,7 @@ class DraftedLaneSectionsTest(unittest.TestCase):
     """H1: the Lane checklists in drafted.md match the engine's LANE_SECTIONS."""
 
     def _line(self, prefix):
-        text = _read(
-            REPO / ".agents" / "skills" / "phase-protocol" / "references" / "drafted.md"
-        )
+        text = _read(REPO / "skills" / "phase-protocol" / "references" / "drafted.md")
         for line in text.splitlines():
             if line.strip().startswith(prefix):
                 return line
@@ -194,7 +192,7 @@ class SpecFilenameConventionTest(unittest.TestCase):
 
     def test_no_wrong_nnn_spec_placeholder(self):
         offenders = []
-        for root in (REPO / "skills", REPO / ".agents" / "rules"):
+        for root in (REPO / "skills",):
             for path in sorted(root.rglob("*.md")):
                 if "specs/<NNN>-<SPEC>-" in _read(path):
                     offenders.append(str(path.relative_to(REPO)))

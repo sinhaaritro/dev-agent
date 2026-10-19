@@ -6,7 +6,7 @@ dev = ["ruff==0.17.1"]
 [tool.ruff]
 # Engines use PEP 604 annotations (str | None) -> Python 3.10+.
 target-version = "py310"
-# .agents/skills/ is the derived mirror + vendored skill-creator; lint the
-# canonical skills/ source instead. skill-workspaces/ holds eval copies.
+# .agents/skills/ holds the vendored skill-creator; lint the canonical skills/
+# source instead. skill-workspaces/ holds eval copies.
 force-exclude = true
 extend-exclude = [".agents/skills", "skill-workspaces"]

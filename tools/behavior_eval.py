@@ -33,6 +33,12 @@ Each case can run in three configurations, like skill-creator's eval loop:
                    --old-skills-dir snapshot) - the A/B baseline
     without_skill  the raw repo, no framework installed
 
+A case is either a single `prompt` or a **scenario**: a list of `steps`
+(`{id, prompt, expectations, expected_artifacts}`). A scenario installs one repo
+per config and runs each step as an independent request against a freshly reset
+copy of that repo, so M prompts cost `configs` installs instead of `M x configs`.
+Every step is graded on its own (N checks) and gets its own review page.
+
 `batch` runs many predefined prompts into ONE review: every prompt gets its own
 eval page, configs of the same prompt sit side by side, and the vendored
 benchmark aggregator adds the Benchmark (summary) tab. `check` grades one run;
@@ -94,6 +100,9 @@ ARTIFACT_KINDS = (
 )
 SCOPES = ("repo", "run")
 
+STEPS_DIR = "steps"
+BASE_SNAPSHOT_DIR = "_base_repo"
+
 
 def find_root() -> Path:
     current = Path(__file__).resolve().parent
@@ -120,16 +129,31 @@ def _resolve(path: Path | str, base: Path) -> Path:
 
 
 @dataclass
+class Step:
+    """One prompt in a scenario, with its own artifact checks."""
+
+    id: str
+    prompt: str
+    expectations: list[str] = field(default_factory=list)
+    expected_artifacts: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Case:
     name: str
     profile: str
-    prompt: str
+    prompt: str = ""
     setup: list[str] = field(default_factory=lambda: list(DEFAULT_SETUP))
     expectations: list[str] = field(default_factory=list)
     expected_artifacts: list[str] = field(default_factory=list)
     assertion_labels: dict[str, str] = field(default_factory=dict)
     layer: str = "behavior"
     path: Path | None = None
+    # Every case has >= 1 step. A flat `prompt` case normalizes to a single
+    # implicit step and keeps the legacy on-disk layout (`legacy=True`); a case
+    # that declares `steps` shares one repo across them (`legacy=False`).
+    steps: list[Step] = field(default_factory=list)
+    legacy: bool = True
 
     @classmethod
     def load(cls, fixtures_root: Path, name: str) -> Case:
@@ -140,21 +164,93 @@ class Case:
             data = json.loads(case_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise SystemExit(f"error: unreadable case {case_path}: {exc}") from exc
-        for key in ("name", "profile", "prompt"):
+        for key in ("name", "profile"):
             if not isinstance(data.get(key), str) or not data[key].strip():
                 raise SystemExit(f"error: case {case_path} needs a non-empty {key!r}")
         if data.get("layer", "behavior") != "behavior":
             raise SystemExit(f"error: case {case_path} layer must be 'behavior'")
+        setup = list(data.get("setup", DEFAULT_SETUP))
+        assertion_labels = dict(data.get("assertion_labels", {}))
+        layer = data.get("layer", "behavior")
+
+        raw_steps = data.get("steps")
+        if raw_steps is not None:
+            if isinstance(data.get("prompt"), str) and data["prompt"].strip():
+                raise SystemExit(
+                    f"error: case {case_path} cannot have both 'prompt' and 'steps'"
+                )
+            if not isinstance(raw_steps, list) or not raw_steps:
+                raise SystemExit(
+                    f"error: case {case_path} 'steps' must be a non-empty list"
+                )
+            steps: list[Step] = []
+            seen: set[str] = set()
+            for raw in raw_steps:
+                if not isinstance(raw, dict):
+                    raise SystemExit(f"error: case {case_path} step must be an object")
+                step_id = raw.get("id")
+                step_prompt = raw.get("prompt")
+                if not isinstance(step_id, str) or not step_id.strip():
+                    raise SystemExit(
+                        f"error: case {case_path} step needs a non-empty 'id'"
+                    )
+                if step_id in seen:
+                    raise SystemExit(
+                        f"error: case {case_path} duplicate step id {step_id!r}"
+                    )
+                seen.add(step_id)
+                if not isinstance(step_prompt, str) or not step_prompt.strip():
+                    raise SystemExit(
+                        f"error: case {case_path} step {step_id!r} needs a non-empty 'prompt'"
+                    )
+                artifacts = list(raw.get("expected_artifacts", []))
+                if not artifacts:
+                    raise SystemExit(
+                        f"error: case {case_path} step {step_id!r} needs 'expected_artifacts'"
+                    )
+                steps.append(
+                    Step(
+                        id=step_id,
+                        prompt=step_prompt,
+                        expectations=list(raw.get("expectations", [])),
+                        expected_artifacts=artifacts,
+                    )
+                )
+            return cls(
+                name=data["name"],
+                profile=data["profile"],
+                setup=setup,
+                assertion_labels=assertion_labels,
+                layer=layer,
+                path=case_path.parent,
+                steps=steps,
+                legacy=False,
+            )
+
+        prompt = data.get("prompt")
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise SystemExit(f"error: case {case_path} needs a non-empty 'prompt'")
+        expectations = list(data.get("expectations", []))
+        expected_artifacts = list(data.get("expected_artifacts", []))
         return cls(
             name=data["name"],
             profile=data["profile"],
-            prompt=data["prompt"],
-            setup=list(data.get("setup", DEFAULT_SETUP)),
-            expectations=list(data.get("expectations", [])),
-            expected_artifacts=list(data.get("expected_artifacts", [])),
-            assertion_labels=dict(data.get("assertion_labels", {})),
-            layer=data.get("layer", "behavior"),
+            prompt=prompt,
+            setup=setup,
+            expectations=expectations,
+            expected_artifacts=expected_artifacts,
+            assertion_labels=assertion_labels,
+            layer=layer,
             path=case_path.parent,
+            steps=[
+                Step(
+                    id=data["name"],
+                    prompt=prompt,
+                    expectations=expectations,
+                    expected_artifacts=expected_artifacts,
+                )
+            ],
+            legacy=True,
         )
 
     @property
@@ -322,6 +418,33 @@ def config_setup(case: Case, config: str) -> list[str]:
     return [] if canonical_config(config) == "without_skill" else list(case.setup)
 
 
+def step_dir(base: Path, index: int, step: Step) -> Path:
+    """Where one step's transcript/outputs/repo snapshot live (index is 1-based)."""
+    return base / STEPS_DIR / f"{index}-{step.id}"
+
+
+def snapshot_base_repo(base: Path) -> None:
+    """Capture the seeded repo once, so each step can be reset to it."""
+    snapshot = base / BASE_SNAPSHOT_DIR
+    if not snapshot.exists():
+        shutil.copytree(base / "repo", snapshot)
+
+
+def reset_working_repo(base: Path) -> None:
+    """Independent prompts: restore the seeded repo before a step runs.
+
+    Steps in a scenario do not carry state - the shared repo is wiped back to
+    the pristine snapshot so prompt k+1 never sees prompt k's edits.
+    """
+    snapshot = base / BASE_SNAPSHOT_DIR
+    if not snapshot.is_dir():
+        return
+    repo = base / "repo"
+    if repo.exists():
+        shutil.rmtree(repo)
+    shutil.copytree(snapshot, repo)
+
+
 def select_configs(value: str) -> tuple[str, ...]:
     if value == "all":
         return CONFIGS
@@ -379,6 +502,8 @@ def init_run(
                 "configs": [canonical_config(c) for c in configs],
                 "setup": setups,
                 "prompt": case.prompt,
+                "steps": [step.id for step in case.steps],
+                "multi_step": not case.legacy,
                 "created_at": iso_now(),
                 "setup_notes": notes,
             },
@@ -484,35 +609,11 @@ def describe_artifact(artifact: str) -> str:
     return f"{where} does not contain {text!r}{location}"
 
 
-def check_config(case: Case, run: Path, config: str = ROOT_CONFIG) -> dict:
-    """Grade one config; write result.json + skill-creator grading.json."""
-    base = config_path(run, config)
-    checks = []
-    for artifact in case.expected_artifacts:
-        ok, detail = check_artifact(base, artifact)
-        checks.append(
-            {
-                "artifact": artifact,
-                "description": case.assertion_labels.get(artifact)
-                or describe_artifact(artifact),
-                "passed": ok,
-                "detail": detail,
-            }
-        )
+def _grading(checks: list[dict]) -> dict:
+    """The skill-creator grading.json shape for a list of artifact checks."""
     total = len(checks)
     passed_count = sum(1 for item in checks if item["passed"])
-    passed = bool(checks) and passed_count == total
-    result = {
-        "case": case.name,
-        "config": config,
-        "passed": passed,
-        "checks": checks,
-        "checked_at": iso_now(),
-    }
-    (base / "result.json").write_text(
-        json.dumps(result, indent=2) + "\n", encoding="utf-8"
-    )
-    grading = {
+    return {
         "expectations": [
             {
                 "text": item["description"],
@@ -528,8 +629,91 @@ def check_config(case: Case, run: Path, config: str = ROOT_CONFIG) -> dict:
             "total": total,
         },
     }
+
+
+def _step_checks(case: Case, out: Path, step: Step) -> list[dict]:
+    checks = []
+    for artifact in step.expected_artifacts:
+        ok, detail = check_artifact(out, artifact)
+        checks.append(
+            {
+                "artifact": artifact,
+                "description": case.assertion_labels.get(artifact)
+                or describe_artifact(artifact),
+                "passed": ok,
+                "detail": detail,
+            }
+        )
+    return checks
+
+
+def check_config_steps(case: Case, run: Path, config: str) -> dict:
+    """Grade every step of a multi-step scenario; aggregate at the config root.
+
+    Each step dir is shaped like a run dir (`repo/` + `transcript.md`), so the
+    existing artifact DSL applies unchanged. Per-step `result.json` /
+    `grading.json` are written, plus a config-level aggregate the review uses.
+    """
+    base = config_path(run, config)
+    step_results: list[dict] = []
+    aggregate: list[dict] = []
+    for index, step in enumerate(case.steps, start=1):
+        out = step_dir(base, index, step)
+        out.mkdir(parents=True, exist_ok=True)
+        checks = _step_checks(case, out, step)
+        step_passed = bool(checks) and all(item["passed"] for item in checks)
+        step_results.append(
+            {
+                "case": case.name,
+                "step": step.id,
+                "config": config,
+                "passed": step_passed,
+                "checks": checks,
+                "checked_at": iso_now(),
+            }
+        )
+        (out / "result.json").write_text(
+            json.dumps(step_results[-1], indent=2) + "\n", encoding="utf-8"
+        )
+        (out / "grading.json").write_text(
+            json.dumps(_grading(checks), indent=2) + "\n", encoding="utf-8"
+        )
+        aggregate.extend(checks)
+    result = {
+        "case": case.name,
+        "config": config,
+        "passed": bool(aggregate) and all(item["passed"] for item in aggregate),
+        "steps": step_results,
+        "checks": aggregate,
+        "checked_at": iso_now(),
+    }
+    (base / "result.json").write_text(
+        json.dumps(result, indent=2) + "\n", encoding="utf-8"
+    )
     (base / "grading.json").write_text(
-        json.dumps(grading, indent=2) + "\n", encoding="utf-8"
+        json.dumps(_grading(aggregate), indent=2) + "\n", encoding="utf-8"
+    )
+    return result
+
+
+def check_config(case: Case, run: Path, config: str = ROOT_CONFIG) -> dict:
+    """Grade one config; write result.json + skill-creator grading.json."""
+    if not case.legacy:
+        return check_config_steps(case, run, config)
+    base = config_path(run, config)
+    checks = _step_checks(case, base, case_steps(case)[0])
+    result = {
+        "case": case.name,
+        "config": config,
+        "passed": bool(checks) and all(item["passed"] for item in checks),
+        "checks": checks,
+        "checked_at": iso_now(),
+    }
+    (base / "result.json").write_text(
+        json.dumps(result, indent=2) + "\n", encoding="utf-8"
+    )
+    (base / "grading.json").write_text(
+        json.dumps(_grading(checks), indent=2) + "\n", encoding="utf-8"
     )
     return result
 
@@ -537,6 +721,21 @@ def check_config(case: Case, run: Path, config: str = ROOT_CONFIG) -> dict:
 def check_run(case: Case, run: Path) -> dict:
     """Backwards-compatible: grade the with_skill config at the run root."""
     return check_config(case, run, ROOT_CONFIG)
+
+
+def case_steps(case: Case) -> list[Step]:
+    """The case's steps. A flat Case built directly (tests) has none, so one
+    implicit step is synthesized from its flat fields."""
+    if case.steps:
+        return case.steps
+    return [
+        Step(
+            id=case.name,
+            prompt=case.prompt,
+            expectations=case.expectations,
+            expected_artifacts=case.expected_artifacts,
+        )
+    ]
 
 
 def skills_under_test(case: Case) -> list[str]:
@@ -685,11 +884,37 @@ def render_review(
     return html
 
 
+def review_units(case: Case, config: str, base: Path) -> list[tuple[Case, str, Path]]:
+    """Expand a config into review pages: one per step for a scenario.
+
+    A multi-step case becomes one pseudo-case per step (`<case>#<step>`) whose
+    graded dir is the step dir, so `render_review` shows one page per prompt
+    with the configs side by side and keeps the Benchmark aggregation.
+    """
+    if case.legacy:
+        return [(case, config, base)]
+    units: list[tuple[Case, str, Path]] = []
+    for index, step in enumerate(case.steps, start=1):
+        unit = Case(
+            name=f"{case.name}#{step.id}",
+            profile=case.profile,
+            prompt=step.prompt,
+            expectations=step.expectations,
+            expected_artifacts=step.expected_artifacts,
+            assertion_labels=case.assertion_labels,
+            layer=case.layer,
+            steps=[step],
+            legacy=True,
+        )
+        units.append((unit, config, step_dir(base, index, step)))
+    return units
+
+
 def build_review(case: Case, run: Path) -> Path | None:
     """Review for one case: every config present in its run directory."""
-    entries = [
-        (case, config, config_path(run, config)) for config in existing_configs(run)
-    ]
+    entries: list[tuple[Case, str, Path]] = []
+    for config in existing_configs(run):
+        entries.extend(review_units(case, config, config_path(run, config)))
     return render_review(
         entries,
         run,
@@ -772,6 +997,7 @@ def drive_opencode(
     model: str | None,
     agent: str = "build",
     config: str = ROOT_CONFIG,
+    capture_dir: Path | None = None,
 ) -> int:
     exe = shutil.which("opencode")
     if not exe:
@@ -785,6 +1011,8 @@ def drive_opencode(
         # AGENTS.md workflow. Behavior cases must run the build agent.
         cmd += ["--agent", agent]
     base = config_path(run, config)
+    out = Path(capture_dir) if capture_dir is not None else base
+    out.mkdir(parents=True, exist_ok=True)
     started = time.time()
     try:
         proc = subprocess.run(
@@ -801,11 +1029,53 @@ def drive_opencode(
         print(f"error: opencode timed out after {timeout}s", file=sys.stderr)
         return 1
     transcript = "# transcript\n\n" + (proc.stdout or "") + "\n" + (proc.stderr or "")
-    (base / "transcript.md").write_text(transcript, encoding="utf-8")
-    (base / "opencode.stderr.txt").write_text(proc.stderr or "", encoding="utf-8")
-    write_answer(base, proc.stdout or "")
+    (out / "transcript.md").write_text(transcript, encoding="utf-8")
+    (out / "opencode.stderr.txt").write_text(proc.stderr or "", encoding="utf-8")
+    write_answer(out, proc.stdout or "")
     print(f"opencode exit: {proc.returncode} ({round(time.time() - started, 1)}s)")
     return 0 if proc.returncode == 0 else 1
+
+
+def run_config(
+    run: Path,
+    case: Case,
+    config: str,
+    timeout: int,
+    model: str | None,
+    agent: str = "build",
+) -> int:
+    """Drive every step of `case` for one config; return 0 when all succeed.
+
+    Legacy cases are a single implicit step captured at the config root. A
+    multi-step scenario runs each prompt against a freshly reset copy of the
+    shared repo, captures the step's transcript/outputs, and snapshots the repo
+    it left, so each step grades independently.
+    """
+    if case.legacy:
+        return drive_opencode(
+            run, case_steps(case)[0].prompt, timeout, model, agent, config
+        )
+    base = config_path(run, config)
+    snapshot_base_repo(base)
+    total = len(case.steps)
+    rc = 0
+    for index, step in enumerate(case.steps, start=1):
+        reset_working_repo(base)
+        out = step_dir(base, index, step)
+        out.mkdir(parents=True, exist_ok=True)
+        print(f"  step {index}/{total}: {step.id}")
+        if (
+            drive_opencode(
+                run, step.prompt, timeout, model, agent, config, capture_dir=out
+            )
+            != 0
+        ):
+            rc = 1
+        snapshot = out / "repo"
+        if snapshot.exists():
+            shutil.rmtree(snapshot)
+        shutil.copytree(base / "repo", snapshot)
+    return rc
 
 
 def cmd_list(fixtures_root: Path, skill: str | None = None) -> int:
@@ -857,12 +1127,7 @@ def cmd_run(args: argparse.Namespace, fixtures_root: Path) -> int:
     rc = 0
     for config in configs:
         print(f"running config: {config}")
-        if (
-            drive_opencode(
-                target, case.prompt, args.timeout, args.model, args.agent, config
-            )
-            != 0
-        ):
+        if run_config(target, case, config, args.timeout, args.model, args.agent) != 0:
             rc = 1
     print(
         f"next: python tools/behavior_eval.py check --case {case.name} "
@@ -947,16 +1212,11 @@ def cmd_batch(args: argparse.Namespace, fixtures_root: Path) -> int:
         )
         for config in configs:
             print(f"running: {case.name} [{config}]")
-            if (
-                drive_opencode(
-                    run, case.prompt, args.timeout, args.model, args.agent, config
-                )
-                != 0
-            ):
+            if run_config(run, case, config, args.timeout, args.model, args.agent) != 0:
                 rc = 1
         for config in configs:
             result = check_config(case, run, config)
-            entries.append((case, config, config_path(run, config)))
+            entries.extend(review_units(case, config, config_path(run, config)))
             mark = "PASS" if result["passed"] else "FAIL"
             print(f"{mark} {case.name} [{config}]")
 

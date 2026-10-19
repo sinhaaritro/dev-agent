@@ -15,7 +15,7 @@ Dev Agent is a drop-in configuration framework for AI coding assistants. It turn
 This repository **is the framework's source**, not a project that uses it:
 
 - **`skills/` is the product.** Each folder is an installable skill; `dev-agent` bundles the shared runtime and installer, while the other six are thin wrappers (`SKILL.md` + `references/`) that call the runtime by subcommand. Users install them with `npx skills add`. Only `skills/` ships.
-- **`.agents/` is this repo's own workspace.** It holds the gateway rulebook, a derived mirror of the skills, and repo-only tooling. It never ships.
+- **`.agents/` is this repo's own workspace.** It holds only repo-only tooling skills (`author-skill`, the vendored `skill-creator`). It never ships, and the repo does **not** run the framework on itself.
 - **`specs/` is what to build.** Each spec group is a plan with a single `Status:` lifecycle, its task files, approvals, report, and escalation.
 - **`docs/` is what is + why we chose.** One topic doc per subsystem (this folder).
 
@@ -70,20 +70,17 @@ The one rule that makes the whole thing work: **mechanics live in engines, not j
 | Path | What it is | Ships? |
 | :--- | :--- | :--- |
 | `skills/` | The product: composable skills users install | **Yes** |
-| `.agents/rules/dev-agent-framework.md` | The framework's own behavioral contract, loaded every session | No |
-| `.agents/skills/` | Derived mirror of `skills/` (stamped internal) + repo-only tools | No |
-| `.agents/scripts/devagent/` | This repo's installed shared runtime (mirrored from `skills/dev-agent/runtime/devagent/`) | No |
-| `.agents/MAP.md` | Generated skill index | No (generated) |
+| `.agents/skills/` | Repo-only tooling skills (`author-skill`, vendored `skill-creator`) | No |
 | `specs/` | What to build: approved specs + task files + reports | No |
 | `docs/` | What is + why we chose (this folder) | No |
-| `tools/` | Maintainer engines (`promote.py`, evals) | No |
+| `tools/` | Maintainer engines (`behavior_eval.py`, `skill_eval.py`, `suite_report.py`) | No |
 
 ## How to make a change in this repo
 
 Because this repo *is* the framework, the normal rules are inverted: you are a **maintainer**, not a consumer.
 
-1. **Changing a skill?** Edit it only under `skills/<name>/` (never the derived `.agents/skills/`). Use the `author-skill` skill, then run `python tools/promote.py` to regenerate the mirror.
-2. **Changing a contract?** Update the rulebook and the skill that owns the behavior **together**, then run the canonical commands from `AGENTS.md` (`compileall`, `unittest`, `ruff check`, `promote --check`).
+1. **Changing a skill?** Edit it only under `skills/<name>/` (there is no derived copy). Use the `author-skill` skill, then verify with the repo's own commands (`compileall`, `unittest`, `ruff check`, `suite_report`).
+2. **Changing a contract?** Update the rulebook and the skill that owns the behavior **together**, then run the canonical commands from `AGENTS.md` (`compileall`, `unittest`, `ruff check`, `suite_report`).
 3. **Changing knowledge?** Edit the topic doc's `## Current State`; if you are reversing a decision, append a new `<TOPIC>-D<nn>` entry with `Supersedes:` through `python .agents/scripts/devagent/main.py spec topic` (never delete history).
 4. **Adding a doc?** Add a flat `docs/<name>.md` topic doc (no numeric prefix), then run `python .agents/scripts/devagent/main.py map sync-docs`.
 

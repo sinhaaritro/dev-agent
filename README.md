@@ -91,8 +91,6 @@ This repo *is* the framework source. The **product** is `skills/` — that is wh
 dev-agent/
 ├── AGENTS.md                   # Maintainer briefing (entry point)
 ├── skills.sh.json              # skills.sh catalog groupings
-├── .cursorrules                # Cursor IDE → points to .agents/rules/dev-agent-framework.md
-├── .windsurfrules              # Windsurf IDE → points to .agents/rules/dev-agent-framework.md
 ├── skills/                     # PRODUCT — installable skills (this is what ships)
 │   ├── dev-agent/              #   installer + shared runtime (rulebook, coder contract, .agents/scripts/devagent/)
 │   ├── auto-router/            #   lane triage + skill recall (always on)
@@ -102,17 +100,17 @@ dev-agent/
 │   ├── task-cleaner/           #   purges the scratchpad on acceptance
 │   └── verification-runner/    #   test execution, retries, circuit breaker
 ├── tools/                      # Maintainer engines (never shipped)
-│   └── promote.py              #   mirrors skills/ down into .agents/skills/
+│   ├── behavior_eval.py        #   prompt-level behavior cases (real install + OpenCode)
+│   ├── skill_eval.py           #   skill-creator golden evals
+│   └── suite_report.py         #   unit-suite drift report vs baseline
 ├── .agents/                    # Repo workspace — NEVER shipped
-│   ├── rules/dev-agent-framework.md         #   Gateway rulebook — loaded on every session
-│   ├── agents/coder.md         #   coder subagent contract
-│   └── skills/                 #   derived mirror (internal) + repo-only tools
+│   └── skills/                 #   repo-only tooling (author-skill) + vendored skill-creator (internal)
 ├── specs/                      # What to build — spec groups with a lifecycle (NNN-SPEC + NNN-TASK + approvals + report)
 │   └── temp/                   #   ephemeral draft-stage scratchpad (gitignored)
 └── docs/                       # What is + why we chose — topic docs (Current State + Decision Log), README guide, generated index
 ```
 
-Only the `dev-agent` skill carries code: it bundles the shared stdlib-only runtime and the installer. The other six are thin wrappers — a `SKILL.md` (what it does, when to use it) plus optional `references/` — that invoke the runtime at `.agents/scripts/devagent/main.py`. Only `skills/` ships — the skills CLI also scans `.agents/skills/`, so every copy there carries `metadata.internal: true` and stays hidden from users. `MAP.md` is generated locally at session start and never committed.
+Only the `dev-agent` skill carries code: it bundles the shared stdlib-only runtime and the installer. The other six are thin wrappers — a `SKILL.md` (what it does, when to use it) plus optional `references/` — that invoke the runtime at `.agents/scripts/devagent/main.py`. Only `skills/` ships. This repo does **not** run the framework on itself: there is no dogfood mirror, no in-repo runtime, and no gateway rulebook, so `.agents/skills/` holds only repo-only tooling (`author-skill`, vendored `skill-creator`), each stamped `metadata.internal: true` to stay hidden from users.
 
 ---
 
@@ -152,13 +150,13 @@ If pip is older than 25.1 (no `--group` support), install the pinned tool direct
 Canonical commands (from the repo root):
 
 ```bash
-python -m compileall -q .agents skills tools tests   # Build
-python -m unittest discover -s tests -v              # Test
-python -m ruff check skills tools tests              # Lint
-python tools/promote.py --check                      # Skill mirror guard
+python -m compileall -q skills tools tests   # Build
+python -m unittest discover -s tests -v      # Test
+python -m ruff check skills tools tests      # Lint
+python tools/suite_report.py                 # Suite drift report
 ```
 
-`pyproject.toml` holds the Ruff policy (target Python 3.10). `.agents/skills/` is excluded from lint because it is the derived mirror and contains the vendored `skill-creator`.
+`pyproject.toml` holds the Ruff policy (target Python 3.10). `.agents/skills/` is excluded from lint because it holds the vendored `skill-creator`.
 
 ---
 

@@ -2,8 +2,9 @@
 
 The skills CLI discovers BOTH `skills/` and `.agents/skills/`. So every
 `SKILL.md` under `.agents/skills/` must carry `metadata.internal: true`, or that
-skill would be offered to users. This test is the cheap, deterministic guard
-that makes the mirror safe even if a future skill is added without the flag.
+skill would be offered to users. Those folders are repo-only tooling
+(`author-skill`, vendored `skill-creator`) - the framework's own dogfood mirror
+was removed, so this guards the tools that remain.
 """
 
 import unittest
@@ -31,7 +32,11 @@ class NoLeakTest(unittest.TestCase):
 
     def test_workspace_is_nonempty(self):
         # A silently empty/renamed workspace would make the check above vacuous.
-        skills = [d for d in WORK_SKILLS.iterdir() if (d / "SKILL.md").is_file()] if WORK_SKILLS.is_dir() else []
+        skills = (
+            [d for d in WORK_SKILLS.iterdir() if (d / "SKILL.md").is_file()]
+            if WORK_SKILLS.is_dir()
+            else []
+        )
         self.assertGreater(len(skills), 0, "no skills found under .agents/skills/")
 
 

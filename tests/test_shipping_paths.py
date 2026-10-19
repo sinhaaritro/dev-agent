@@ -37,7 +37,7 @@ FORBIDDEN = (
         "framework topic doc",
     ),
     (
-        re.compile(r"tools/(?:promote|skill_eval|behavior_eval|suite_report)\.py"),
+        re.compile(r"tools/(?:skill_eval|behavior_eval|suite_report)\.py"),
         "maintainer engine",
     ),
 )
@@ -105,7 +105,7 @@ class ShippingPathsTest(unittest.TestCase):
         cases = {
             "The why lives in `docs/flow.md`.": "framework topic doc",
             "see docs/routing.md": "framework topic doc",
-            "run tools/promote.py": "maintainer engine",
+            "run tools/behavior_eval.py": "maintainer engine",
         }
         for line, label in cases.items():
             hits = find_violations(line)

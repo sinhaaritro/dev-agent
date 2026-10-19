@@ -33,14 +33,25 @@ class CaseCatalogTest(unittest.TestCase):
     def test_every_case_loads_and_is_well_formed(self):
         names = behavior_eval.list_cases(FIXTURES)
         self.assertTrue(names, "no behavior cases found")
-        self.assertEqual(len(names), 39, "case count drifted from the test plan")
+        self.assertEqual(len(names), 22, "case count drifted from the test plan")
         for name in names:
             case = behavior_eval.Case.load(FIXTURES, name)
             self.assertEqual(case.name, name)
             self.assertEqual(case.layer, "behavior")
-            self.assertTrue(case.prompt.strip(), name)
-            self.assertTrue(case.expectations, f"{name}: needs expectations")
-            self.assertTrue(case.expected_artifacts, f"{name}: needs artifacts")
+            self.assertTrue(case.steps, f"{name}: needs at least one step")
+            for step in case.steps:
+                self.assertTrue(step.id, f"{name}: step needs an id")
+                self.assertTrue(
+                    step.prompt.strip(), f"{name}[{step.id}]: needs a prompt"
+                )
+                self.assertTrue(
+                    step.expectations, f"{name}[{step.id}]: needs expectations"
+                )
+                self.assertTrue(
+                    step.expected_artifacts, f"{name}[{step.id}]: needs artifacts"
+                )
+                for artifact in step.expected_artifacts:
+                    behavior_eval.parse_artifact(artifact)  # raises on malformed specs
             profile = FIXTURES / "profiles" / case.profile / "repo"
             self.assertTrue(profile.is_dir(), f"{name}: missing profile {case.profile}")
             for step in case.setup:
@@ -48,8 +59,6 @@ class CaseCatalogTest(unittest.TestCase):
                     step == "bootstrap" or step == "map" or step.startswith("skills:"),
                     f"{name}: unknown setup step {step!r}",
                 )
-            for artifact in case.expected_artifacts:
-                behavior_eval.parse_artifact(artifact)  # raises on malformed specs
 
     def test_case_names_are_unique(self):
         names = behavior_eval.list_cases(FIXTURES)
@@ -67,6 +76,161 @@ class CaseCatalogTest(unittest.TestCase):
                         )
 
 
+class MultiStepTest(unittest.TestCase):
+    """A scenario: one repo per config, M independent prompts, N checks each."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.workspace = Path(self._tmp.name)
+
+    def scenario(self):
+        return behavior_eval.Case(
+            name="scene",
+            profile="bootstrapped-node",
+            setup=[],
+            steps=[
+                behavior_eval.Step(
+                    id="one",
+                    prompt="first",
+                    expectations=["e1"],
+                    expected_artifacts=["contains:run:transcript.md:alpha"],
+                ),
+                behavior_eval.Step(
+                    id="two",
+                    prompt="second",
+                    expectations=["e2"],
+                    expected_artifacts=["exists:repo:src/new.js"],
+                ),
+            ],
+            legacy=False,
+        )
+
+    def load_case(self, data):
+        fixtures = self.workspace / "fixtures"
+        write(fixtures / "cases" / "x" / "case.json", json.dumps(data))
+        return behavior_eval.Case.load(fixtures, "x")
+
+    def test_flat_case_normalizes_to_one_legacy_step(self):
+        legacy = behavior_eval.Case.load(FIXTURES, "b2-1-four-lanes")
+        self.assertTrue(legacy.legacy)
+        self.assertEqual(len(legacy.steps), 1)
+        self.assertEqual(legacy.steps[0].prompt, legacy.prompt)
+
+    def test_scenario_loads_steps_without_legacy_layout(self):
+        scenario = behavior_eval.Case.load(FIXTURES, "b2-lane-triage")
+        self.assertFalse(scenario.legacy)
+        self.assertEqual(len(scenario.steps), 5)
+        self.assertEqual(scenario.steps[0].id, "surface-outranks-count")
+        self.assertTrue(all(step.expected_artifacts for step in scenario.steps))
+
+    def test_prompt_and_steps_together_are_rejected(self):
+        with self.assertRaises(SystemExit):
+            self.load_case(
+                {
+                    "name": "x",
+                    "profile": "bootstrapped-node",
+                    "prompt": "flat",
+                    "steps": [
+                        {
+                            "id": "a",
+                            "prompt": "p",
+                            "expected_artifacts": ["exists:repo:x"],
+                        }
+                    ],
+                }
+            )
+
+    def test_step_without_artifacts_is_rejected(self):
+        with self.assertRaises(SystemExit):
+            self.load_case(
+                {
+                    "name": "x",
+                    "profile": "bootstrapped-node",
+                    "steps": [{"id": "a", "prompt": "p"}],
+                }
+            )
+
+    def test_duplicate_step_ids_are_rejected(self):
+        with self.assertRaises(SystemExit):
+            self.load_case(
+                {
+                    "name": "x",
+                    "profile": "bootstrapped-node",
+                    "steps": [
+                        {
+                            "id": "a",
+                            "prompt": "p",
+                            "expected_artifacts": ["exists:repo:x"],
+                        },
+                        {
+                            "id": "a",
+                            "prompt": "q",
+                            "expected_artifacts": ["exists:repo:y"],
+                        },
+                    ],
+                }
+            )
+
+    def test_check_config_grades_each_step(self):
+        case = self.scenario()
+        run = self.workspace / "run"
+        (run / "repo").mkdir(parents=True)
+        write(run / "steps" / "1-one" / "transcript.md", "alpha\n")
+        write(run / "steps" / "1-one" / "repo" / "keep.txt", "x\n")
+        write(run / "steps" / "2-two" / "transcript.md", "beta\n")
+        write(run / "steps" / "2-two" / "repo" / "src" / "new.js", "x\n")
+
+        result = behavior_eval.check_config(case, run, "new_skill")
+        self.assertTrue(result["passed"])
+        self.assertEqual(len(result["steps"]), 2)
+        self.assertTrue((run / "result.json").is_file())
+        self.assertTrue((run / "steps" / "1-one" / "result.json").is_file())
+        self.assertTrue((run / "steps" / "1-one" / "grading.json").is_file())
+        self.assertTrue((run / "steps" / "2-two" / "grading.json").is_file())
+
+    def test_a_failing_step_fails_the_config(self):
+        case = self.scenario()
+        run = self.workspace / "run"
+        (run / "repo").mkdir(parents=True)
+        write(run / "steps" / "1-one" / "transcript.md", "alpha\n")
+        write(run / "steps" / "1-one" / "repo" / "keep.txt", "x\n")
+        write(run / "steps" / "2-two" / "transcript.md", "beta\n")
+        write(run / "steps" / "2-two" / "repo" / "other.txt", "x\n")  # no src/new.js
+
+        result = behavior_eval.check_config(case, run, "new_skill")
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["steps"][1]["passed"])
+
+    def test_review_units_expand_to_one_page_per_step(self):
+        case = behavior_eval.Case.load(FIXTURES, "b2-lane-triage")
+        base = self.workspace / "cfg"
+        units = behavior_eval.review_units(case, "new_skill", base)
+        self.assertEqual(
+            [unit[0].name for unit in units],
+            [f"b2-lane-triage#{s.id}" for s in case.steps],
+        )
+        self.assertEqual(units[0][2], base / "steps" / "1-surface-outranks-count")
+        self.assertEqual(units[0][0].prompt, case.steps[0].prompt)
+
+    def test_legacy_review_units_are_single(self):
+        case = behavior_eval.Case.load(FIXTURES, "b2-1-four-lanes")
+        base = self.workspace / "cfg"
+        units = behavior_eval.review_units(case, "new_skill", base)
+        self.assertEqual(len(units), 1)
+        self.assertEqual(units[0][0].name, "b2-1-four-lanes")
+        self.assertEqual(units[0][2], base)
+
+    def test_reset_restores_the_pristine_repo(self):
+        base = self.workspace / "cfg"
+        write(base / "repo" / "keep.txt", "pristine\n")
+        behavior_eval.snapshot_base_repo(base)
+        write(base / "repo" / "junk.txt", "left behind\n")
+        behavior_eval.reset_working_repo(base)
+        self.assertTrue((base / "repo" / "keep.txt").is_file())
+        self.assertFalse((base / "repo" / "junk.txt").exists())
+
+
 class InitRunTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -80,12 +244,17 @@ class InitRunTest(unittest.TestCase):
         repo = run / "repo"
         self.assertTrue((repo / "package.json").is_file())  # profile seeded
         self.assertTrue((repo / "AGENTS.md").is_file())  # bootstrap ran
-        self.assertTrue((repo / ".agents" / "rules" / "dev-agent-framework.md").is_file())
+        self.assertTrue(
+            (repo / ".agents" / "rules" / "dev-agent-framework.md").is_file()
+        )
         self.assertTrue(
             (repo / ".agents" / "skills" / "auto-router" / "SKILL.md").is_file()
         )
         self.assertTrue(
-            any(note.endswith("bootstrap: installed AGENTS.md + .agents/rules/") for note in notes),
+            any(
+                note.endswith("bootstrap: installed AGENTS.md + .agents/rules/")
+                for note in notes
+            ),
             notes,
         )
 
@@ -156,7 +325,9 @@ class ArtifactDslTest(unittest.TestCase):
         self.assertTrue(ok)
 
     def test_contains_and_not_contains(self):
-        ok, _ = behavior_eval.check_artifact(self.run, "contains:run:transcript.md:[STATUS:")
+        ok, _ = behavior_eval.check_artifact(
+            self.run, "contains:run:transcript.md:[STATUS:"
+        )
         self.assertTrue(ok)
         ok, _ = behavior_eval.check_artifact(
             self.run, "not-contains:repo:docs/flow.md:specs/"
@@ -175,7 +346,12 @@ class ArtifactDslTest(unittest.TestCase):
         self.assertIn("file not found", detail)
 
     def test_malformed_artifacts_raise(self):
-        for bad in ("nope:repo:x", "exists:", "contains:repo:docs/flow.md", "exists:repo:"):
+        for bad in (
+            "nope:repo:x",
+            "exists:",
+            "contains:repo:docs/flow.md",
+            "exists:repo:",
+        ):
             with self.assertRaises(ValueError, msg=bad):
                 behavior_eval.parse_artifact(bad)
 
@@ -238,9 +414,7 @@ class ArtifactDslTest(unittest.TestCase):
         mojibake = original.encode("utf-8").decode("cp1252")
         jsonl = (
             '{"type":"tool_use","part":{"text":"ignored"}}\n'
-            '{"type":"text","part":{"text":'
-            + json.dumps(mojibake)
-            + "}}\n"
+            '{"type":"text","part":{"text":' + json.dumps(mojibake) + "}}\n"
         )
         text = behavior_eval.extract_assistant_text(jsonl)
         self.assertEqual(text, original)
@@ -317,7 +491,9 @@ class ReviewAndFeedbackTest(unittest.TestCase):
         self.assertIn("Framework answer", body)
         self.assertIn("Baseline answer", body)
 
-        template = json.loads((run / "feedback-template.json").read_text(encoding="utf-8"))
+        template = json.loads(
+            (run / "feedback-template.json").read_text(encoding="utf-8")
+        )
         ids = [item["run_id"] for item in template["reviews"]]
         self.assertIn("iteration-1-eval-0-b2-1-four-lanes-new_skill-run-1", ids)
         self.assertIn("iteration-1-eval-0-b2-1-four-lanes-without_skill-run-1", ids)
@@ -335,7 +511,10 @@ class ReviewAndFeedbackTest(unittest.TestCase):
                 {
                     "status": "complete",
                     "reviews": [
-                        {"run_id": "new_skill", "feedback": "the header lane was wrong"},
+                        {
+                            "run_id": "new_skill",
+                            "feedback": "the header lane was wrong",
+                        },
                         {"run_id": "without_skill", "feedback": ""},
                     ],
                 }
@@ -344,9 +523,12 @@ class ReviewAndFeedbackTest(unittest.TestCase):
         rc = behavior_eval.main(
             [
                 "feedback",
-                "--case", case.name,
-                "--run-id", "rev",
-                "--workspace-root", str(self.workspace),
+                "--case",
+                case.name,
+                "--run-id",
+                "rev",
+                "--workspace-root",
+                str(self.workspace),
             ]
         )
         self.assertEqual(rc, 0)
@@ -359,9 +541,12 @@ class ReviewAndFeedbackTest(unittest.TestCase):
         rc = behavior_eval.main(
             [
                 "feedback",
-                "--case", case.name,
-                "--run-id", "rev",
-                "--workspace-root", str(self.workspace),
+                "--case",
+                case.name,
+                "--run-id",
+                "rev",
+                "--workspace-root",
+                str(self.workspace),
             ]
         )
         self.assertEqual(rc, 2)
@@ -399,7 +584,9 @@ class ConfigAndBaselineTest(unittest.TestCase):
 
         dest = self.workspace / "old"
         behavior_eval.materialize_old_skills(case, dest, snapshot)
-        self.assertIn("OLD AUTO-ROUTER", (dest / "auto-router" / "SKILL.md").read_text())
+        self.assertIn(
+            "OLD AUTO-ROUTER", (dest / "auto-router" / "SKILL.md").read_text()
+        )
 
     def test_init_installs_the_old_version(self):
         case = behavior_eval.Case.load(FIXTURES, "b2-1-four-lanes")
@@ -460,7 +647,9 @@ class BatchReviewTest(unittest.TestCase):
         self.assertIsNotNone(html, "review generation failed")
         self.assertTrue(html.is_file())
 
-        template = json.loads((out / "feedback-template.json").read_text(encoding="utf-8"))
+        template = json.loads(
+            (out / "feedback-template.json").read_text(encoding="utf-8")
+        )
         ids = [item["run_id"] for item in template["reviews"]]
         self.assertEqual(len(ids), 4)
         self.assertIn("iteration-1-eval-0-case-a-new_skill-run-1", ids)
@@ -484,7 +673,9 @@ class BatchReviewTest(unittest.TestCase):
             json.dumps(
                 {
                     "status": "complete",
-                    "reviews": [{"run_id": "r1", "feedback": "tighten the lane example"}],
+                    "reviews": [
+                        {"run_id": "r1", "feedback": "tighten the lane example"}
+                    ],
                 }
             ),
         )
