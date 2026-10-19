@@ -5,11 +5,13 @@ The lifecycle is one receipt — `Status:` — whose value set is owned by the e
 `AGENTS.md` carries the real Build/Test/Lint commands.
 
 Canonical statuses (single source of truth: `promote_spec.CANONICAL_STATUSES`):
-    DRAFTED, COMPILED, BUILDING, BUILT, REVIEWED, COMPLETED,
-    PLAN_REVISION_REQUIRED, REVIEW_REVISION_REQUIRED, ESCALATED, ABORTED
+    DRAFTED, APPROVED, PROVISIONAL, COMPILED, BUILDING, BUILT, REVIEWED,
+    COMPLETED, PLAN_REVISION_REQUIRED, REVIEW_REVISION_REQUIRED, ESCALATED,
+    ABORTED
 """
 
 import importlib.util
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -69,6 +71,8 @@ class CanonicalStatusSetTest(unittest.TestCase):
         """The test's status set is exactly the engine's canonical set."""
         expected = {
             "DRAFTED",
+            "APPROVED",
+            "PROVISIONAL",
             "COMPILED",
             "BUILDING",
             "BUILT",
@@ -110,6 +114,24 @@ class AgCommandsTest(unittest.TestCase):
             cwd=REPO, capture_output=True, text=True, check=False,
         )
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+
+class SpecStatusDriftTest(unittest.TestCase):
+    """C4: every committed spec carries a canonical Status: receipt."""
+
+    def test_every_spec_status_is_canonical(self):
+        specs = REPO / "specs"
+        self.assertTrue(specs.is_dir(), "no specs/ directory")
+        offenders = []
+        for path in sorted(specs.glob("*-SPEC-*.md")):
+            if "-SPEC-" not in path.name:  # Windows glob is case-insensitive
+                continue
+            m = re.search(r"(?m)^Status:\s*(\S+)", _read(path))
+            token = m.group(1) if m else ""
+            if token not in CANONICAL_STATUSES:
+                offenders.append(f"{path.name}: {token or 'MISSING'}")
+        self.assertEqual(offenders, [], f"non-canonical spec statuses: {offenders}")
+
 
 
 if __name__ == "__main__":

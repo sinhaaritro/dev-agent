@@ -71,3 +71,4 @@ You own plan drafting, spec promotion, topic decision recording, and spec compil
 - **`--specs-dir` / `--docs-dir` are for tests only** — real promotions target `specs/`, real topics target `docs/`.
 - **Drafts are ephemeral**; `task-cleaner` purges them after approval — the promoted spec and its topic decision entries are the durable record.
 - **The compiled spec closes the loop:** the task files + `NNN-APPROVALS-<slug>.json` are the durable record; the `Status: COMPILED` header stamp is the proof of the split, and `building.md` refuses to build without it.
+- **`transition` is the edge-checked status writer** — `promote_spec.py transition <spec> --to <STATUS>` for a human stop (`ABORTED`), a gate block (`PLAN_REVISION_REQUIRED` / `REVIEW_REVISION_REQUIRED`), or a manual correction; it refuses a non-canonical target or an illegal edge. `verify.py` advances `BUILDING` / `BUILT` / `REVIEWED` automatically during build/report.

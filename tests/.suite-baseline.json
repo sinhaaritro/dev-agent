@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T03:10:40Z",
+  "generated": "2026-10-19T03:40:29Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_doctor_precondition_7_accepts_compile_preapproval": "pass",
@@ -69,6 +69,7 @@
     "test_drift_phases.AgCommandsTest.test_canonical_commands_resolve": "pass",
     "test_drift_phases.CanonicalStatusSetTest.test_canonical_statuses_match_engine": "pass",
     "test_drift_phases.CanonicalStatusSetTest.test_each_canonical_status_appears_somewhere": "pass",
+    "test_drift_phases.SpecStatusDriftTest.test_every_spec_status_is_canonical": "pass",
     "test_gate_labels.GateLabelLintTest.test_blocking_label_passes": "pass",
     "test_gate_labels.GateLabelLintTest.test_empty_gates_section_still_passes": "pass",
     "test_gate_labels.GateLabelLintTest.test_gate_log_entries_are_not_decisions": "pass",
@@ -124,6 +125,11 @@
     "test_promote_spec.TestNewTemplateCheck.test_no_tasks_rejected": "pass",
     "test_promote_spec.TestNewTemplateCheck.test_noop_verify_rejected": "pass",
     "test_promote_spec.TestNewTemplateCheck.test_whole_command_expect_rejected": "pass",
+    "test_promote_spec.TestStatusTransitions.test_check_rejects_non_canonical_status": "pass",
+    "test_promote_spec.TestStatusTransitions.test_promote_writes_a_canonical_status": "pass",
+    "test_promote_spec.TestStatusTransitions.test_transition_illegal_edge_refused": "pass",
+    "test_promote_spec.TestStatusTransitions.test_transition_legal_edge": "pass",
+    "test_promote_spec.TestStatusTransitions.test_transition_non_canonical_refused": "pass",
     "test_promote_spec.TestTargetFilesPerTask.test_check_rejects_missing_target_files": "pass",
     "test_promote_spec.TestTargetFilesPerTask.test_check_rejects_overlapping_target_files": "pass",
     "test_promote_spec.TestTargetFilesPerTask.test_compile_refuses_missing_target_files": "pass",
@@ -139,6 +145,8 @@
     "test_resolve_gate.AutonomousResolveTest.test_spec_argument_targets_that_file": "pass",
     "test_resolve_gate.AutonomyDefaultTest.test_autonomy_level_read_from_agents_md": "pass",
     "test_resolve_gate.AutonomyDefaultTest.test_default_is_supervised": "pass",
+    "test_resolve_gate.GateBlockStatusTest.test_fail_closed_parks_the_target_spec": "pass",
+    "test_resolve_gate.GateBlockStatusTest.test_fail_closed_without_target_writes_only_escalation": "pass",
     "test_resolve_gate.InteractiveTest.test_blocking_interactive_halts": "pass",
     "test_resolve_gate.InteractiveTest.test_session_and_lane_are_case_insensitive": "pass",
     "test_resolve_gate.NonBlockingTest.test_non_blocking_proceeds_in_both_sessions": "pass",
@@ -224,6 +232,10 @@
     "test_verify.ShellCommandTest.test_run_executes_command_substitution": "skip",
     "test_verify.ShellCommandTest.test_run_executes_shell_command": "pass",
     "test_verify.ShellCommandTest.test_uses_shell_detection": "pass",
+    "test_verify.StatusAdvanceTest.test_doctor_accepts_building": "pass",
+    "test_verify.StatusAdvanceTest.test_incomplete_spec_stays_building": "pass",
+    "test_verify.StatusAdvanceTest.test_report_advances_built_to_reviewed": "pass",
+    "test_verify.StatusAdvanceTest.test_single_task_pass_sets_built": "pass",
     "test_verify.StatusCommandTest.test_status_on_task_file_prints_derived": "pass",
     "test_verify.StatusCommandTest.test_status_without_evidence": "pass"
   }

@@ -289,5 +289,31 @@ class UsageTest(GateBase):
             )
 
 
+class GateBlockStatusTest(GateBase):
+    """C4: a fail-closed gate parks an explicit target for revision."""
+
+    def test_fail_closed_parks_the_target_spec(self):
+        spec = self.root / "specs" / "007-SPEC-do-things.md"
+        spec.parent.mkdir(parents=True, exist_ok=True)
+        spec.write_text("# 007\n\nStatus: COMPILED\n", encoding="utf-8")
+        code, out = self.run_gate(
+            "--gate", "blocking", "--session", "non-interactive", "--lane", "B",
+            "--autonomy", "supervised",
+            "--question", "q", "--options", "A (Recommended): x; B: y",
+            "--spec", str(spec),
+        )
+        self.assertEqual(code, 2, out)
+        self.assertIn("PLAN_REVISION_REQUIRED", spec.read_text(encoding="utf-8"))
+
+    def test_fail_closed_without_target_writes_only_escalation(self):
+        code, out = self.run_gate(
+            "--gate", "blocking", "--session", "non-interactive", "--lane", "B",
+            "--autonomy", "supervised",
+            "--question", "q", "--options", "A (Recommended): x; B: y",
+        )
+        self.assertEqual(code, 2, out)
+        self.assertTrue(self.escalation().exists())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -415,5 +415,58 @@ class EscalationRecordTest(SandboxCase):
         self.assertIn("lock", text)
 
 
+class StatusAdvanceTest(SandboxCase):
+    """C4: verify.py owns the build/review status receipts."""
+
+    def setUp(self):
+        super().setUp()
+        self.spec = _spec_file(self.tmp)
+        _task_file(self.tmp)
+
+    def _pass(self, task_id="007-Task 1"):
+        return verify.cmd_run(
+            _ns(
+                command='python -c "print(\'MARKER\')"',
+                task_id=task_id,
+                expect="MARKER",
+                lane=None,
+                timeout=60,
+                hypothesis=None,
+                options=None,
+                suggest=False,
+                state_dir=self.tmp / "specs" / "temp",
+            )
+        )
+
+    def test_single_task_pass_sets_built(self):
+        self.assertEqual(self._pass(), 0)
+        self.assertEqual(verify._status_token(self.spec), "BUILT")
+
+    def test_incomplete_spec_stays_building(self):
+        self.spec.write_text(
+            self.spec.read_text(encoding="utf-8")
+            + "\n### Task 2: more\n- Depends On: Task 1\n"
+            + '- Verify: `python -c "print(\'MARKER\')"`\n- Expect: MARKER\n',
+            encoding="utf-8",
+        )
+        self.assertEqual(self._pass(), 0)
+        self.assertEqual(verify._status_token(self.spec), "BUILDING")
+
+    def test_report_advances_built_to_reviewed(self):
+        self.assertEqual(self._pass(), 0)
+        buf = StringIO()
+        with redirect_stdout(buf):
+            verify.cmd_report(_ns(spec=self.spec))
+        self.assertEqual(verify._status_token(self.spec), "REVIEWED")
+        # the report is written after the advance, so its Status: line matches
+        report = self.tmp / "specs" / "007-REPORT-do-things.md"
+        self.assertIn("Status: REVIEWED", report.read_text(encoding="utf-8"))
+
+    def test_doctor_accepts_building(self):
+        verify._set_spec_status(self.spec, "BUILDING")
+        gaps = verify.doctor(self.spec)
+        self.assertFalse(any(g.startswith("4:") for g in gaps))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -238,6 +238,8 @@ class TestCanonicalStatuses(unittest.TestCase):
             set(promote_spec.CANONICAL_STATUSES),
             {
                 "DRAFTED",
+                "APPROVED",
+                "PROVISIONAL",
                 "COMPILED",
                 "BUILDING",
                 "BUILT",
@@ -515,6 +517,46 @@ class TestTargetFilesPerTask(unittest.TestCase):
         )
         with self.assertRaises(SystemExit):
             promote_spec.compile_spec(self.spec, self.root)
+
+
+class TestStatusTransitions(unittest.TestCase):
+    """C4: promote writes canonical receipts; `transition` enforces legal edges."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory(prefix="transition-")
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        self.spec = make_group_sandbox(self.root)  # Status: APPROVED
+
+    def test_promote_writes_a_canonical_status(self):
+        self.assertIn(promote_spec.normalize_status("APPROVED"),
+                      promote_spec.CANONICAL_STATUSES)
+        self.assertIn(promote_spec.normalize_status("PROVISIONAL").split()[0],
+                      promote_spec.CANONICAL_STATUSES)
+        token = promote_spec.status_token(self.spec.read_text(encoding="utf-8"))
+        self.assertIn(token, promote_spec.CANONICAL_STATUSES)
+
+    def test_transition_legal_edge(self):
+        promote_spec.transition_spec(self.spec, "COMPILED", self.root)
+        self.assertEqual(
+            promote_spec.status_token(self.spec.read_text(encoding="utf-8")),
+            "COMPILED",
+        )
+
+    def test_transition_illegal_edge_refused(self):
+        with self.assertRaises(SystemExit):
+            promote_spec.transition_spec(self.spec, "REVIEWED", self.root)
+
+    def test_transition_non_canonical_refused(self):
+        with self.assertRaises(SystemExit):
+            promote_spec.transition_spec(self.spec, "DONE", self.root)
+
+    def test_check_rejects_non_canonical_status(self):
+        path = write_draft(lane_b_draft().replace("Status: DRAFTED", "Status: DONE"))
+        self.addCleanup(path.unlink)
+        passed, _missing, violations = promote_spec.check_draft(path, "B")
+        self.assertFalse(passed)
+        self.assertTrue(any("canonical" in v for v in violations))
 
 
 if __name__ == "__main__":

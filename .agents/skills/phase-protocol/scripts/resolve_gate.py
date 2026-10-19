@@ -13,7 +13,10 @@ Outcomes:
     FAIL-CLOSED blocking gate in a non-interactive session under
                 `supervised`, OR any Lane-A surface gate under
                 `autonomous` (schema/auth/public-API never resolve
-                 autonomously). Writes specs/temp/escalation.md.
+                 autonomously). Writes specs/temp/escalation.md and, when
+                a spec/plan target exists, parks it for revision
+                (PLAN_REVISION_REQUIRED for a Vetting-stage block,
+                REVIEW_REVISION_REQUIRED for a Sign-off-stage block).
                 Exit 2.
     RESOLVED    blocking gate in a non-interactive session under
                 `autonomous` with no Lane-A surface: apply the
@@ -34,7 +37,7 @@ Usage:
         [--autonomy autonomous] [--lane-a-surface] [--choice A]
 
 Exit codes: 0 = proceed/resolved; 1 = halt (await human); 2 = fail-closed
-(escalation.md written).
+(escalation.md written; target spec parked for revision when one exists).
 """
 
 import argparse
@@ -195,8 +198,11 @@ def append_gate_entry(target: Path, entry: str) -> None:
 
 ACTIVE_STATUSES = (
     "DRAFTED",
+    "APPROVED",
+    "PROVISIONAL",
     "COMPILED",
     "BUILDING",
+    "BUILT",
     "REVIEWED",
     "PLAN_REVISION_REQUIRED",
 )
@@ -242,6 +248,40 @@ def write_escalation(root: Path, report: str) -> None:
     temp_dir.mkdir(parents=True, exist_ok=True)
     ensure_scratchpad_guard(root, temp_dir)
     (temp_dir / "escalation.md").write_text(report, encoding="utf-8")
+
+
+def mark_revision_required(root: Path, spec_arg: str | None) -> None:
+    """Gate owner: a blocked gate parks the plan/spec for revision.
+
+    A Vetting-stage block (the plan is not compiled yet) or a Sign-off-stage
+    block (the spec is built/reviewed) both stop the run; the target drops to
+    PLAN_REVISION_REQUIRED or REVIEW_REVISION_REQUIRED respectively. No target
+    (Lane C, or no plan yet) leaves the status untouched.
+    """
+    if spec_arg:
+        target = Path(spec_arg)
+        if not target.is_absolute():
+            target = root / target
+    else:
+        # Never guess an unrelated active spec: without --spec, only the
+        # in-flight draft can be the target of a planning-stage block.
+        target = root / "specs" / "temp" / "draft-plan.md"
+    if not target.is_file():
+        return
+    text = target.read_text(encoding="utf-8", errors="replace")
+    match = re.search(r"(?m)^Status:\s*(\S+)", text)
+    if not match:
+        return
+    current = match.group(1)
+    if current in ("DRAFTED", "APPROVED", "PROVISIONAL", "COMPILED"):
+        new = "PLAN_REVISION_REQUIRED"
+    elif current in ("BUILDING", "BUILT", "REVIEWED"):
+        new = "REVIEW_REVISION_REQUIRED"
+    else:
+        return
+    updated = re.sub(r"(?m)^(Status:\s*)\S+", r"\g<1>" + new, text, count=1)
+    target.write_text(updated, encoding="utf-8")
+    print("status: " + current + " -> " + new + " (" + target.name + ")")
 
 
 def main() -> int:
@@ -313,6 +353,7 @@ def main() -> int:
     if autonomy == "supervised" or lane_a_surface:
         report = escalation_entry(args.question, option_lines, args.lane, args.session)
         write_escalation(root, report)
+        mark_revision_required(root, args.spec)
         reason = (
             "Lane-A surface (schema/auth/public-API) - always fail closed, "
             "even under autonomous"

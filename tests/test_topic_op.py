@@ -31,7 +31,7 @@ tags: [sandbox]
 
 # [SPEC-ID]: Sandbox Feature
 
-Status: DRAFT
+Status: DRAFTED
 
 ## 1. Goal & Context
 

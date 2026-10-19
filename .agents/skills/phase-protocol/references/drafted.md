@@ -17,7 +17,7 @@ Load when a task starts (Lanes B and A; Lane C runs a single pass). **Read-only 
 ## 3. Gate every architectural decision
 
 1. For each decision point, present guided multiple-choice options with a recommended default (phase-protocol SKILL.md, step 3).
-2. **Blocking** (security, schemas, public APIs, Lane A criteria): resolve exclusively through the engine — `python .agents/skills/phase-protocol/scripts/resolve_gate.py --gate blocking --session <Interactive|Non-Interactive> --lane <lane> [--lane-a-surface] --question "<text>" --options "<A (Recommended): ...; B: ...>" [--spec <path>]`. Exit 1 = await the human; exit 2 = fail-closed (escalation.md written, stop); exit 0 = autonomous resolution applied and an entry appended under this plan's `## 6. Gates` (non-interactive only, never Lane-A surfaces).
+2. **Blocking** (security, schemas, public APIs, Lane A criteria): resolve exclusively through the engine — `python .agents/skills/phase-protocol/scripts/resolve_gate.py --gate blocking --session <Interactive|Non-Interactive> --lane <lane> [--lane-a-surface] --question "<text>" --options "<A (Recommended): ...; B: ...>" [--spec <path>]`. Exit 1 = await the human; exit 2 = fail-closed (escalation.md written; a `--spec` target is parked `PLAN_REVISION_REQUIRED` / `REVIEW_REVISION_REQUIRED`, stop); exit 0 = autonomous resolution applied and an entry appended under this plan's `## 6. Gates` (non-interactive only, never Lane-A surfaces).
 3. **Non-blocking:** state the default and proceed immediately (engine exits 0 without writing files).
 
 ## 4. Exit criteria
@@ -26,7 +26,7 @@ Load when a task starts (Lanes B and A; Lane C runs a single pass). **Read-only 
 - [ ] `draft-plan.md` written (abbreviated for B, full for A)
 - [ ] U2 authoring lint passed: every Task DAG `Verify`/`Expect` pair can fail — no no-op `Verify` (`true`/`:`/`exit 0`/bare `echo`), no empty `Expect`, no trivially-satisfied `Expect` (the whole command, or a bare `echo`/`printf`; a marker the command emits from real state is allowed), and no command that selects zero tests; `promote_spec.py check` reports no structure/oracle violations before the plan is presented
 - [ ] Blocking gates resolved or escalated (fail-closed for `supervised` non-interactive)
-- [ ] A blocking gate that cannot resolve -> `specs/temp/escalation.md` and stop
+- [ ] A blocking gate that cannot resolve -> `specs/temp/escalation.md` + the target parked for revision, then stop
 
 ## 5. Approval step (draft -> approved spec + topic decisions)
 

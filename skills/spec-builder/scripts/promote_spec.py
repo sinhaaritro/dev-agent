@@ -119,6 +119,8 @@ PROVISIONAL_STATUS = "PROVISIONAL - AUTONOMOUS DEFAULT"
 # no receipt of their own.
 CANONICAL_STATUSES = frozenset((
     "DRAFTED",
+    "APPROVED",
+    "PROVISIONAL",
     "COMPILED",
     "BUILDING",
     "BUILT",
@@ -472,8 +474,11 @@ def check_draft(draft: Path, lane: str) -> tuple[bool, list[int], list[str]]:
     found = parse_sections(text)
     missing = sorted(LANE_SECTIONS[lane] - found)
     violations = []
+    token = status_token(text)
+    if token and token not in CANONICAL_STATUSES:
+        violations.append("Status: " + repr(token) + " is not a canonical receipt")
     if 5 in found:
-        violations = _validate_tasks(_parse_tasks(_section_body(text, 5)), lane)
+        violations += _validate_tasks(_parse_tasks(_section_body(text, 5)), lane)
     if lane == "A" and 6 in found:
         violations += _validate_gate_labels(_section_body(text, 6))
     passed = not missing and not violations
@@ -951,6 +956,16 @@ def status_value(text: str) -> str:
     return match.group(1).strip() if match else ""
 
 
+def status_token(text: str) -> str:
+    """The first token of the 'Status:' value ('' when absent).
+
+    Decoration after the token (' - AUTONOMOUS DEFAULT', ' | Date: ...') is
+    not part of the lifecycle receipt.
+    """
+    value = status_value(text)
+    return value.split()[0] if value else ""
+
+
 def _folder_sort_key(folder: str, name: str) -> tuple:
     """Deterministic sort key per folder ID scheme."""
     if folder == "specs":
@@ -1264,6 +1279,52 @@ def normalize_status(status: str) -> str:
 def replace_status(text: str, status: str) -> str:
     """Replace the 'Status:' frontmatter/header value with the new one."""
     return re.sub(r"(?m)^(Status:\s*).*$", r"\g<1>" + status, text, count=1)
+
+
+# The legal edges of the single Status: lifecycle. The
+# explicit `transition` command enforces these; the automatic owners
+# (verify.py build/report, resolve_gate gate blocks) set their own edge
+# directly. DRAFTED -> APPROVED is promote; APPROVED -> COMPILED is compile.
+STATUS_EDGES = {
+    "DRAFTED": ("APPROVED", "COMPILED", "ABORTED"),
+    "APPROVED": ("COMPILED", "PLAN_REVISION_REQUIRED", "ABORTED"),
+    "PROVISIONAL": ("COMPILED", "PLAN_REVISION_REQUIRED", "ABORTED"),
+    "COMPILED": ("BUILDING", "PLAN_REVISION_REQUIRED", "ABORTED"),
+    "BUILDING": ("BUILT", "REVIEWED", "ESCALATED", "ABORTED"),
+    "BUILT": ("REVIEWED", "REVIEW_REVISION_REQUIRED", "ESCALATED", "ABORTED"),
+    "REVIEWED": ("COMPLETED", "REVIEW_REVISION_REQUIRED", "ESCALATED", "ABORTED"),
+    "PLAN_REVISION_REQUIRED": ("DRAFTED", "COMPILED", "ABORTED"),
+    "REVIEW_REVISION_REQUIRED": ("BUILDING", "BUILT", "ABORTED"),
+    "ESCALATED": ("BUILDING", "COMPILED", "DRAFTED", "ABORTED"),
+    "COMPLETED": (),
+    "ABORTED": (),
+}
+
+
+def transition_spec(spec: Path, to: str, root: Path | None = None) -> None:
+    """Move ``spec`` to the canonical status ``to``, refusing an illegal edge.
+
+    The explicit transition owner for steps with no dedicated command (a human
+    stop to ``ABORTED``, a gate block to ``PLAN_REVISION_REQUIRED`` /
+    ``REVIEW_REVISION_REQUIRED``) and for manual corrections. The build/report
+    owners (``verify.py``) set ``BUILDING`` / ``BUILT`` / ``REVIEWED`` directly.
+    """
+    target = to.upper()
+    if target not in CANONICAL_STATUSES:
+        raise SystemExit(f"error: '{target}' is not a canonical Status")
+    root = root or find_root()
+    text = read_text(spec)
+    current = status_token(text)
+    if not current:
+        raise SystemExit(f"error: {spec.name} has no 'Status:' line")
+    if current == target:
+        return
+    if target not in STATUS_EDGES.get(current, ()):
+        raise SystemExit(
+            f"error: illegal transition {current} -> {target} on {spec.name}"
+        )
+    spec.write_text(replace_status(text, target), encoding="utf-8")
+    _refresh_specs_readme(root)
 
 
 def _ref_status(text: str) -> str:
@@ -1750,6 +1811,16 @@ def cmd_accept(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_transition(args: argparse.Namespace) -> int:
+    try:
+        transition_spec(args.spec, args.to, args.root)
+    except SystemExit as e:
+        print(str(e))
+        return 1
+    print(f"transitioned: {args.spec.name} -> {args.to.upper()}")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="spec-builder check, promotion, topic decisions, compile, TOC & tag governance"
@@ -1886,6 +1957,16 @@ def main() -> int:
     accept_p.add_argument("--root", type=Path, default=None)
     accept_p.set_defaults(func=cmd_accept)
 
+    transition_p = sub.add_parser(
+        "transition", help="move a spec to a canonical Status (edge-checked)"
+    )
+    transition_p.add_argument(
+        "spec", type=Path, help="promoted spec NNN-SPEC-<slug>.md"
+    )
+    transition_p.add_argument("--to", required=True, help="target canonical Status")
+    transition_p.add_argument("--root", type=Path, default=None)
+    transition_p.set_defaults(func=cmd_transition)
+
     args = parser.parse_args()
     root_default = find_root()
     if args.command == "check" and args.root is None:
@@ -1898,7 +1979,8 @@ def main() -> int:
     if args.command == "toc" and args.root is None:
         args.root = root_default
     if args.command in ("tag-list", "tag-suggest", "tag-lint", "tag-rename",
-                        "compile", "purge", "sync", "accept", "specs-lint") and args.root is None:
+                        "compile", "purge", "sync", "accept", "transition",
+                        "specs-lint") and args.root is None:
         args.root = root_default
     if args.command == "topic" and args.docs_dir is None:
         args.docs_dir = root_default

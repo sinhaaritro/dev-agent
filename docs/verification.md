@@ -37,7 +37,7 @@ python .agents/skills/verification-runner/scripts/verify.py run \
 - `--lane` makes command approval mandatory for A/B.
 - 300s default timeout; **interactive commands are refused** (`--interactive`, `--watch`, `--live-reload`) — verification is non-interactive by design.
 - Output is the contract:
-  - `PASS (attempt N)` → the task's retry counter **resets** (evidence block written into the task file).
+  - `PASS (attempt N)` → the task's retry counter **resets** (evidence block written into the task file). On PASS the spec's build status advances: a `COMPILED` spec becomes `BUILDING` on the first pass; once **every** task is `MET` it becomes `BUILT`.
   - `FAIL (attempt N/3)` → counter incremented, verbatim failure logged.
   - **3 attempts exhausted** (exit 2) → the engine writes the consolidated escalation record and the spec parks `ESCALATED`; cease modifications on that task, leave the tree for a human (the run never reverts mid-build).
 
@@ -82,7 +82,7 @@ The per-task attempt counter is engine state — **never hand-tracked, never han
 
 ### The doctor (pre-flight)
 
-`verify.py doctor --spec <spec>` runs nine ordered preconditions, in order: (1) repo root resolved; (2) engine scripts parseable; (3) state files parseable; (4) the spec is `Status: COMPILED`; (5) a task file exists for every task in section 5; (6) `Depends On` forms a valid DAG; (7) every task's verify command is pre-approved; (8) the canonical AGENTS.md commands resolve; (9) a branch can be created off `main`. Output: `PRECONDITIONS OK` on success, else a **named list of gaps** + non-zero exit (VERIFY-D04). These preconditions are enforced for **unattended** runs; an interactive run asks the human at the moment instead of halting.
+`verify.py doctor --spec <spec>` runs nine ordered preconditions, in order: (1) repo root resolved; (2) engine scripts parseable; (3) state files parseable; (4) the spec is `Status: COMPILED` or `BUILDING`; (5) a task file exists for every task in section 5; (6) `Depends On` forms a valid DAG; (7) every task's verify command is pre-approved; (8) the canonical AGENTS.md commands resolve; (9) a branch can be created off `main`. Output: `PRECONDITIONS OK` on success, else a **named list of gaps** + non-zero exit (VERIFY-D04). These preconditions are enforced for **unattended** runs; an interactive run asks the human at the moment instead of halting.
 
 ### Fixing like a doctor, not a gambler
 
@@ -102,7 +102,7 @@ When a task exhausts its 3 attempts and no unblocked task remains:
 2. Finalize with `verify.py escalate --task <id> --hypothesis "<text>"`: it merges the stored attempt logs with the agent's hypothesis and guided remediation options into the report.
 3. The spec is parked **`ESCALATED`** (not `ABORTED`) and that spec's branch stops; the batch **continues** to the next spec. Report the hand-back in response blocks 3/4: the escalation record, the attempts' verbatim logs, the hypothesis, and the options; block 4 states the halt — no further modifications without a human.
 
-`verify.py report --spec <spec>` writes the per-spec `NNN-REPORT-<slug>.md`: the per-task derived status + evidence, the `R#` outcome observations (one line each — a missing observation **fails** review), and the review summary. Reports are **per spec only**; there is no combined batch file (VERIFY-D05).
+`verify.py report --spec <spec>` writes the per-spec `NNN-REPORT-<slug>.md`: the per-task derived status + evidence, the `R#` outcome observations (one line each — a missing observation **fails** review), and the review summary. Reports are **per spec only**; there is no combined batch file (VERIFY-D05). A green report (every task `MET`) advances the spec `BUILDING`/`BUILT` → `REVIEWED`; a Sign-off block parks it `REVIEW_REVISION_REQUIRED`.
 
 ### Guardrails context
 

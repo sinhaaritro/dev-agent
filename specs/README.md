@@ -16,6 +16,7 @@ Every spec carries `tags: [lowercase-kebab, ...]`; the promotion gate runs
 <!-- TOC:START -->
 ## Index
   - 📄 [001-SPEC-topic-based-adr.md](./001-SPEC-topic-based-adr.md) — COMPLETED
+  - 📄 [002-flow-design.md](./002-flow-design.md)
   - 📄 [002-SPEC-subagent-task-files-full-plan.md](./002-SPEC-subagent-task-files-full-plan.md) — DRAFTED | Date: 2026-09-23
   - 📄 [002-TASK-01-new-template-check.md](./002-TASK-01-new-template-check.md)
   - 📄 [002-TASK-02-compile-purge-sync-accept.md](./002-TASK-02-compile-purge-sync-accept.md)
@@ -32,8 +33,8 @@ Every spec carries `tags: [lowercase-kebab, ...]`; the promotion gate runs
   - 📄 [002-TASK-13-migrate-001-backlog.md](./002-TASK-13-migrate-001-backlog.md)
   - 📄 [002-TASK-14-drift-test-final.md](./002-TASK-14-drift-test-final.md)
   - 📄 [002-TASK-15-update-reference-docs.md](./002-TASK-15-update-reference-docs.md)
-  - 📄 [002-flow-design.md](./002-flow-design.md)
-  - 📄 [003-SPEC-stop-the-engine-from-knowing-about-docs-readme-md.md](./003-SPEC-stop-the-engine-from-knowing-about-docs-readme-md.md) — BUILDING | Date: 2026-09-27
+  - 📄 [003-REPORT-stop-the-engine-from-knowing-about-docs-readme-md.md](./003-REPORT-stop-the-engine-from-knowing-about-docs-readme-md.md) — REVIEWED
+  - 📄 [003-SPEC-stop-the-engine-from-knowing-about-docs-readme-md.md](./003-SPEC-stop-the-engine-from-knowing-about-docs-readme-md.md) — COMPLETED | Date: 2026-09-27
   - 📄 [003-TASK-01-remove-docs-readme-md-machinery-from-pro.md](./003-TASK-01-remove-docs-readme-md-machinery-from-pro.md)
   - 📄 [003-TASK-02-strip-generated-blocks-from-docs-readme-.md](./003-TASK-02-strip-generated-blocks-from-docs-readme-.md)
   - 📄 [003-TASK-03-update-skill-rules-docs.md](./003-TASK-03-update-skill-rules-docs.md)

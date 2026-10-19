@@ -14,13 +14,14 @@ A spec is a unit of planned work with a single lifecycle receipt — the `Status
 
 ### The status flow
 
-The canonical statuses are `DRAFTED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED`, with the Vetting and Sign-off gates attached to the flow. A spec travels through them, and its `Status:` reflects the stage it is in. The status boundaries are **save points**: at each one you can stop, switch session or model, and resume with no information loss — the draft (before "approve draft"), the permanent spec + task files (before "compile"), and the built diff (before "say ok").
+The canonical statuses are `DRAFTED → APPROVED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED`, with the Vetting and Sign-off gates attached to the flow. A spec travels through them, and its `Status:` reflects the stage it is in. The status boundaries are **save points**: at each one you can stop, switch session or model, and resume with no information loss — the draft (before "approve draft"), the permanent spec + task files (before "compile"), and the built diff (before "say ok").
 
 ### The `Status:` receipt set
 
-The canonical `Status:` values are: `DRAFTED`, `COMPILED`, `BUILDING`, `BUILT`, `REVIEWED`, `COMPLETED`, `PLAN_REVISION_REQUIRED`, `REVIEW_REVISION_REQUIRED`, `ESCALATED`, `ABORTED`. The engine (`promote_spec.py`) knows this set; a spec is never in two states at once.
+The canonical `Status:` values are: `DRAFTED`, `APPROVED`, `PROVISIONAL`, `COMPILED`, `BUILDING`, `BUILT`, `REVIEWED`, `COMPLETED`, `PLAN_REVISION_REQUIRED`, `REVIEW_REVISION_REQUIRED`, `ESCALATED`, `ABORTED`. The engine (`promote_spec.py`) owns this set; a spec is never in two states at once.
 
 - **`DRAFTED`** — still being authored (the drafting loop). Nothing is published; the draft self-revises until plan-readiness is green.
+- **`APPROVED`** / **`PROVISIONAL`** — the promote step wrote the spec into `specs/` (human acceptance / autonomous default). Compile reads it next; a run still starts only from `COMPILED`.
 - **`COMPILED`** — the "approve draft" gate cleared at compile. The task list has been compiled into one task file per task and the spec carries `Status: COMPILED`. This is the **only** state a run may start from — `COMPILED` is unreachable without passing the gate.
 - **`BUILDING`** / **`BUILT`** — the build in flight / all tasks `MET`.
 - **`REVIEWED`** — review is green; awaiting the commit (or a `pre-commit` stop).
@@ -34,6 +35,7 @@ The canonical `Status:` values are: `DRAFTED`, `COMPILED`, `BUILDING`, `BUILT`, 
 | Status | Lane entry | Tool posture | Exit (status) |
 | :--- | :--- | :--- | :--- |
 | **DRAFTED** (planning) | B, A (C runs a single pass; D is header-only, no lifecycle) | Read-only — no file edits | Validated draft in `specs/temp/` (`Status: DRAFTED`) |
+| **APPROVED** / **PROVISIONAL** (promoted) | B, A | Read-only | Promoted spec in `specs/` (`Status: APPROVED`, or `PROVISIONAL - AUTONOMOUS DEFAULT`); compile follows |
 | **Vetting gate** | B, A — optional, when the spec's `vetting: on` | Read-only | Vetting gate cleared on the draft (a block drops the spec to `PLAN_REVISION_REQUIRED`) |
 | **COMPILED** (compile) | B, A — mandatory after "approve draft" | Read-only | Spec compiled into one task file per task, `Status: COMPILED`, **session stops** |
 | **BUILDING** (build) | B, A — always a *new* session / explicit run, starting from the `COMPILED` spec | Edits within the spec's branch, task scope only | All task files `MET` (`Verify` + `Expect`, content-hash evidence recorded) via `verify.py`; commands pre-approved on lanes A/B → `Status: BUILT` |
@@ -155,3 +157,7 @@ Scope creep toward a higher lane stops the build: the router reclassifies and an
 ### LIFECYCLE-D02 - `ESCALATED` for failures, `ABORTED` for human stops
 - **Date:** 2026-09-27
 - **Why:** A run failure must be a visible, resumable halt (consolidated `NNN-ESCALATION`, batch continues), not a silent abort; `ABORTED` is reserved for a human deliberately stopping a spec at a gate.
+
+### LIFECYCLE-D03 - Transitions are engine-owned; promote writes a canonical receipt
+- **Date:** 2026-10-19
+- **Why:** `Status:` was declared canonical but `promote` wrote the non-canonical `APPROVED`/`PROVISIONAL`, and six statuses had no engine writer (hand-edited drift). `APPROVED`/`PROVISIONAL` joined the canonical set; `verify.py` owns `BUILDING`/`BUILT`/`REVIEWED` (build/report), `resolve_gate.py` owns `PLAN_REVISION_REQUIRED`/`REVIEW_REVISION_REQUIRED` (gate block), and `promote_spec.py transition` is the edge-checked writer for the rest; `check`/`doctor` validate canonicality and a drift test guards `specs/*-SPEC-*.md`.

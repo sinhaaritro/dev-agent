@@ -52,6 +52,11 @@ Modes:
               spec group) is stamped with the command, the pass timestamp,
               and a sha256 of every owned file at that moment.
 
+              On PASS the spec's build status advances (build owner): a
+              COMPILED spec becomes BUILDING on the first pass, and a
+              BUILDING spec whose every section-5 task is MET becomes
+              BUILT.
+
               --suggest prints the detected framework's canonical commands
               without running anything (exit 0) - the agent confirms Socratically
               before a real run.
@@ -74,7 +79,8 @@ Modes:
     doctor   verify.py doctor --spec <NNN> [--root <dir>]
               Run the 9 ordered per-spec preconditions (spec 002, section 2.6):
               repo root resolved; engine scripts importable; state files
-              parseable; the spec is Status: COMPILED; a task file
+              parseable; the spec is Status: COMPILED/BUILDING (canonical);
+              a task file
               exists for every task in section 5; Depends On forms a valid DAG;
               every verify command is pre-approved (fingerprint =
               command | expect | cwd); the canonical AGENTS.md commands
@@ -84,7 +90,8 @@ Modes:
     report   verify.py report --spec <NNN> [--root <dir>]
               Regenerate NNN-REPORT-<slug>.md: run state, per-task verify
               status (derived from each task file's evidence block), and the
-              Review re-run result. Exit 0.
+              Review re-run result. A green report (every task MET) advances
+              BUILDING/BUILT to REVIEWED (review owner). Exit 0.
 
     escalate verify.py escalate --task <id> --hypothesis "<text>"
                   --options "A (Recommended): ...; B: ..." [--state-dir <dir>]
@@ -421,15 +428,61 @@ def write_escalation(path: Path, content: str) -> Path:
     return path
 
 
-def _stamp_escalated(spec: Path) -> None:
-    """Park the spec as 'Status: ESCALATED' (preserves any trailing metadata)."""
+def _set_spec_status(spec: Path, status: str) -> None:
+    """Set the spec's 'Status:' first token (preserves trailing metadata)."""
     try:
         text = spec.read_text(encoding="utf-8-sig")
     except OSError:
         return
-    updated = re.sub(r"(?m)^(Status:\s*)\S+", r"\g<1>ESCALATED", text, count=1)
+    updated = re.sub(r"(?m)^(Status:\s*)\S+", r"\g<1>" + status, text, count=1)
     if updated != text:
         spec.write_text(updated, encoding="utf-8")
+
+
+def _status_token(path: Path) -> str:
+    """The first token of the spec's 'Status:' value ('' when absent)."""
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+    except OSError:
+        return ""
+    m = re.search(r"(?m)^Status:\s*(\S+)", text)
+    return m.group(1) if m else ""
+
+
+def spec_for_task(root: Path, task_id: str) -> Path | None:
+    """The spec file for a task id carrying a spec number ('NNN-...'), else None."""
+    m = re.match(r"^(\d{3})-", task_id or "")
+    if not m:
+        return None
+    spec = spec_path(root, int(m.group(1)))
+    return spec if spec.is_file() else None
+
+
+def _all_tasks_met(root: Path, spec: Path) -> bool:
+    """True when every section-5 task has a MET task file in the spec group."""
+    try:
+        text = spec.read_text(encoding="utf-8-sig")
+    except OSError:
+        return False
+    tasks = _section5_tasks(text)
+    if not tasks:
+        return False
+    num = int(spec.name[:3])
+    for task in tasks:
+        tf = task_file_for(root, num, f"Task {task['num']}")
+        if tf is None or status(tf) != "MET":
+            return False
+    return True
+
+
+def _advance_build_status(root: Path, spec: Path) -> None:
+    """Build owner: COMPILED -> BUILDING on the first pass; -> BUILT when all MET."""
+    token = _status_token(spec)
+    if token in ("COMPILED", "APPROVED", "PROVISIONAL"):
+        _set_spec_status(spec, "BUILDING")
+        token = "BUILDING"
+    if token in ("BUILDING", "BUILT") and _all_tasks_met(root, spec):
+        _set_spec_status(spec, "BUILT")
 
 
 SPEC_KIND = re.compile(r"^(\d{3})-SPEC-(.+)\.md$")
@@ -628,14 +681,40 @@ def _state_files_parseable(root: Path) -> tuple[bool, str]:
     return True, ""
 
 
-def _spec_compiled(path: Path) -> tuple[bool, str]:
+CANONICAL_STATUSES = frozenset((
+    "DRAFTED",
+    "APPROVED",
+    "PROVISIONAL",
+    "COMPILED",
+    "BUILDING",
+    "BUILT",
+    "REVIEWED",
+    "COMPLETED",
+    "PLAN_REVISION_REQUIRED",
+    "REVIEW_REVISION_REQUIRED",
+    "ESCALATED",
+    "ABORTED",
+))
+
+# A run starts from COMPILED and resumes from BUILDING; any other canonical
+# status (not yet compiled, review-only, terminal, or escalated) fails the gate.
+RUNNABLE_STATUSES = frozenset(("COMPILED", "BUILDING"))
+
+
+def _spec_runnable(path: Path) -> tuple[bool, str]:
+    """Precondition 4: the spec is canonical and in a runnable status."""
     try:
         text = path.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeDecodeError):
         return False, "cannot read spec"
     m = re.search(r"(?m)^Status:\s*(\S+)", text)
-    if not m or m.group(1) != "COMPILED":
-        return False, "spec Status is not COMPILED"
+    if not m:
+        return False, "spec has no 'Status:' line"
+    token = m.group(1)
+    if token not in CANONICAL_STATUSES:
+        return False, "spec Status " + repr(token) + " is not canonical"
+    if token not in RUNNABLE_STATUSES:
+        return False, "spec Status is " + token + " (a run starts from COMPILED/BUILDING)"
     return True, ""
 
 
@@ -804,7 +883,7 @@ def doctor(spec: Path) -> list[str]:
     ok, detail = _state_files_parseable(root)
     if not ok:
         gaps.append("3: state file unparseable: " + detail)
-    ok, detail = _spec_compiled(spec)
+    ok, detail = _spec_runnable(spec)
     if not ok:
         gaps.append("4: " + detail)
     text = ""
@@ -1058,6 +1137,9 @@ def cmd_run(args: argparse.Namespace) -> int:
                     evidence["files"] = files
                     _write_evidence(tf, evidence)
         write_state(args.state_dir, state)
+        spec = spec_for_task(root, args.task_id)
+        if spec is not None:
+            _advance_build_status(root, spec)
         print(f"PASS (attempt {attempt})")
         return 0
 
@@ -1078,7 +1160,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
         path = write_escalation(path, content)
         if spec is not None:
-            _stamp_escalated(spec)
+            _set_spec_status(spec, "ESCALATED")
         print(f"CIRCUIT BREAKER TRIPPED - attempt {attempt}/{MAX_ATTEMPTS}")
         print("escalation: " + str(path))
         return 2
@@ -1143,7 +1225,7 @@ def cmd_escalate(args: argparse.Namespace) -> int:
     )
     path = write_escalation(path, content)
     if spec is not None:
-        _stamp_escalated(spec)
+        _set_spec_status(spec, "ESCALATED")
     print("escalation: " + str(path))
     return 0
 
@@ -1160,6 +1242,12 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 
 def cmd_report(args: argparse.Namespace) -> int:
+    # Review owner: a green report (every task MET) moves BUILDING/BUILT ->
+    # REVIEWED. Advance before writing the report so its Status: line matches.
+    if _all_tasks_met(find_root(), args.spec):
+        token = _status_token(args.spec)
+        if token in ("BUILDING", "BUILT"):
+            _set_spec_status(args.spec, "REVIEWED")
     path = report(args.spec)
     print("report: " + str(path))
     return 0

@@ -3,7 +3,7 @@
 - **Date:** 2026-10-19
 - **Scope:** full repo — shipped skills (`skills/`), dogfood mirror (`.agents/`), engines, docs, specs, tests, maintainer tools
 - **Method:** manual read-through plus the canonical commands (see [Checks run](#checks-run))
-- **Status:** C1 has since been fixed (see C1); all other findings are unchanged.
+- **Status:** C1–C4 have since been fixed (see C1–C4); all other findings are unchanged.
 
 > These are captured here at the repo root because the request was to preserve the audit in one place. Entries that are promoted into work should move to `BACKLOG.md` (or a spec) using its five-field format.
 
@@ -13,8 +13,8 @@
 | :-- | :-- | :-- |
 | C1 | Critical | ✅ **Fixed 2026-10-19** — compile pre-approvals now use the same sha256 key as `verify.py`, and `run` honors `specs/NNN-APPROVALS-*.json` |
 | C2 | Critical | ✅ **Fixed 2026-10-19** — each compiled task file's `## Owns` now comes from its own section-5 `Target Files`; `check`/`compile` reject missing or overlapping targets |
-| C3 | Critical | Escalation record is written to ephemeral `specs/temp/`, not the promised `NNN-ESCALATION-<slug>.md` |
-| C4 | Critical | Status lifecycle is mostly hand-edited; `promote` emits non-canonical `APPROVED` |
+| C3 | Critical | ✅ **Fixed 2026-10-19** — the circuit-breaker writes the durable `NNN-ESCALATION-<slug>.md` and stamps `ESCALATED` (scratchpad only as the no-spec fallback) |
+| C4 | Critical | ✅ **Fixed 2026-10-19** — `APPROVED`/`PROVISIONAL` are canonical; build/report/gate own their transitions; `check`/`doctor` validate and a drift test guards `specs/` |
 | H1 | High | `drafted.md` Lane-A section map is stale and fails `check` |
 | H2 | High | Spec filename convention is documented three different ways; fresh `specs/README.md` is born with the wrong one |
 | H3 | High | Documented CLI invocations (`doctor/report/status --spec|--task <NNN>`) do not work; `report` writes a stray file |
@@ -157,6 +157,8 @@ The "single canonical receipt" claim (`docs/lifecycle.md:13-21`) is not enforcea
 **Suggested fix**
 
 Add explicit `transition` support (or set status as part of `report`/`escalate`/`build`) and either add `APPROVED` to the canonical set or promote straight to `COMPILED`. Add a drift test that every `specs/*-SPEC-*.md` status is canonical and matches its report.
+
+**Status: ✅ Fixed (2026-10-19).** `APPROVED` and `PROVISIONAL` joined `CANONICAL_STATUSES`; `resolve_gate.ACTIVE_STATUSES` gained both (plus `BUILT`). The missing transitions now have engine owners: `verify.py` advances `COMPILED → BUILDING` on the first PASS and `→ BUILT` once every section-5 task is `MET` (build), and a green `report` advances `BUILDING`/`BUILT` → `REVIEWED` (review); `resolve_gate.py` parks a fail-closed gate's target `PLAN_REVISION_REQUIRED` (Vetting) or `REVIEW_REVISION_REQUIRED` (Sign-off); `promote_spec.py transition <spec> --to <STATUS>` is the edge-checked writer for the rest (`ABORTED`, manual corrections), refusing a non-canonical target or an illegal edge. Enforcement: `check` rejects a non-canonical `Status:` receipt, `doctor` accepts only a canonical `COMPILED`/`BUILDING` spec, and `tests/test_drift_phases.py::SpecStatusDriftTest` asserts every `specs/*-SPEC-*.md` status is canonical. The cited `specs/README.md` drift (003 `BUILDING`) is refreshed via `promote_spec sync`. Regression tests: `tests/test_promote_spec.py::TestStatusTransitions`, `tests/test_verify.py::StatusAdvanceTest`, `tests/test_resolve_gate.py::GateBlockStatusTest`. Note: the transition semantics follow `docs/lifecycle.md`; the point-in-time `NNN-REPORT` status is not re-derived after acceptance, so a report may lag its spec's final `COMPLETED` (not enforced).
 
 ---
 
