@@ -79,7 +79,10 @@ class BootstrapBase(unittest.TestCase):
         )
 
     def setup_target(self, *extra):
-        return self.run_bootstrap("setup", "--target", str(self.target), *extra)
+        args = ["setup", "--target", str(self.target)]
+        if "--skills" not in extra:
+            args += ["--skills", "none"]  # keep subprocess tests off the network
+        return self.run_bootstrap(*args, *extra)
 
     def check_target(self):
         return self.run_bootstrap("--check", "--target", str(self.target))
@@ -245,6 +248,8 @@ class RefusalTest(BootstrapBase):
                 "setup",
                 "--target",
                 str(consumer),
+                "--skills",
+                "none",
             ],
             check=False,
             capture_output=True,
@@ -366,12 +371,15 @@ class SkillsDescriptorTest(BootstrapBase):
         self.assertEqual(
             bootstrap._resolve_skill_names("mandatory", descriptor), ["a", "b"]
         )
+        self.assertEqual(bootstrap._resolve_skill_names(None, descriptor), ["a", "b"])
         self.assertEqual(
             bootstrap._resolve_skill_names("all", descriptor), ["a", "b", "c"]
         )
+        # The flag adds optional skills; the mandatory set is always included.
         self.assertEqual(
-            bootstrap._resolve_skill_names("x, y ", descriptor), ["x", "y"]
+            bootstrap._resolve_skill_names("x, y ", descriptor), ["a", "b", "x", "y"]
         )
+        self.assertEqual(bootstrap._resolve_skill_names("none", descriptor), [])
 
     def test_missing_descriptor_is_an_error(self):
         args = argparse.Namespace(skills="mandatory", scope="project", agent=None)

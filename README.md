@@ -39,8 +39,9 @@ python <dev-agent-skill>/scripts/bootstrap.py setup --target .
 - `AGENTS.md`, `.gitignore`, `.cursorrules`, `.windsurfrules` at the repo root. An existing `AGENTS.md` is preserved: the framework's contract is appended inside `<!-- dev-agent:begin -->` … `<!-- dev-agent:end -->` markers and replaced in place on later runs. `.gitignore` only gains missing patterns.
 - `.agents/rules/dev-agent-framework.md` (the gateway rulebook) and `.agents/agents/coder.md` (the coder contract)
 - the shared runtime at `.agents/scripts/devagent/`, plus the `.agents/.devagent.json` manifest
+- the six companion skills (`auto-router`, `map-generator`, `phase-protocol`, `spec-builder`, `task-cleaner`, `verification-runner`) via `npx skills add`. This is the default: `--skills none` skips it, `--skills all` adds optional skills, and `--skills <list>` installs the mandatory set plus the listed optional ones.
 
-After that, the agent handles it: just ask it to "run dev-agent setup" and it runs the skill for you. Keep the install in sync with `setup --check` (read-only, exits 1 on drift) and `setup --update`. Every engine command then runs project-relative as `python .agents/scripts/devagent/main.py <command>`.
+After that, rebuild the skill index with `python .agents/scripts/devagent/main.py map` so routing sees the installed skills. Then the agent handles it: just ask it to "run dev-agent setup" and it runs the skill for you. Keep the install in sync with `setup --check` (read-only, exits 1 on drift) and `setup --update`. Every engine command then runs project-relative as `python .agents/scripts/devagent/main.py <command>`.
 
 ### 2. Install skills via the [skills.sh](https://skills.sh) CLI
 

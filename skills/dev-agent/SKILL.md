@@ -99,7 +99,8 @@ file, the trivial direct-fix exception).
 4. **Run setup:**
    `python <this-skill>/scripts/bootstrap.py setup --target <abs-path>`
    Options: `--scope project|global`, `--agent <name>` (recorded in the
-   manifest), `--check`, `--update`.
+   manifest), `--skills mandatory|none|all|<comma-list>` (default
+   `mandatory`), `--check`, `--update`.
 
 5. **Keep it in sync.** `python <this-skill>/scripts/bootstrap.py --check
    --target <abs-path>` is read-only and exits 1 on drift (a CI guard).
@@ -107,19 +108,23 @@ file, the trivial direct-fix exception).
    files, and rewrites the manifest. A packaged runtime **older** than the
    installed one is refused (exit 2) — a deploy can never silently downgrade.
 
-6. **Opt-in wrapper skills (`--skills`).** The other core skills are installed
-   from the skills catalog, never copied:
-   `python <this-skill>/scripts/bootstrap.py setup --target <abs-path> --skills mandatory`
-   accepts `mandatory`, `all`, or a comma list, and delegates to
-   `npx skills add <source> --skill …`. It is **opt-in and never auto-prompts**.
-   Without `npx` the runtime still installs and the manual command is printed.
-   Pass `--scope global` / `--agent <name>` to match a global install.
+6. **Companion skills (`--skills`).** The other core skills are installed from
+   the skills catalog, never copied, and **setup installs the mandatory set by
+   default**:
+   `python <this-skill>/scripts/bootstrap.py setup --target <abs-path>`
+   resolves `--skills mandatory` (default), `none` (skip), `all` (mandatory +
+   optional), or a comma list of optional skills. The mandatory set is always
+   included; the list only adds optional ones. It delegates to
+   `npx skills add <source> --skill … -y` in the target. Without `npx` the
+   runtime still installs and the manual command is printed. Pass
+   `--scope global` / `--agent <name>` to match a global install.
 
 7. **Post-install.** The target now has the gateway rulebook, the coder
-   contract, and the runtime. Next: run commands via
-   `python .agents/scripts/devagent/main.py <command>`; add that exact prefix to
-   the harness's always-allow execution list. If the target should also get the
-   other core skills, run step 6.
+   contract, the runtime, and (by default) the six companion skills. Next: run
+   commands via `python .agents/scripts/devagent/main.py <command>`; add that
+   exact prefix to the harness's always-allow execution list. Rebuild the skill
+   index with `python .agents/scripts/devagent/main.py map` so `route` sees the
+   newly installed skills.
 
 8. **Adapter notes.** The seeded `.agents/agents/coder.md` is the *behavioral*
    contract only — harness-agnostic. Each harness adds a **thin adapter** on top:

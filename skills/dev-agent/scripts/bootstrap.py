@@ -40,6 +40,7 @@ Exit codes: 0 = success / clean; 1 = error, drift, or bad target; 2 = refused
 import argparse
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -516,8 +517,7 @@ def cmd_setup(args, skill_root: Path) -> int:
             print("unchanged: .agents/.devagent.json")
             m_same = 1
 
-    if args.skills and not args.dry_run:
-        return _install_skills(skill_root, args, target)
+    skill_names = _resolve_skill_names(args.skills, _read_descriptor(skill_root))
 
     print(
         "dev-agent setup complete: "
@@ -528,6 +528,9 @@ def cmd_setup(args, skill_root: Path) -> int:
         + str(s_same + r_same + m_same)
         + " unchanged"
     )
+
+    if skill_names and not args.dry_run:
+        return _install_skills(skill_root, args, target, skill_names)
     return 0
 
 
@@ -633,41 +636,61 @@ def _read_descriptor(skill_root: Path) -> dict:
 
 
 def _resolve_skill_names(spec: str, descriptor: dict) -> list:
+    """Resolve a `--skills` spec to names, always including the mandatory set.
+
+    Absent/`mandatory` -> mandatory only; a comma list -> mandatory plus the
+    listed extras (the flag selects optional skills); `all` -> mandatory plus
+    every optional skill; `none`/`off` -> nothing.
+    """
     mandatory = list(descriptor.get("mandatory", []))
     optional = list(descriptor.get("optional", []))
-    spec = (spec or "").strip()
-    if spec in ("mandatory", "required"):
-        return mandatory
-    if spec == "all":
-        return mandatory + optional
-    return [s.strip() for s in spec.split(",") if s.strip()]
+    spec = (spec or "mandatory").strip()
+    if spec in ("none", "off"):
+        return []
+    if spec in ("mandatory", "required", "all"):
+        return mandatory + optional if spec == "all" else mandatory
+    extra = [s.strip() for s in spec.split(",") if s.strip()]
+    return mandatory + [s for s in extra if s not in mandatory]
 
 
-def _install_skills(skill_root: Path, args, target: Path) -> int:
+def _install_skills(
+    skill_root: Path, args, target: Path, names: list | None = None
+) -> int:
     descriptor = _read_descriptor(skill_root)
     source = descriptor.get("source")
-    names = _resolve_skill_names(args.skills, descriptor)
+    if names is None:
+        names = _resolve_skill_names(args.skills, descriptor)
     if not source or not names:
         sys.stderr.write("error: no --skills descriptor or skill list available\n")
         return 1
 
-    npx = shutil.which("npx")
-    cmd = ["npx", "--yes", "skills@latest", "add", source]
+    argv = ["npx", "--yes", "skills@latest", "add", source]
     for name in names:
-        cmd += ["--skill", name]
-    cmd += ["-y"]
+        argv += ["--skill", name]
+    argv += ["-y"]
     if args.scope == "global":
-        cmd += ["-g"]
+        argv += ["-g"]
     if args.agent:
-        cmd += ["-a", args.agent]
+        argv += ["-a", args.agent]
 
+    npx = shutil.which("npx")
     if npx is None:
         print("note: npx not found; runtime installed, install skills manually:")
-        print("      " + " ".join(cmd))
+        print("      " + " ".join(argv))
         return 0
 
+    # On Windows `npx` is a .cmd shim, which CreateProcess cannot run directly.
+    run_cmd = [npx, *argv[1:]]
+    if os.name == "nt" and npx.lower().endswith((".cmd", ".bat")):
+        run_cmd = [os.environ.get("COMSPEC", "cmd.exe"), "/c", *run_cmd]
     proc = subprocess.run(
-        cmd, cwd=str(target), check=False, capture_output=True, text=True
+        run_cmd,
+        cwd=str(target),
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     if proc.stdout:
         sys.stdout.write(proc.stdout)
@@ -717,8 +740,11 @@ def main() -> int:
     parser.add_argument("--agent", default=None, help="harness/agent name to record")
     parser.add_argument(
         "--skills",
-        default=None,
-        help="opt-in: mandatory|all|<comma-list>; delegates to `npx skills add`",
+        default="mandatory",
+        help=(
+            "skills to install: mandatory (default) | none | all | <comma-list of "
+            "optional skills>; always includes the mandatory set"
+        ),
     )
     args = parser.parse_args()
 

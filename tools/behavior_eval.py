@@ -442,7 +442,17 @@ def seed_repo(case: Case, dest: Path) -> None:
 
 def _run_bootstrap(target: Path) -> None:
     proc = subprocess.run(
-        [sys.executable, str(BOOTSTRAP_SCRIPT), "setup", "--target", str(target)],
+        [
+            sys.executable,
+            str(BOOTSTRAP_SCRIPT),
+            "setup",
+            "--target",
+            str(target),
+            # The harness copies skills from the local source below; never let
+            # setup reach for the catalog (network) during an eval.
+            "--skills",
+            "none",
+        ],
         cwd=REPO,
         check=False,
         capture_output=True,
