@@ -307,6 +307,8 @@ Decide one model. If committed, hash a repo-relative CWD (or exclude CWD) so pre
 
 ### H6 — `specs-lint` is unusable here, scans ignored eval output, and crashes on Windows
 
+**Status: ✅ Fixed (2026-10-19).** Three fixes: (a) gitignored trees are skipped - `.behavior-review` joined `SPECS_LINT_SKIP_DIRS`, and plain directory names in the repo-root `.gitignore` are honored too, so generated eval HTML is never scanned; (b) `main()` reconfigures stdout/stderr with `errors="replace"`, so a cp1252 pipe degrades non-ASCII glyphs to `?` instead of raising `UnicodeEncodeError`; (c) the framework repo is exempt - detected by `.agents/rules/dev-agent-framework.md` + `skills/*/SKILL.md`, it prints `specs-ref: skipped (framework repo ...)` and exits 0, while consumer repos stay strict. Regression tests in `tests/test_specs_lint.py` (`FrameworkRepoExemptionTest`, `EncodingGuardTest`, `NoiseTest.test_gitignored_tree_is_skipped`).
+
 **Where**
 
 - `promote_spec.py:253-257` — `SPECS_LINT_SKIP_DIRS` lacks `.behavior-review` (and does not skip `skills/`, `tests/`, root docs).

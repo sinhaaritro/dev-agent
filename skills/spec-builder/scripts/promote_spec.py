@@ -255,6 +255,7 @@ SPECS_LINT_SKIP_DIRS = frozenset((
     SPEC_FOLDER, ".git", ".hg", ".svn", ".agents", "node_modules",
     "__pycache__", ".ruff_cache", ".venv", ".venv-win", ".venv-linux",
     ".venv-macos", "skill-workspaces", "behavior-workspaces",
+    ".behavior-review",
 ))
 
 
@@ -1678,6 +1679,45 @@ def _draft_tag_violations(draft: Path) -> list[str]:
     return _lint_tags(tags)
 
 
+def _gitignore_dir_names(root: Path) -> set[str]:
+    """Plain directory names listed in the repo-root ``.gitignore``.
+
+    Gitignored trees are not part of the repo (e.g. generated
+    ``.behavior-review/`` HTML), so specs-lint never scans them. Only
+    simple names are honored - glob patterns and negations are ignored -
+    as a dependency-free approximation of git's own ignore rules.
+    """
+    names: set[str] = set()
+    ignore = root / ".gitignore"
+    if not ignore.is_file():
+        return names
+    try:
+        lines = ignore.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except OSError:
+        return names
+    for line in lines:
+        entry = line.strip().strip("/")
+        if not entry or entry.startswith(("#", "!")):
+            continue
+        if re.fullmatch(r"[A-Za-z0-9_.-]+", entry):
+            names.add(entry)
+    return names
+
+
+def is_framework_repo(root: Path) -> bool:
+    """True when ``root`` is the Dev Agent framework's own product repo.
+
+    The one-way rule protects *consumer* repos: their docs and source never
+    depend on the disposable ``specs/``. The framework repo is the product -
+    its ``skills/``, ``docs/``, and ``tests/`` describe the specs system by
+    design - so it is exempt from its own gate.
+    """
+    if not (root / ".agents" / "rules" / "dev-agent-framework.md").is_file():
+        return False
+    skills = root / "skills"
+    return skills.is_dir() and any(skills.glob("*/SKILL.md"))
+
+
 def scan_specs_references(root: Path) -> list[tuple[str, int, str]]:
     """Return (relative path, line number, line) for every inbound specs/ ref.
 
@@ -1688,11 +1728,12 @@ def scan_specs_references(root: Path) -> list[tuple[str, int, str]]:
     hits: list[tuple[str, int, str]] = []
     if not root.is_dir():
         return hits
+    skip_dirs = SPECS_LINT_SKIP_DIRS | _gitignore_dir_names(root)
     for path in sorted(root.rglob("*")):
         if not path.is_file():
             continue
         rel = path.relative_to(root)
-        if any(part in SPECS_LINT_SKIP_DIRS for part in rel.parts[:-1]):
+        if any(part in skip_dirs for part in rel.parts[:-1]):
             continue
         if path.suffix.lower() not in SPECS_LINT_SUFFIXES:
             continue
@@ -1708,6 +1749,9 @@ def scan_specs_references(root: Path) -> list[tuple[str, int, str]]:
 
 def cmd_specs_lint(args: argparse.Namespace) -> int:
     root = args.root if args.root is not None else find_root()
+    if is_framework_repo(root):
+        print("specs-ref: skipped (framework repo - the product describes specs/ by design)")
+        return 0
     hits = scan_specs_references(root)
     if not hits:
         print("specs-ref: ok (docs/ and source reference nothing under specs/)")
@@ -1829,6 +1873,13 @@ def cmd_transition(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
+    # Never crash on a non-UTF-8 console (e.g. a cp1252 Windows pipe): a
+    # line carrying a non-ASCII glyph degrades to '?' instead of raising.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
     parser = argparse.ArgumentParser(
         description="spec-builder check, promotion, topic decisions, compile, TOC & tag governance"
     )
