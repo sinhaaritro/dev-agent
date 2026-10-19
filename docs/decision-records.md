@@ -78,7 +78,7 @@ python .agents/skills/map-generator/scripts/generate_map.py sync-docs
 
 ### Tags contract
 
-Every committed doc in `specs/` and every topic doc carries a `tags` field in its **YAML frontmatter block** at the top of the file:
+Every **spec** and topic doc carries a `tags` field in its **YAML frontmatter block** at the top of the file (task files and reports carry their own `# TASK …` / report headers instead):
 
 ```text
 ---

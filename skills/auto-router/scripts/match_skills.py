@@ -155,15 +155,15 @@ def sanitize_ascii(text: str) -> str:
 
 
 def find_root() -> Path:
-    """Walk up from the script location until AGENTS.md or AGENTS.md is found (repo root marker)."""
+    """Walk up from the script location until AGENTS.md is found (repo root marker)."""
     current = Path(__file__).resolve().parent
     while True:
-        if (current / "AGENTS.md").is_file() or (current / "AGENTS.md").is_file():
+        if (current / "AGENTS.md").is_file():
             return current
         parent = current.parent
         if parent == current:
             sys.exit(
-                "error: AGENTS.md / AGENTS.md not found above "
+                "error: AGENTS.md not found above "
                 + str(Path(__file__).resolve())
             )
         current = parent

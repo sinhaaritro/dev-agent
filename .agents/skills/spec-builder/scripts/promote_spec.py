@@ -582,7 +582,13 @@ def _slug_from_title_or_name(name: str, text: str) -> str:
     """A short slug for a task file: from the task title, else the spec slug."""
     m = re.match(r"^###\s+Task\s+\d+\s*:\s*(.+)$", text, re.MULTILINE)
     if m:
-        return re.sub(r"[^a-z0-9]+", "-", m.group(1).lower()).strip("-")[:40] or "task"
+        raw = re.sub(r"[^a-z0-9]+", "-", m.group(1).lower()).strip("-")
+        if len(raw) <= 40:
+            return raw or "task"
+        cut = raw[:40]
+        if "-" in cut:
+            cut = cut[: cut.rfind("-")]
+        return cut.rstrip("-") or raw[:40].rstrip("-") or "task"
     ident = _spec_identity(name)
     return ident[1] if ident else "spec"
 

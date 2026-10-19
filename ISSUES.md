@@ -409,6 +409,8 @@ Resolve the default branch (`git symbolic-ref refs/remotes/origin/HEAD`, `init.d
 | m7 | TOC/status/report are inconsistent for 003, and its task files reference deleted paths (`.agents/rules/system.md`, `docs/005-…md`); `toc --dry-run` would add the missing REPORT row and fix the status | `specs/README.md:36-42`, `specs/003-TASK-*` |
 | m8 | The one-way `specs/` rule is contradicted by the docs it ships with (see H6) | `docs/README.md:96` vs `docs/README.md:19,59,60,66,76` |
 
+**Status (2026-10-19):** ✅ Fixed — m1 (single `AGENTS.md` check; message no longer repeats it, in `match_skills.py` + `resolve_gate.py`), m2 (dropped the `PLAN.md` pointer in `.gitattributes`), m3 (closed the resolved oracle-lint `BACKLOG.md` entry as `[x]`; removed the empty template stubs), m5 (`_slug_from_title_or_name` truncates at a word boundary and never leaves a trailing hyphen; regression `test_promote_spec.TaskSlugTest`), m6 (tags contract scoped to spec + topic docs in `docs/decision-records.md`), m8 (`docs/README.md` reworded to a *dependency* rule, with the framework-repo exemption stated). Remaining: **m4** and **m7** — repo-record decisions.
+
 ---
 
 ## Checks run

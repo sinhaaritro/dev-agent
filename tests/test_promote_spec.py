@@ -569,5 +569,22 @@ class TestSpecsReadmeScaffold(unittest.TestCase):
         self.assertNotIn("TAG-INDEX", stub)
 
 
+class TaskSlugTest(unittest.TestCase):
+    def test_long_title_truncates_without_trailing_hyphen(self):
+        # m5: truncation must not leave a dangling hyphen.
+        text = "### Task 1: strip generated blocks from docs readme machinery\n"
+        slug = promote_spec._slug_from_title_or_name("007-SPEC-x.md", text)
+        self.assertTrue(slug)
+        self.assertLessEqual(len(slug), 40)
+        self.assertFalse(slug.endswith("-"))
+
+    def test_short_title_is_kept_whole(self):
+        text = "### Task 2: wire sandbox into the app\n"
+        self.assertEqual(
+            promote_spec._slug_from_title_or_name("007-SPEC-x.md", text),
+            "wire-sandbox-into-the-app",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -93,4 +93,4 @@ Because this repo *is* the framework, the normal rules are inverted: you are a *
 - **Every topic doc has `## Current State` then `## Decision Log`.** Keep the log entries equal-weight and linkable (`### <TOPIC>-D<nn> - <title>`).
 - **A reversal is a revision**, not an edit: next ID + `Supersedes:`, current state rewritten in place.
 - **Never hand-edit `_topics.md`** — run `sync-docs` after changing a topic doc.
-- **`docs/` never references into `specs/`** — the dependency is one-way (`promote_spec.py specs-lint` enforces it).
+- **`docs/` never depends on `specs/`** — the rule is one-way (a durable file must not link into the disposable `specs/`), enforced by `promote_spec.py specs-lint`. This framework repo is itself exempt: its product *documents* the system, so the `specs/…` names above are descriptive, not dependencies.

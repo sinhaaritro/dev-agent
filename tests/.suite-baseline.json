@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T05:02:41Z",
+  "generated": "2026-10-19T05:16:12Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_portable_repo_relative_cwd": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
@@ -108,6 +108,8 @@
     "test_promote.LiveRepoTest.test_repo_is_synced": "pass",
     "test_promote.NormalizeBytesTest.test_binary_passthrough": "pass",
     "test_promote.NormalizeBytesTest.test_crlf_and_cr_to_lf": "pass",
+    "test_promote_spec.TaskSlugTest.test_long_title_truncates_without_trailing_hyphen": "pass",
+    "test_promote_spec.TaskSlugTest.test_short_title_is_kept_whole": "pass",
     "test_promote_spec.TestCanonicalStatuses.test_canonical_set": "pass",
     "test_promote_spec.TestCanonicalStatuses.test_status_value_leading_token": "pass",
     "test_promote_spec.TestCompilePurgeSyncAccept.test_accept_stamps_completed": "pass",
