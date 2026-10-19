@@ -1,6 +1,6 @@
 """U2.6 - the shipped consumer rulebook carries the new guardrails.
 
-The bootstrap seed at `skills/bootstrap/reference/rules/dev-agent-framework.md` is what
+The dev-agent seed at `skills/dev-agent/reference/rules/dev-agent-framework.md` is what
 installs into *other* repos, so the `specs/` one-way rule and the plan-time
 gate labels must live there, not only in this repo's own `.agents/` copy.
 """
@@ -9,7 +9,9 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-SHIPPED_RULES = REPO / "skills" / "bootstrap" / "reference" / "rules" / "dev-agent-framework.md"
+SHIPPED_RULES = (
+    REPO / "skills" / "dev-agent" / "reference" / "rules" / "dev-agent-framework.md"
+)
 
 
 class ConsumerRulebookTest(unittest.TestCase):
@@ -25,7 +27,7 @@ class ConsumerRulebookTest(unittest.TestCase):
         self.assertIn("deleting the whole folder breaks nothing", self.text)
 
     def test_specs_lint_command_is_named(self):
-        self.assertIn("promote_spec.py specs-lint", self.text)
+        self.assertIn("main.py spec specs-lint", self.text)
 
     def test_gate_type_is_visible_at_plan_time(self):
         self.assertIn("Gate type is visible at plan time", self.text)

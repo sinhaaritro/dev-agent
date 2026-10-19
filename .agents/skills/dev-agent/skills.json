@@ -1,0 +1,12 @@
+{
+  "source": "github/sinhaaritro/dev-agent",
+  "mandatory": [
+    "auto-router",
+    "map-generator",
+    "phase-protocol",
+    "spec-builder",
+    "task-cleaner",
+    "verification-runner"
+  ],
+  "optional": []
+}

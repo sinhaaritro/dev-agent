@@ -21,7 +21,7 @@ The spec was promoted at approval; this step finalizes it, not births it.
 1. Confirm the implementation matches the spec: no drift from section 4 (affected files & contracts), no dead code, no debug leftovers.
 2. Set the spec header to `Status: REVIEWED`; confirm every task's derived status is `MET` with re-measured evidence (sync any task the build moved). Any `FAILED`/`BLOCKED` task is reported as a visible hand-back in the final response — never checked off, never silently dropped.
 3. Re-run the verification suite (every task's `Verify` + the canonical AGENTS.md commands) if the diff changed since the last run; record the evidence.
-4. Any NEW architectural decision surfaced during build and not yet recorded gets a topic log entry now via `promote_spec.py topic` (spec-builder instruction 5). Entries recorded at approval are never edited here — a change to one is a revision (next ID, `--supersedes`), never an in-place rewrite of history.
+4. Any NEW architectural decision surfaced during build and not yet recorded gets a topic log entry now via the runtime's `spec topic` command (spec-builder instruction 5). Entries recorded at approval are never edited here — a change to one is a revision (next ID, `--supersedes`), never an in-place rewrite of history.
 5. The spec carries `Status: REVIEWED` on a green review; the evidence blocks + checked boxes carry the per-task proof.
 
 ## 4. Wrap-up & cleanup

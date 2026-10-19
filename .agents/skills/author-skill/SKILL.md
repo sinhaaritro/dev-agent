@@ -66,7 +66,7 @@ that does not match this repo.
 1. Run the `promote` skill: `python tools/promote.py apply`, then
    `python tools/promote.py --check` must print `promote: clean`.
 2. Rebuild the index:
-   `python .agents/skills/map-generator/scripts/generate_map.py --force`.
+   `python .agents/scripts/devagent/main.py map --force`.
 3. Verify the shipping set: the default `npx skills add . --list` shows the new
    skill when it is a shipped skill, and never shows repo-only skills.
 4. Tell the human to start a new session.

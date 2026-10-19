@@ -32,7 +32,7 @@ npx skills add git@github.com:sinhaaritro/dev-agent.git --skill auto-router
 
 # Install the 7 core skills
 npx skills add git@github.com:sinhaaritro/dev-agent.git \
-  -s bootstrap -s auto-router -s map-generator \
+  -s dev-agent -s auto-router -s map-generator \
   -s phase-protocol -s spec-builder \
   -s task-cleaner -s verification-runner
 
@@ -42,7 +42,7 @@ npx skills add git@github.com:sinhaaritro/dev-agent.git -s '*'
 
 Useful flags: `-g` (install globally to `~/.config/opencode/skills/`), `-a <agent>` (target a specific agent), `-y` (skip prompts), `--copy` (copy files instead of symlinks).
 
-**Global installs.** With `-g` the scripts live under `~/.config/opencode/skills/`, not the project. Every engine resolves its project root by walking up from the **current working directory** for `AGENTS.md` first (falling back to the skill's own script location), so running an engine from the project root — as the agent harness does — finds the right repo. The `.agents/skills/...` command paths in these docs describe the in-project install; a global install runs the identical scripts from `~/.config/opencode/skills/`.
+**Global installs.** With `-g` the skills live under `~/.config/opencode/skills/`, not the project. The engines no longer run from the skill folder: the `dev-agent` skill installs a shared runtime into each project at `.agents/scripts/devagent/`, and every command runs project-relative — `python .agents/scripts/devagent/main.py <command>`. Run `dev-agent`'s `setup` once per project (from wherever the skill is installed) and a global install works in every repo; the runtime resolves the project by walking up from the current working directory.
 
 ```bash
 # Non-interactive, global, opencode-only
@@ -57,7 +57,24 @@ npx skills update          # update to latest
 npx skills remove <name>   # remove a skill
 ```
 
-### 2. Start Coding
+### 2. Bootstrap your project with the `dev-agent` skill (Official)
+
+Installing skills only makes them available to the agent — it does **not** set the project up. The official flow installs the `dev-agent` skill, then runs its `setup` to seed the framework into the project you are working in:
+
+```bash
+# The dev-agent skill installs the shared runtime + rulebook into the current repo
+python <dev-agent-skill>/scripts/bootstrap.py setup --target .
+```
+
+`<dev-agent-skill>` is wherever the skills CLI put the `dev-agent` folder (for a `-g` install, `~/.config/opencode/skills/dev-agent/`; for a project install, `.agents/skills/dev-agent/`). Preview first with `--dry-run`. Setup seeds:
+
+- `AGENTS.md`, `.gitignore`, `.cursorrules`, `.windsurfrules` at the repo root
+- `.agents/rules/dev-agent-framework.md` (the gateway rulebook) and `.agents/agents/coder.md` (the coder contract)
+- the shared runtime at `.agents/scripts/devagent/`, plus the `.agents/.devagent.json` manifest
+
+After that, the agent handles it: just ask it to "run dev-agent setup" and it runs the skill for you. Keep the install in sync with `setup --check` (read-only, exits 1 on drift) and `setup --update`. Every engine command then runs project-relative as `python .agents/scripts/devagent/main.py <command>`.
+
+### 3. Start Coding
 
 Open the project in your AI-powered editor. The agent reads `AGENTS.md` and `.agents/rules/dev-agent-framework.md` on startup, auto-loads the `scope: always` skills, and routes every request through the lane taxonomy.
 
@@ -74,7 +91,7 @@ dev-agent/
 ├── .cursorrules                # Cursor IDE → points to .agents/rules/dev-agent-framework.md
 ├── .windsurfrules              # Windsurf IDE → points to .agents/rules/dev-agent-framework.md
 ├── skills/                     # PRODUCT — installable skills (this is what ships)
-│   ├── bootstrap/              #   installs AGENTS.md + dev-agent-framework.md into a target repo
+│   ├── dev-agent/              #   installer + shared runtime (rulebook, coder contract, .agents/scripts/devagent/)
 │   ├── auto-router/            #   lane triage + skill recall (always on)
 │   ├── map-generator/          #   builds the local skill index (MAP.md)
 │   ├── phase-protocol/         #   the Status lifecycle (DRAFTED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED) + gates (always on)
@@ -92,7 +109,7 @@ dev-agent/
 └── docs/                       # What is + why we chose — topic docs (Current State + Decision Log), README guide, generated index
 ```
 
-Every skill is self-contained: a `SKILL.md` (what it does, when to use it) plus `scripts/` (a stdlib-only Python engine) and optional `references/`. Only `skills/` ships — the skills CLI also scans `.agents/skills/`, so every copy there carries `metadata.internal: true` and stays hidden from users. `MAP.md` is generated locally at session start and never committed.
+Only the `dev-agent` skill carries code: it bundles the shared stdlib-only runtime and the installer. The other six are thin wrappers — a `SKILL.md` (what it does, when to use it) plus optional `references/` — that invoke the runtime at `.agents/scripts/devagent/main.py`. Only `skills/` ships — the skills CLI also scans `.agents/skills/`, so every copy there carries `metadata.internal: true` and stays hidden from users. `MAP.md` is generated locally at session start and never committed.
 
 ---
 

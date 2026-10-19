@@ -18,7 +18,7 @@ The canonical statuses are `DRAFTED → APPROVED → COMPILED → BUILDING → B
 
 ### The `Status:` receipt set
 
-The canonical `Status:` values are: `DRAFTED`, `APPROVED`, `PROVISIONAL`, `COMPILED`, `BUILDING`, `BUILT`, `REVIEWED`, `COMPLETED`, `PLAN_REVISION_REQUIRED`, `REVIEW_REVISION_REQUIRED`, `ESCALATED`, `ABORTED`. The engine (`promote_spec.py`) owns this set; a spec is never in two states at once.
+The canonical `Status:` values are: `DRAFTED`, `APPROVED`, `PROVISIONAL`, `COMPILED`, `BUILDING`, `BUILT`, `REVIEWED`, `COMPLETED`, `PLAN_REVISION_REQUIRED`, `REVIEW_REVISION_REQUIRED`, `ESCALATED`, `ABORTED`. The runtime's `spec` engine owns this set; a spec is never in two states at once.
 
 - **`DRAFTED`** — still being authored (the drafting loop). Nothing is published; the draft self-revises until plan-readiness is green.
 - **`APPROVED`** / **`PROVISIONAL`** — the promote step wrote the spec into `specs/` (human acceptance / autonomous default). Compile reads it next; a run still starts only from `COMPILED`.
@@ -38,8 +38,8 @@ The canonical `Status:` values are: `DRAFTED`, `APPROVED`, `PROVISIONAL`, `COMPI
 | **APPROVED** / **PROVISIONAL** (promoted) | B, A | Read-only | Promoted spec in `specs/` (`Status: APPROVED`, or `PROVISIONAL - AUTONOMOUS DEFAULT`); compile follows |
 | **Vetting gate** | B, A — optional, when the spec's `vetting: on` | Read-only | Vetting gate cleared on the draft (a block drops the spec to `PLAN_REVISION_REQUIRED`) |
 | **COMPILED** (compile) | B, A — mandatory after "approve draft" | Read-only | Spec compiled into one task file per task, `Status: COMPILED`, **session stops** |
-| **BUILDING** (build) | B, A — always a *new* session / explicit run, starting from the `COMPILED` spec | Edits within the spec's branch, task scope only | All task files `MET` (`Verify` + `Expect`, content-hash evidence recorded) via `verify.py`; commands pre-approved on lanes A/B → `Status: BUILT` |
-| **REVIEWED** (review) | B, A | Read-only | `verify.py report` green (every `R#` outcome observed); missing outcome fails review → `Status: REVIEWED` (a review block drops it to `REVIEW_REVISION_REQUIRED`) |
+| **BUILDING** (build) | B, A — always a *new* session / explicit run, starting from the `COMPILED` spec | Edits within the spec's branch, task scope only | All task files `MET` (`Verify` + `Expect`, content-hash evidence recorded) via the runtime's `verify` command; commands pre-approved on lanes A/B → `Status: BUILT` |
+| **REVIEWED** (review) | B, A | Read-only | the runtime's `verify report` green (every `R#` outcome observed); missing outcome fails review → `Status: REVIEWED` (a review block drops it to `REVIEW_REVISION_REQUIRED`) |
 | **Sign-off gate** | B, A — when the spec's `signoff: on` | Read-only | Human signs off; an unattended run **pauses** here (never refused) |
 | **COMPLETED** (commit) | — | — | The run commits on the spec's branch → `Status: COMPLETED` (terminal) |
 
@@ -47,8 +47,8 @@ The canonical `Status:` values are: `DRAFTED`, `APPROVED`, `PROVISIONAL`, `COMPI
 
 - **Spec-first two-step lifecycle.** Step 1 (spec production) ends at the approve step, which compiles the draft into `specs/` (spec + one task file per task), records topic decisions, and stamps the spec `Status: COMPILED`. Step 2 (implementation) is a separate session that builds from the `COMPILED` spec. A spec-producing session never builds in the same session — a run will not start against a spec that is not `COMPILED`.
 - **Status checklists are loaded one at a time.** At each status start the agent loads only `references/<name>.md` — never all references. Model tiering per status is situational, loaded only when a harness/model choice is in play.
-- **Lane C** is a single pass: edit, verify once (`Verify` + `Expect` via `verify.py`); 3 failed attempts park the task as `ESCALATED` (there is no automatic C→B re-route — a human decides whether to re-plan). **Lane D** is informational: the 5-tag header is emitted, but no lifecycle, no gates.
-- **Passes are evidence-gated and commands are pre-approved:** a task is `MET` only when its `Verify` exits 0 AND its `Expect` marker matches, with a content-hash evidence block written into the task file (`verify.py` records `sha256` of every owned file); on lanes A/B a first-ever command is approved (`verify.py approve`) before it runs, or the engine refuses with exit 4 before execution (no state change, not an attempt).
+- **Lane C** is a single pass: edit, verify once (`Verify` + `Expect` via the runtime's `verify` command); 3 failed attempts park the task as `ESCALATED` (there is no automatic C→B re-route — a human decides whether to re-plan). **Lane D** is informational: the 5-tag header is emitted, but no lifecycle, no gates.
+- **Passes are evidence-gated and commands are pre-approved:** a task is `MET` only when its `Verify` exits 0 AND its `Expect` marker matches, with a content-hash evidence block written into the task file (the runtime's `verify` command records `sha256` of every owned file); on lanes A/B a first-ever command is approved (the runtime's `verify approve`) before it runs, or the engine refuses with exit 4 before execution (no state change, not an attempt).
 
 ### The Socratic gate
 
@@ -69,7 +69,7 @@ Gates are classified before resolution:
 Blocking gates are resolved **exclusively** through the engine — never by judgment alone:
 
 ```text
-python .agents/skills/phase-protocol/scripts/resolve_gate.py \
+python .agents/scripts/devagent/main.py gate \
   --gate <blocking|non-blocking> \
   --session <Interactive|Non-Interactive> \
   --lane <A|B|C|D> [--lane-a-surface] \
@@ -142,8 +142,8 @@ The five header tags are **Status**, Task, Lane, Worktree (`main` unless a workt
 | DRAFTED (planning) | Read-only: inspect, search, draft in `specs/temp/` |
 | Vetting gate | Read-only: vetting gate on the draft |
 | COMPILED (compile) | Read-only: engine compile (spec + task files), topic decisions, `COMPILED` stamp |
-| BUILDING (build) | Edits on the spec's branch within task `Owns` scope; verification through `verify.py` |
-| REVIEWED (review) | Read-only: `verify.py report`, audit |
+| BUILDING (build) | Edits on the spec's branch within task `Owns` scope; verification through the runtime's `verify` command |
+| REVIEWED (review) | Read-only: the runtime's `verify report`, audit |
 | Sign-off gate | Read-only: human sign-off |
 
 Scope creep toward a higher lane stops the build: the router reclassifies and announces the escalation before work continues (see `routing.md`).

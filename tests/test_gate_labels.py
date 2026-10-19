@@ -11,7 +11,10 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-ENGINE = REPO / ".agents" / "skills" / "spec-builder" / "scripts" / "promote_spec.py"
+RUNTIME = REPO / "skills" / "dev-agent" / "runtime" / "devagent"
+if str(RUNTIME) not in sys.path:
+    sys.path.insert(0, str(RUNTIME))
+ENGINE = RUNTIME / "specs.py"
 
 _spec = importlib.util.spec_from_file_location("promote_spec", ENGINE)
 assert _spec is not None and _spec.loader is not None
@@ -33,8 +36,7 @@ GATES_NON_BLOCKING = (
     "- **D1 Choose a log format** — options: JSON (Recommended); text; **non-blocking** (default: JSON)\n"
 )
 GATES_LOG_ENTRY = (
-    "## 6. Gates\n\n"
-    "- Vetting: pass (2026-10-18) — plan reviewed, no blocking issues\n"
+    "## 6. Gates\n\n- Vetting: pass (2026-10-18) — plan reviewed, no blocking issues\n"
 )
 
 

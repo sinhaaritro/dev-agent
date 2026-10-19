@@ -141,7 +141,9 @@ class CliIntegrationTest(unittest.TestCase):
         source = (self.root / "skills" / "foo" / "SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn("internal", source)
 
-        manifest = (self.root / ".agents" / ".promoted.json").read_text(encoding="utf-8")
+        manifest = (self.root / ".agents" / ".promoted.json").read_text(
+            encoding="utf-8"
+        )
         self.assertIn("foo", manifest)
 
         checked = run(self.root, "--check")
@@ -151,7 +153,10 @@ class CliIntegrationTest(unittest.TestCase):
     def test_check_detects_drift(self):
         add_skill(self.root, "foo")
         run(self.root, "apply")
-        write(self.root / "skills" / "foo" / "SKILL.md", SKILL_STUB.format(name="foo") + "\nedited\n")
+        write(
+            self.root / "skills" / "foo" / "SKILL.md",
+            SKILL_STUB.format(name="foo") + "\nedited\n",
+        )
         checked = run(self.root, "--check")
         self.assertEqual(checked.returncode, 1)
         self.assertIn("overwrite: foo", checked.stdout)
@@ -173,7 +178,9 @@ class CliIntegrationTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("removed: bar", result.stdout)
         self.assertFalse((self.root / ".agents" / "skills" / "bar").exists())
-        manifest = (self.root / ".agents" / ".promoted.json").read_text(encoding="utf-8")
+        manifest = (self.root / ".agents" / ".promoted.json").read_text(
+            encoding="utf-8"
+        )
         self.assertNotIn("bar", manifest)
 
     def test_unmanaged_folder_untouched(self):
@@ -186,7 +193,9 @@ class CliIntegrationTest(unittest.TestCase):
             (unmanaged / "SKILL.md").read_text(encoding="utf-8"),
             "---\nname: thirdparty\ndescription: x\n---\n",
         )
-        manifest = (self.root / ".agents" / ".promoted.json").read_text(encoding="utf-8")
+        manifest = (self.root / ".agents" / ".promoted.json").read_text(
+            encoding="utf-8"
+        )
         self.assertNotIn("thirdparty", manifest)
 
     def test_collision_with_unmanaged_is_refused(self):
@@ -198,6 +207,53 @@ class CliIntegrationTest(unittest.TestCase):
         self.assertIn("collision", result.stderr.lower())
         # the hand-written folder is never overwritten
         self.assertIn("hand-written", hand.read_text(encoding="utf-8"))
+
+
+class RuntimeMirrorTest(unittest.TestCase):
+    """The repo's local runtime copy is derived from the bundled source."""
+
+    def test_local_runtime_matches_the_bundled_source(self):
+        src = REPO / "skills" / "dev-agent" / "runtime" / "devagent"
+        dest = REPO / ".agents" / "scripts" / "devagent"
+        self.assertTrue(src.is_dir(), src)
+        self.assertTrue(
+            dest.is_dir(),
+            "repo has no local runtime copy - run tools/promote.py",
+        )
+        self.assertEqual(
+            promote.expected_files(src, inject_skill=False),
+            promote.actual_files(dest),
+        )
+
+
+class RuntimeDriftGuardTest(unittest.TestCase):
+    def setUp(self):
+        self.root = make_sandbox()
+        self.addCleanup(shutil.rmtree, self.root.parent, ignore_errors=True)
+        self.src = self.root / "skills" / "dev-agent" / "runtime" / "devagent"
+
+    def test_check_detects_and_apply_fixes_runtime_drift(self):
+        write(self.src / "main.py", "print('v1')\n")
+        applied = run(self.root, "apply")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        self.assertIn("installed: .agents/scripts/devagent", applied.stdout)
+        self.assertTrue(
+            (self.root / ".agents" / "scripts" / "devagent" / "main.py").is_file()
+        )
+
+        clean = run(self.root, "--check")
+        self.assertEqual(clean.returncode, 0, clean.stdout)
+        self.assertIn("ok: .agents/scripts/devagent", clean.stdout)
+
+        write(self.src / "main.py", "print('v2')\n")
+        drifted = run(self.root, "--check")
+        self.assertEqual(drifted.returncode, 1)
+        self.assertIn("overwrite: .agents/scripts/devagent", drifted.stdout)
+
+        fixed = run(self.root, "apply")
+        self.assertEqual(fixed.returncode, 0, fixed.stderr)
+        self.assertIn("updated: .agents/scripts/devagent", fixed.stdout)
+        self.assertEqual(run(self.root, "--check").returncode, 0)
 
 
 class LiveRepoTest(unittest.TestCase):

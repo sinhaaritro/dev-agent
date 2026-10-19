@@ -76,7 +76,9 @@ class ShippingPathsTest(unittest.TestCase):
             rel = path.relative_to(REPO).as_posix()
             for label, number, line in find_violations(text):
                 offenders.append(f"{rel}:{number}: {label} -> {line}")
-        self.assertGreater(scanned, 0, "no shipped files scanned - guard would be vacuous")
+        self.assertGreater(
+            scanned, 0, "no shipped files scanned - guard would be vacuous"
+        )
         self.assertEqual(
             offenders,
             [],
@@ -116,10 +118,12 @@ class ShippingPathsTest(unittest.TestCase):
             "AI index: `docs/_topics.md`.",
             "Human landing page at `docs/README.md`.",
             "Topic docs live at `docs/<name>.md`.",
-            "Install path `.agents/skills/auto-router/scripts/match_skills.py`.",
+            "Install path `.agents/scripts/devagent/main.py`.",
         ]
         for line in allowed:
-            self.assertEqual(find_violations(line), [], f"false positive on allowed path: {line}")
+            self.assertEqual(
+                find_violations(line), [], f"false positive on allowed path: {line}"
+            )
 
 
 if __name__ == "__main__":

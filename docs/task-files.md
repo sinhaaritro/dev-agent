@@ -12,7 +12,7 @@ A **task file** is the coder's own working file for exactly one task: `NNN-TASK-
 
 ### Shape
 
-Each task file carries: a **Role & rules** block (implement exactly this task, obey the given signatures, never commit / never plan / never expand scope / never touch files not Owned); a **Project overview** (1-2 lines; the global task list is *not* copied here); **Owns** (the files this task may write); **Reads / Context** (read-only context); and a **`### Progress`** subtask checklist. The **evidence block** (written by `verify.py` on a green verify) is appended to the task file.
+Each task file carries: a **Role & rules** block (implement exactly this task, obey the given signatures, never commit / never plan / never expand scope / never touch files not Owned); a **Project overview** (1-2 lines; the global task list is *not* copied here); **Owns** (the files this task may write); **Reads / Context** (read-only context); and a **`### Progress`** subtask checklist. The **evidence block** (written by the runtime's `verify` command on a green verify) is appended to the task file.
 
 ### Ownership: one task file = one coder = one writer
 

@@ -51,7 +51,7 @@ and never ships to users.
 4. **Confirm.** Re-run `python tools/promote.py --check`; it must print
    `promote: clean`.
 5. **Rebuild the index.** Run
-   `python .agents/skills/map-generator/scripts/generate_map.py --force`
+   `python .agents/scripts/devagent/main.py map --force`
    so `MAP.md` reflects the mirror.
 6. **Verify the shipping set.** The default `npx skills add . --list` must show
    exactly the top-level folders in `skills/`; repo-only skills stay hidden.

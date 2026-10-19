@@ -5,10 +5,10 @@
   "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder,verification-runner"],
   "prompt": "Verify Task 1 of the cache spec using the engine, then tell me whether it is MET.",
   "expectations": [
-    "runs verification through verify.py, never the bare command",
+    "runs verification through the runtime, never the bare command",
     "re-measures the evidence at review"
   ],
   "expected_artifacts": [
-    "contains:run:transcript.md:verify.py"
+    "contains:run:transcript.md:main.py verify"
   ]
 }

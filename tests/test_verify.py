@@ -22,17 +22,16 @@ from io import StringIO
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-ENGINE = REPO / ".agents" / "skills" / "verification-runner" / "scripts" / "verify.py"
+RUNTIME = REPO / "skills" / "dev-agent" / "runtime" / "devagent"
+if str(RUNTIME) not in sys.path:
+    sys.path.insert(0, str(RUNTIME))
+ENGINE = RUNTIME / "verify.py"
 
 _spec = importlib.util.spec_from_file_location("verify", ENGINE)
 assert _spec is not None and _spec.loader is not None
 verify = importlib.util.module_from_spec(_spec)
 sys.modules["verify"] = verify
 _spec.loader.exec_module(verify)
-
-VERIFY_SCRIPT = (
-    REPO / ".agents" / "skills" / "verification-runner" / "scripts" / "verify.py"
-)
 
 
 def _sandbox(tmp: Path) -> Path:
@@ -49,9 +48,6 @@ def _sandbox(tmp: Path) -> Path:
     )
     (tmp / "specs").mkdir()
     (tmp / "src.py").write_text("VALUE = 1\n", encoding="utf-8")
-    script_dir = tmp / ".agents" / "skills" / "verification-runner" / "scripts"
-    script_dir.mkdir(parents=True)
-    shutil.copy2(VERIFY_SCRIPT, script_dir / "verify.py")
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp, check=True)
     subprocess.run(["git", "config", "user.email", "t@t.t"], cwd=tmp, check=True)
     subprocess.run(["git", "config", "user.name", "t"], cwd=tmp, check=True)

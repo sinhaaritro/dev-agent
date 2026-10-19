@@ -14,7 +14,7 @@ Dev Agent is a drop-in configuration framework for AI coding assistants. It turn
 
 This repository **is the framework's source**, not a project that uses it:
 
-- **`skills/` is the product.** Each folder is a self-contained skill (`SKILL.md` + `scripts/` engine + `references/`) that users install with `npx skills add`. Only `skills/` ships.
+- **`skills/` is the product.** Each folder is an installable skill; `dev-agent` bundles the shared runtime and installer, while the other six are thin wrappers (`SKILL.md` + `references/`) that call the runtime by subcommand. Users install them with `npx skills add`. Only `skills/` ships.
 - **`.agents/` is this repo's own workspace.** It holds the gateway rulebook, a derived mirror of the skills, and repo-only tooling. It never ships.
 - **`specs/` is what to build.** Each spec group is a plan with a single `Status:` lifecycle, its task files, approvals, report, and escalation.
 - **`docs/` is what is + why we chose.** One topic doc per subsystem (this folder).
@@ -45,21 +45,21 @@ On **every request**, in order (full detail in `overview.md`):
 1. **Refresh the skill index** (`MAP.md`) if it is stale.
 2. **Route** the prompt into a lane (D/C/B/A), detect the session type, and recall candidate skills.
 3. **Govern** the work with the `Status:` lifecycle. Ambiguity is resolved with a blocking/non-blocking gate, never by silent judgment. Approving a draft **compiles** it into a spec + task files and **ends the session**.
-4. **Build** in a *new* session/run from the `COMPILED` spec, dispatching tasks to coders, each proving itself through `verify.py`.
+4. **Build** in a *new* session/run from the `COMPILED` spec, dispatching tasks to coders, each proving itself through the runtime's `verify` command.
 5. **Hand back**: review, sign off, commit on the spec's branch. A failure parks the spec `ESCALATED` for a human — never a silent pass.
 
-The one rule that makes the whole thing work: **mechanics live in engines, not judgment.** The agent decides *what* to run; the stdlib Python engines under `.agents/skills/<name>/scripts/` do the counting, hashing, gating, and auditing.
+The one rule that makes the whole thing work: **mechanics live in engines, not judgment.** The agent decides *what* to run; the shared stdlib Python runtime at `.agents/scripts/devagent/` does the counting, hashing, gating, and auditing.
 
 ## The vocabulary
 
 | Term | Meaning |
 | :--- | :--- |
 | **Lane** | The scope class of a request: **D** read-only, **C** single-file micro-edit, **B** 2–5 files, **A** full SDLC (schema/API/auth/new dependency). Higher lanes get more gates. |
-| **Gate** | A decision point. **Blocking** gates halt (or fail closed); **non-blocking** gates state a default and continue. Resolved through `resolve_gate.py`. |
+| **Gate** | A decision point. **Blocking** gates halt (or fail closed); **non-blocking** gates state a default and continue. Resolved through the runtime's `gate` command. |
 | **Spec** | A committed plan (`specs/NNN-SPEC-*.md`) with a single `Status:` lifecycle. |
 | **Task file** | A self-contained briefing for one coder (`specs/NNN-TASK-NN-*.md`), owning a disjoint `Owns` set of files. |
 | **COMPILED** | The only state a run may start from. Reached by approving a draft; unreachable without the gate. |
-| **Evidence block** | The record `verify.py` writes into a task file on a green verify: command, exit, `Expect` match, and the `sha256` of every owned file. |
+| **Evidence block** | The record the runtime's `verify` command writes into a task file on a green verify: command, exit, `Expect` match, and the `sha256` of every owned file. |
 | **Derived status** | Task completion read from evidence: `MET` / `NOT MET` / `STALE` / `NO-EVIDENCE` — never asserted. |
 | **ESCALATED** | A visible, resumable halt after a task exhausts its 3 attempts. The batch continues; `ABORTED` is only a human stop. |
 | **Topic doc** | One doc per subsystem (`docs/<name>.md`) holding Current State + Decision Log. |
@@ -72,6 +72,7 @@ The one rule that makes the whole thing work: **mechanics live in engines, not j
 | `skills/` | The product: composable skills users install | **Yes** |
 | `.agents/rules/dev-agent-framework.md` | The framework's own behavioral contract, loaded every session | No |
 | `.agents/skills/` | Derived mirror of `skills/` (stamped internal) + repo-only tools | No |
+| `.agents/scripts/devagent/` | This repo's installed shared runtime (mirrored from `skills/dev-agent/runtime/devagent/`) | No |
 | `.agents/MAP.md` | Generated skill index | No (generated) |
 | `specs/` | What to build: approved specs + task files + reports | No |
 | `docs/` | What is + why we chose (this folder) | No |
@@ -83,8 +84,8 @@ Because this repo *is* the framework, the normal rules are inverted: you are a *
 
 1. **Changing a skill?** Edit it only under `skills/<name>/` (never the derived `.agents/skills/`). Use the `author-skill` skill, then run `python tools/promote.py` to regenerate the mirror.
 2. **Changing a contract?** Update the rulebook and the skill that owns the behavior **together**, then run the canonical commands from `AGENTS.md` (`compileall`, `unittest`, `ruff check`, `promote --check`).
-3. **Changing knowledge?** Edit the topic doc's `## Current State`; if you are reversing a decision, append a new `<TOPIC>-D<nn>` entry with `Supersedes:` through `promote_spec.py topic` (never delete history).
-4. **Adding a doc?** Add a flat `docs/<name>.md` topic doc (no numeric prefix), then run `python .agents/skills/map-generator/scripts/generate_map.py sync-docs`.
+3. **Changing knowledge?** Edit the topic doc's `## Current State`; if you are reversing a decision, append a new `<TOPIC>-D<nn>` entry with `Supersedes:` through `python .agents/scripts/devagent/main.py spec topic` (never delete history).
+4. **Adding a doc?** Add a flat `docs/<name>.md` topic doc (no numeric prefix), then run `python .agents/scripts/devagent/main.py map sync-docs`.
 
 ## Conventions for these docs
 
@@ -93,4 +94,4 @@ Because this repo *is* the framework, the normal rules are inverted: you are a *
 - **Every topic doc has `## Current State` then `## Decision Log`.** Keep the log entries equal-weight and linkable (`### <TOPIC>-D<nn> - <title>`).
 - **A reversal is a revision**, not an edit: next ID + `Supersedes:`, current state rewritten in place.
 - **Never hand-edit `_topics.md`** — run `sync-docs` after changing a topic doc.
-- **`docs/` never depends on `specs/`** — the rule is one-way (a durable file must not link into the disposable `specs/`), enforced by `promote_spec.py specs-lint`. This framework repo is itself exempt: its product *documents* the system, so the `specs/…` names above are descriptive, not dependencies.
+- **`docs/` never depends on `specs/`** — the rule is one-way (a durable file must not link into the disposable `specs/`), enforced by `python .agents/scripts/devagent/main.py spec specs-lint`. This framework repo is itself exempt: its product *documents* the system, so the `specs/…` names above are descriptive, not dependencies.

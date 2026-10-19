@@ -1,0 +1,655 @@
+#!/usr/bin/env python3
+"""dev-agent installer - set up the Dev Agent framework in a target repo.
+
+Two independent jobs:
+
+1. ``setup`` (stdlib-only, offline, the default). Copies this skill's
+   ``reference/`` seeds (AGENTS.md, .gitignore merge, rules, coder, IDE
+   dotfiles) and the bundled ``runtime/`` into the target, then writes
+   ``.agents/.devagent.json``. Atomic: the runtime is staged in
+   ``.agents/scripts/.devagent.tmp/`` and renamed into place, and the manifest
+   is written last so an interrupted install is detectable.
+
+2. ``setup --skills <spec>`` (needs ``npx``). Opt-in; delegates the wrapper
+   skills to ``npx skills add`` and never copies skill folders itself.
+
+Commands:
+    python <skill>/scripts/bootstrap.py setup [--target DIR] [--dry-run]
+                    [--scope project|global] [--agent NAME]
+                    [--skills mandatory|all|<comma-list>]
+    python <skill>/scripts/bootstrap.py --check [--target DIR]
+    python <skill>/scripts/bootstrap.py --update [--target DIR] [--dry-run]
+
+``setup`` is the default command: passing only ``--target DIR`` behaves as
+``setup``. Run with ``--dry-run`` to preview without writing.
+
+Per-file report:
+    seeds, dry-run:  new: <rel>  ok: <rel>  overwrite: <rel>  append: <rel>
+    seeds, install:  installed: <rel>  unchanged: <rel>  updated: <rel>  appended: <rel>
+    runtime:         installed/unchanged/updated: .agents/scripts/devagent/<rel>
+    manifest:        wrote/unchanged: .agents/.devagent.json
+Summary (setup):     dev-agent setup complete: <N> installed, <M> updated, <K> unchanged
+
+``--check`` prints ``ok`` / ``stale`` / ``modified`` / ``missing`` / ``orphan``
+lines and exits 1 on any drift (a CI guard, parallel to ``promote --check``).
+
+Exit codes: 0 = success / clean; 1 = error, drift, or bad target; 2 = refused
+(the packaged runtime is older than the one already installed).
+"""
+
+import argparse
+import hashlib
+import json
+import re
+import shutil
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+# (path inside reference/, path inside the target repo)
+SEED_FILES = (
+    ("AGENTS.md", "AGENTS.md"),
+    (".gitignore", ".gitignore"),
+    ("rules/dev-agent-framework.md", ".agents/rules/dev-agent-framework.md"),
+    ("agents/coder.md", ".agents/agents/coder.md"),
+    (".cursorrules", ".cursorrules"),
+    (".windsurfrules", ".windsurfrules"),
+)
+
+RUNTIME_SRC_REL = ("runtime", "devagent")
+RUNTIME_DEST_REL = (".agents", "scripts", "devagent")
+SCRIPTS_REL = (".agents", "scripts")
+STAGING_DEST_REL = (".agents", "scripts", ".devagent.tmp")
+MANIFEST_REL = (".agents", ".devagent.json")
+DESCRIPTOR_NAME = "skills.json"
+
+SCHEMA = 1
+FRAMEWORK = "dev-agent"
+PYTHON_REQUIRES = ">=3.10"
+
+
+# --------------------------------------------------------------------------- #
+# discovery helpers
+# --------------------------------------------------------------------------- #
+
+
+def find_skill_root() -> Path:
+    """Walk up from this script until the skill root (the dir holding reference/)."""
+    current = Path(__file__).resolve().parent
+    while True:
+        if (current / "reference").is_dir():
+            return current
+        parent = current.parent
+        if parent == current:
+            sys.exit(
+                "error: reference/ folder not found above "
+                + str(Path(__file__).resolve())
+            )
+        current = parent
+
+
+def find_source_repo_root(skill_root: Path) -> Path | None:
+    """Walk up from just above the skill root to the framework's own repo root.
+
+    The marker is an AGENTS.md file, and the search starts at skill_root.parent so
+    a stray AGENTS.md inside the skill itself can never be mistaken for the repo
+    root. Returns None when the skill sits outside the framework tree (e.g. copied
+    into a standalone project), where there is no source tree to protect.
+    """
+    current = skill_root.parent
+    while True:
+        if (current / "AGENTS.md").is_file():
+            return current
+        parent = current.parent
+        if parent == current:
+            return None
+        current = parent
+
+
+def read_runtime_version(skill_root: Path) -> str:
+    """The bundled runtime's version, read from its __init__.py (no import)."""
+    init = skill_root.joinpath(*RUNTIME_SRC_REL) / "__init__.py"
+    if not init.is_file():
+        sys.exit("error: bundled runtime not found at " + str(init))
+    match = re.search(
+        r'^__version__\s*=\s*["\']([^"\']+)["\']',
+        init.read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
+    if not match:
+        sys.exit("error: cannot read __version__ from " + str(init))
+    return match.group(1)
+
+
+def verify_seeds(skill_root: Path) -> None:
+    missing = [
+        rel for rel, _ in SEED_FILES if not (skill_root / "reference" / rel).is_file()
+    ]
+    if missing:
+        sys.exit(
+            "error: missing seed file(s) in reference/: "
+            + ", ".join("reference/" + rel for rel in missing)
+        )
+
+
+def iter_runtime_source(skill_root: Path) -> dict:
+    """Bundled runtime bytes keyed by ``devagent/<relpath>`` (skips caches)."""
+    src = skill_root.joinpath(*RUNTIME_SRC_REL)
+    if not src.is_dir():
+        sys.exit("error: bundled runtime not found at " + str(src))
+    out = {}
+    for path in sorted(src.rglob("*")):
+        if path.is_dir():
+            continue
+        parts = path.relative_to(src).parts
+        if "__pycache__" in parts or path.suffix == ".pyc":
+            continue
+        rel = "devagent/" + path.relative_to(src).as_posix()
+        out[rel] = path.read_bytes()
+    return out
+
+
+def iter_runtime_actual(target: Path) -> dict:
+    """Runtime bytes currently installed, keyed the same way as the source."""
+    dest = target.joinpath(*RUNTIME_DEST_REL)
+    if not dest.is_dir():
+        return {}
+    out = {}
+    for path in sorted(dest.rglob("*")):
+        if path.is_dir():
+            continue
+        parts = path.relative_to(dest).parts
+        if "__pycache__" in parts or path.suffix in (".pyc", ".bak"):
+            continue
+        rel = "devagent/" + path.relative_to(dest).as_posix()
+        out[rel] = path.read_bytes()
+    return out
+
+
+def remove_path(path: Path) -> None:
+    if path.is_dir():
+        shutil.rmtree(path)
+    elif path.exists():
+        path.unlink()
+
+
+# --------------------------------------------------------------------------- #
+# hashing / manifest
+# --------------------------------------------------------------------------- #
+
+
+def sha256_bytes(data: bytes) -> str:
+    return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+def read_manifest(target: Path) -> dict | None:
+    manifest = target.joinpath(*MANIFEST_REL)
+    if not manifest.is_file():
+        return None
+    try:
+        return json.loads(manifest.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return None
+
+
+def build_manifest(runtime_files: dict, version: str, scope: str, agent: str) -> dict:
+    return {
+        "schema": SCHEMA,
+        "framework": FRAMEWORK,
+        "runtime_version": version,
+        "python": PYTHON_REQUIRES,
+        "scope": scope,
+        "agent": agent,
+        "installed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "source": {
+            "channel": "skills",
+            "installed_by": "skills/dev-agent",
+            "skills_version": version,
+        },
+        "files": {
+            rel: sha256_bytes(data) for rel, data in sorted(runtime_files.items())
+        },
+    }
+
+
+def write_manifest(target: Path, manifest: dict) -> None:
+    path = target.joinpath(*MANIFEST_REL)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n"
+    )
+
+
+def version_tuple(value: str) -> tuple:
+    parts = re.findall(r"\d+", value or "")
+    return tuple(int(p) for p in parts) if parts else (0,)
+
+
+# --------------------------------------------------------------------------- #
+# seed planning (unchanged mechanics, kept for parity)
+# --------------------------------------------------------------------------- #
+
+
+def parse_gitignore(content: str):
+    """Split gitignore content into (header_comment, [pattern_lines])."""
+    header = ""
+    patterns = []
+    for line in content.splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        if s.startswith("#"):
+            if not header:
+                header = s
+        else:
+            patterns.append(s)
+    return header, patterns
+
+
+def plan_seeds(skill_root: Path, target: Path) -> list:
+    results = []  # (seed_rel, dest_rel, status)
+    for seed_rel, dest_rel in SEED_FILES:
+        src = skill_root / "reference" / seed_rel
+        dst = target / dest_rel
+        if seed_rel == ".gitignore" and dst.exists():
+            _h, seed_patterns = parse_gitignore(src.read_text(encoding="utf-8"))
+            _eh, existing_patterns = parse_gitignore(dst.read_text(encoding="utf-8"))
+            missing = [p for p in seed_patterns if p not in set(existing_patterns)]
+            status = "append" if missing else "ok"
+        elif not dst.exists():
+            status = "new"
+        elif dst.is_file() and dst.read_bytes() == src.read_bytes():
+            status = "ok"
+        else:
+            status = "overwrite"
+        results.append((seed_rel, dest_rel, status))
+    return results
+
+
+def write_seed(
+    skill_root: Path, target: Path, seed_rel: str, dest_rel: str, status: str
+) -> None:
+    src = skill_root / "reference" / seed_rel
+    dst = target / dest_rel
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if status == "append":
+        seed_header, seed_patterns = parse_gitignore(src.read_text(encoding="utf-8"))
+        existing = dst.read_text(encoding="utf-8")
+        _eh, existing_patterns = parse_gitignore(existing)
+        missing = [p for p in seed_patterns if p not in set(existing_patterns)]
+        block_lines = []
+        if seed_header and seed_header not in existing:
+            block_lines.append(seed_header)
+        block_lines.extend(missing)
+        block = "\n".join(block_lines) + "\n"
+        if existing and not existing.endswith("\n"):
+            existing += "\n"
+        dst.write_text(existing + block, encoding="utf-8")
+    else:
+        shutil.copyfile(src, dst)
+
+
+# --------------------------------------------------------------------------- #
+# runtime install
+# --------------------------------------------------------------------------- #
+
+
+def stage_runtime(target: Path, runtime_files: dict) -> None:
+    """Write the runtime to .devagent.tmp/, then atomically rename into place."""
+    scripts = target / ".agents" / "scripts"
+    stage = target.joinpath(*STAGING_DEST_REL)
+    if stage.exists():
+        remove_path(stage)
+    for rel, data in runtime_files.items():
+        inner = rel.split("/", 1)[1] if rel.startswith("devagent/") else rel
+        out = stage.joinpath(*inner.split("/"))
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(data)
+    dest = target.joinpath(*RUNTIME_DEST_REL)
+    if dest.exists():
+        remove_path(dest)
+    scripts.mkdir(parents=True, exist_ok=True)
+    stage.rename(dest)
+
+
+# --------------------------------------------------------------------------- #
+# commands
+# --------------------------------------------------------------------------- #
+
+
+def _resolve_target(raw: str) -> Path:
+    target = Path(raw).expanduser().resolve()
+    if not target.is_dir():
+        sys.exit("error: target is not a directory: " + str(target))
+    return target
+
+
+def _guard_self_bootstrap(skill_root: Path, target: Path) -> None:
+    source_root = find_source_repo_root(skill_root)
+    if source_root is None:
+        print(
+            "note: no framework source tree found above the skill; self-bootstrap guard skipped"
+        )
+        return
+    if target == source_root or target.is_relative_to(source_root):
+        sys.exit(
+            "error: refusing to bootstrap the framework's own source tree ("
+            + str(source_root)
+            + ") - this repo is the source of truth, not a target"
+        )
+
+
+def _apply_seeds(skill_root: Path, target: Path, dry_run: bool) -> tuple[int, int, int]:
+    plan = plan_seeds(skill_root, target)
+    if dry_run:
+        for _seed_rel, rel, status in plan:
+            print(status + ": " + rel)
+        return 0, 0, 0
+    installed = updated = unchanged = 0
+    for seed_rel, rel, status in plan:
+        if status == "ok":
+            print("unchanged: " + rel)
+            unchanged += 1
+            continue
+        write_seed(skill_root, target, seed_rel, rel, status)
+        if status == "new":
+            print("installed: " + rel)
+            installed += 1
+        elif status == "append":
+            print("appended: " + rel)
+            updated += 1
+        else:
+            print("updated: " + rel)
+            updated += 1
+    return installed, updated, unchanged
+
+
+def _reconcile_runtime(
+    target: Path, runtime_files: dict, manifest: dict | None, dry_run: bool
+) -> tuple[int, int, int]:
+    """Report and (unless dry-run) install the bundled runtime.
+
+    Comparisons are against the manifest hashes when present, else the on-disk
+    bytes (first install). Returns (installed, updated, unchanged).
+    """
+    actual = iter_runtime_actual(target)
+    rows = []  # (rel, status)
+    for rel, data in runtime_files.items():
+        if rel not in actual:
+            status = "installed"
+        elif actual[rel] == data:
+            status = "unchanged"
+        else:
+            status = "updated"
+        rows.append((rel, status))
+
+    prefix = "/".join(SCRIPTS_REL)
+    counts = {"installed": 0, "updated": 0, "unchanged": 0}
+    for rel, status in rows:
+        print(status + ": " + prefix + "/" + rel)
+        counts[status] += 1
+
+    if not dry_run and (counts["installed"] or counts["updated"]):
+        stage_runtime(target, runtime_files)
+    return counts["installed"], counts["updated"], counts["unchanged"]
+
+
+def cmd_setup(args, skill_root: Path) -> int:
+    _guard_self_bootstrap(skill_root, _resolve_target(args.target))
+    verify_seeds(skill_root)
+    target = _resolve_target(args.target)
+    version = read_runtime_version(skill_root)
+    runtime_files = iter_runtime_source(skill_root)
+    manifest = read_manifest(target)
+
+    if manifest is not None:
+        installed_version = str(manifest.get("runtime_version", "0"))
+        if version_tuple(installed_version) > version_tuple(version):
+            sys.stderr.write(
+                "error: the installed runtime ("
+                + installed_version
+                + ") is newer than this package ("
+                + version
+                + "); refusing to downgrade. Use a newer dev-agent skill.\n"
+            )
+            return 2
+
+    s_inst, s_upd, s_same = _apply_seeds(skill_root, target, args.dry_run)
+    r_inst, r_upd, r_same = _reconcile_runtime(
+        target, runtime_files, manifest, args.dry_run
+    )
+
+    m_inst = m_same = 0
+    if not args.dry_run:
+        new_manifest = build_manifest(
+            runtime_files, version, args.scope, args.agent or ""
+        )
+        if manifest is None or manifest.get("files") != new_manifest["files"]:
+            write_manifest(target, new_manifest)
+            print("wrote: .agents/.devagent.json")
+            m_inst = 1
+        else:
+            print("unchanged: .agents/.devagent.json")
+            m_same = 1
+
+    if args.skills and not args.dry_run:
+        return _install_skills(skill_root, args, target)
+
+    print(
+        "dev-agent setup complete: "
+        + str(s_inst + r_inst + m_inst)
+        + " installed, "
+        + str(s_upd + r_upd)
+        + " updated, "
+        + str(s_same + r_same + m_same)
+        + " unchanged"
+    )
+    return 0
+
+
+def cmd_check(args, skill_root: Path) -> int:
+    target = _resolve_target(args.target)
+    version = read_runtime_version(skill_root)
+    runtime_files = iter_runtime_source(skill_root)
+    manifest = read_manifest(target)
+
+    drift = 0
+    if manifest is None:
+        print("missing: .agents/.devagent.json")
+        print("dev-agent check: 1 change(s) needed")
+        return 1
+
+    installed_version = str(manifest.get("runtime_version", "0"))
+    if version_tuple(installed_version) < version_tuple(version):
+        print(
+            "stale: runtime " + installed_version + " -> " + version + " (run --update)"
+        )
+        drift += 1
+    elif version_tuple(installed_version) > version_tuple(version):
+        print("stale: runtime " + installed_version + " is newer than this package")
+        drift += 1
+
+    known = manifest.get("files") or {}
+    actual = iter_runtime_actual(target)
+    for rel, data in sorted(runtime_files.items()):
+        dig = sha256_bytes(data)
+        if rel not in actual:
+            print("missing: " + rel)
+            drift += 1
+        elif rel not in known:
+            print("orphan: " + rel + " (not in manifest)")
+            drift += 1
+        elif actual[rel] != data:
+            print("modified: " + rel)
+            drift += 1
+        elif known.get(rel) != dig and actual[rel] == data:
+            print("modified: " + rel + " (manifest hash out of date)")
+            drift += 1
+    for rel in sorted(set(actual) - set(runtime_files)):
+        print("orphan: " + rel + " (not in package)")
+        drift += 1
+
+    if drift:
+        print("dev-agent check: " + str(drift) + " change(s) needed")
+        return 1
+    print("dev-agent check: clean")
+    return 0
+
+
+def cmd_update(args, skill_root: Path) -> int:
+    target = _resolve_target(args.target)
+    _guard_self_bootstrap(skill_root, target)
+    version = read_runtime_version(skill_root)
+    runtime_files = iter_runtime_source(skill_root)
+    manifest = read_manifest(target)
+
+    # Capture files the user modified (relative to the manifest) so we can back
+    # them up AFTER staging replaces the runtime directory.
+    modified = {}
+    if manifest is not None:
+        known = manifest.get("files") or {}
+        for rel, data in iter_runtime_actual(target).items():
+            if rel in known and sha256_bytes(data) != known[rel]:
+                modified[rel] = data
+
+    if args.dry_run:
+        _reconcile_runtime(target, runtime_files, manifest, True)
+        print("dev-agent update: dry-run (no writes)")
+        return 0
+
+    r_inst, r_upd, _r_same = _reconcile_runtime(target, runtime_files, manifest, False)
+
+    for rel, data in sorted(modified.items()):
+        full = target.joinpath(*SCRIPTS_REL, *rel.split("/"))
+        backup = full.with_name(full.name + ".bak")
+        backup.write_bytes(data)
+        print("backup: " + "/".join(SCRIPTS_REL) + "/" + rel + " -> " + backup.name)
+
+    new_manifest = build_manifest(runtime_files, version, args.scope, args.agent or "")
+    write_manifest(target, new_manifest)
+    print("wrote: .agents/.devagent.json")
+    print(
+        "dev-agent update complete: "
+        + str(r_inst)
+        + " installed, "
+        + str(r_upd)
+        + " updated"
+    )
+    return 0
+
+
+def _read_descriptor(skill_root: Path) -> dict:
+    path = skill_root / DESCRIPTOR_NAME
+    if not path.is_file():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _resolve_skill_names(spec: str, descriptor: dict) -> list:
+    mandatory = list(descriptor.get("mandatory", []))
+    optional = list(descriptor.get("optional", []))
+    spec = (spec or "").strip()
+    if spec in ("mandatory", "required"):
+        return mandatory
+    if spec == "all":
+        return mandatory + optional
+    return [s.strip() for s in spec.split(",") if s.strip()]
+
+
+def _install_skills(skill_root: Path, args, target: Path) -> int:
+    descriptor = _read_descriptor(skill_root)
+    source = descriptor.get("source")
+    names = _resolve_skill_names(args.skills, descriptor)
+    if not source or not names:
+        sys.stderr.write("error: no --skills descriptor or skill list available\n")
+        return 1
+
+    npx = shutil.which("npx")
+    cmd = ["npx", "--yes", "skills@latest", "add", source]
+    for name in names:
+        cmd += ["--skill", name]
+    cmd += ["-y"]
+    if args.scope == "global":
+        cmd += ["-g"]
+    if args.agent:
+        cmd += ["-a", args.agent]
+
+    if npx is None:
+        print("note: npx not found; runtime installed, install skills manually:")
+        print("      " + " ".join(cmd))
+        return 0
+
+    proc = subprocess.run(
+        cmd, cwd=str(target), check=False, capture_output=True, text=True
+    )
+    if proc.stdout:
+        sys.stdout.write(proc.stdout)
+    if proc.stderr:
+        sys.stderr.write(proc.stderr)
+    if proc.returncode != 0:
+        sys.stderr.write(
+            "error: `npx skills add` failed (exit " + str(proc.returncode) + ")\n"
+        )
+        return proc.returncode
+    print("skills installed: " + ", ".join(names))
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        prog="bootstrap.py",
+        description="dev-agent: install the Dev Agent framework into a target repository",
+    )
+    parser.add_argument(
+        "command",
+        nargs="?",
+        default="setup",
+        choices=["setup", "check", "update"],
+        help="what to do (default: setup)",
+    )
+    parser.add_argument("--target", default=".", help="repository to install into")
+    parser.add_argument("--dry-run", action="store_true", help="preview, write nothing")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        dest="check_flag",
+        help="alias for the check command",
+    )
+    parser.add_argument(
+        "--update",
+        action="store_true",
+        dest="update_flag",
+        help="alias for the update command",
+    )
+    parser.add_argument(
+        "--scope",
+        default="project",
+        choices=["project", "global"],
+        help="install scope",
+    )
+    parser.add_argument("--agent", default=None, help="harness/agent name to record")
+    parser.add_argument(
+        "--skills",
+        default=None,
+        help="opt-in: mandatory|all|<comma-list>; delegates to `npx skills add`",
+    )
+    args = parser.parse_args()
+
+    command = (
+        "check" if args.check_flag else "update" if args.update_flag else args.command
+    )
+    skill_root = find_skill_root()
+
+    if command == "setup":
+        return cmd_setup(args, skill_root)
+    if command == "check":
+        return cmd_check(args, skill_root)
+    return cmd_update(args, skill_root)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

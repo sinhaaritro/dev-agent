@@ -11,7 +11,11 @@ to users. promote enforces that by injecting the flag into the derived copy.
 
 What promote owns:
     - every top-level `skills/<name>/` folder that contains a `SKILL.md`,
-    - recorded in `.agents/.promoted.json`.
+      recorded in `.agents/.promoted.json`;
+    - the repo's own installed runtime copy at `.agents/scripts/devagent/`,
+      mirrored from `skills/dev-agent/runtime/devagent/` so the local rulebook
+      (`python .agents/scripts/devagent/main.py <cmd>`) is truthful. It is a
+      fixed derived target, not in the manifest, but `--check` guards it too.
 
 What promote never touches:
     - any `.agents/skills/<name>` not in the manifest (repo-only skills such as
@@ -41,6 +45,8 @@ from pathlib import Path
 SKILLS_DIR = "skills"
 WORK_DIR = ".agents/skills"
 MANIFEST = ".agents/.promoted.json"
+RUNTIME_SRC = "skills/dev-agent/runtime/devagent"
+RUNTIME_DEST = ".agents/scripts/devagent"
 
 
 def find_root() -> Path:
@@ -51,7 +57,9 @@ def find_root() -> Path:
             return current
         parent = current.parent
         if parent == current:
-            sys.exit("error: AGENTS.md not found above " + str(Path(__file__).resolve()))
+            sys.exit(
+                "error: AGENTS.md not found above " + str(Path(__file__).resolve())
+            )
         current = parent
 
 
@@ -130,12 +138,12 @@ def discover_sources(skills_dir: Path) -> dict:
     return out
 
 
-def expected_files(src_dir: Path) -> dict:
+def expected_files(src_dir: Path, inject_skill: bool = True) -> dict:
     """The exact bytes promote should place in the derived folder."""
     out = {}
     for rel, path in iter_files(src_dir):
         data = path.read_bytes()
-        if rel == "SKILL.md":
+        if inject_skill and rel == "SKILL.md":
             text = normalize_bytes(data).decode("utf-8")
             out[rel] = inject_internal(text).encode("utf-8")
         else:
@@ -188,8 +196,12 @@ def main() -> int:
         description="mirror skills/ (product) into .agents/skills/ (dogfood workspace)"
     )
     parser.add_argument("mode", nargs="?", default="apply", choices=["apply"])
-    parser.add_argument("--dry-run", action="store_true", help="print planned changes, write nothing")
-    parser.add_argument("--check", action="store_true", help="exit non-zero on any drift")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="print planned changes, write nothing"
+    )
+    parser.add_argument(
+        "--check", action="store_true", help="exit non-zero on any drift"
+    )
     args = parser.parse_args()
 
     if args.dry_run and args.check:
@@ -206,7 +218,11 @@ def main() -> int:
 
     sources = discover_sources(skills_dir)
     managed = set(load_manifest(root))
-    existing = {d.name for d in work_dir.iterdir() if d.is_dir()} if work_dir.is_dir() else set()
+    existing = (
+        {d.name for d in work_dir.iterdir() if d.is_dir()}
+        if work_dir.is_dir()
+        else set()
+    )
 
     collisions = sorted((set(sources) & existing) - managed)
     if collisions:
@@ -219,27 +235,36 @@ def main() -> int:
         )
         return 2
 
-    plan = []
+    targets = []  # (label, src_dir, dest_dir, inject_skill)
     for name in sorted(sources):
+        targets.append((name, sources[name], work_dir / name, True))
+    runtime_src = root.joinpath(*RUNTIME_SRC.split("/"))
+    if runtime_src.is_dir():
+        targets.append(
+            (RUNTIME_DEST, runtime_src, root.joinpath(*RUNTIME_DEST.split("/")), False)
+        )
+
+    plan = []
+    for label, src_dir, dest_dir, inject in targets:
         try:
-            expected = expected_files(sources[name])
+            expected = expected_files(src_dir, inject_skill=inject)
         except (OSError, ValueError) as exc:
-            sys.stderr.write("error: " + name + ": " + str(exc) + "\n")
+            sys.stderr.write("error: " + label + ": " + str(exc) + "\n")
             return 2
-        actual = actual_files(work_dir / name)
+        actual = actual_files(dest_dir)
         if actual is None:
             status = "new"
         elif actual == expected:
             status = "ok"
         else:
             status = "overwrite"
-        plan.append((status, name, expected))
+        plan.append((status, label, dest_dir, expected))
     removals = sorted(managed - set(sources))
 
     if args.check:
         drift = 0
-        for status, name, _ in plan:
-            print(status + ": " + name)
+        for status, label, _dest, _expected in plan:
+            print(status + ": " + label)
             if status != "ok":
                 drift += 1
         for name in removals:
@@ -252,17 +277,16 @@ def main() -> int:
         return 0
 
     if args.dry_run:
-        for status, name, _ in plan:
-            print(status + ": " + name)
+        for status, label, _dest, _expected in plan:
+            print(status + ": " + label)
         for name in removals:
             print("remove: " + name)
         return 0
 
     installed = updated = unchanged = removed = 0
-    for status, name, expected in plan:
-        dest = work_dir / name
+    for status, label, dest, expected in plan:
         if status == "ok":
-            print("unchanged: " + name)
+            print("unchanged: " + label)
             unchanged += 1
             continue
         if dest.exists():
@@ -272,10 +296,10 @@ def main() -> int:
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_bytes(data)
         if status == "new":
-            print("installed: " + name)
+            print("installed: " + label)
             installed += 1
         else:
-            print("updated: " + name)
+            print("updated: " + label)
             updated += 1
 
     for name in removals:

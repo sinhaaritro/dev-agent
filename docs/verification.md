@@ -10,24 +10,24 @@ The verification authority during build: how verification commands are resolved,
 
 **Picture:** [flow.md](flow.md) — diagram 2, *Build run flow*.
 
-Verification runs through a single stdlib script, `.agents/skills/verification-runner/scripts/verify.py`, with subcommands `run`, `approve`, `doctor`, `status`, `report`, and `escalate`. The core idea is that **completion is derived, not asserted**: a task is "done" only when the evidence on disk still matches reality.
+Verification runs through the shared dev-agent runtime — `python .agents/scripts/devagent/main.py verify` — with subcommands `run`, `approve`, `doctor`, `status`, `report`, and `escalate`. The core idea is that **completion is derived, not asserted**: a task is "done" only when the evidence on disk still matches reality.
 
 ### Command source (resolution order)
 
 1. The task's **`Verify`** command (the spec's section 5 Tasks & Outcomes) is primary, with its `Expect` marker.
 2. If absent, the plan's **section 7 Verification Commands**, then `AGENTS.md`'s **Commands block** (the canonical Build/Test/Lint).
-3. If all absent, `verify.py detect` identifies the framework family and the agent reads `references/frameworks/<stack>.md` (currently `python.md`, `node-npm.md`) for canonical commands, then confirms Socratically before the first run (Lane C's only approval gate).
+3. If all absent, the runtime's `verify detect` subcommand identifies the framework family and the agent reads `references/frameworks/<stack>.md` (currently `python.md`, `node-npm.md`) for canonical commands, then confirms Socratically before the first run (Lane C's only approval gate).
 
 When a project uses a non-default environment activator (venv, conda, `nvm use`), the project declares a `Run Prefix` line in `AGENTS.md`; detected canonical commands are prefixed with it. No prefix declared and no obvious global toolchain → ask.
 
 ### Run from the repo root
 
-`verify.py` resolves the repo root by walking up from the **current working directory** first (then the script location), using the nearest `AGENTS.md` as the marker. Commands run with `cwd = repo root`, so relative paths and the canonical AGENTS.md Build/Test/Lint commands resolve the same way a human runs them. This makes a self-contained sandbox (its own `AGENTS.md` + its own copy of `verify.py`) resolve to itself, not to a parent repo (VERIFY-D01).
+The runtime resolves the project root by walking up from the **current working directory** first (then the script location), using the nearest `AGENTS.md` as the marker. Commands run with `cwd = repo root`, so relative paths and the canonical AGENTS.md Build/Test/Lint commands resolve the same way a human runs them. This lets a self-contained sandbox (its own `AGENTS.md`) resolve to itself, not to a parent repo (VERIFY-D01). The runtime *install* it uses is discovered separately, by walking up from the CWD for `.agents/.devagent.json` — which is what lets a globally installed skill operate on the project it is run in.
 
 ### Running through the engine (never bare)
 
 ```text
-python .agents/skills/verification-runner/scripts/verify.py run \
+python .agents/scripts/devagent/main.py verify run \
   --command "<cmd>" --expect "<marker>" --task <task-id> --lane <A|B|C|D>
 ```
 
@@ -49,7 +49,7 @@ Optional at run time: `--hypothesis "<text>"` and `--options "<A (Recommended): 
 
 A `Verify` command is shell code written by the AI; approving the spec does not approve its commands.
 
-- Pre-approvals happen at **compile**: the spec group carries a `NNN-APPROVALS-<slug>.json` with the fingerprint of each verify command, so a human's pre-approval matches a coder's later run. A coder can also approve inline (idempotent): `python .agents/skills/verification-runner/scripts/verify.py approve --command "<cmd>" --expect "<marker>"`
+- Pre-approvals happen at **compile**: the spec group carries a `NNN-APPROVALS-<slug>.json` with the fingerprint of each verify command, so a human's pre-approval matches a coder's later run. A coder can also approve inline (idempotent): `python .agents/scripts/devagent/main.py verify approve --command "<cmd>" --expect "<marker>"`
 - The fingerprint is `sha256(command | expect | cwd)`, with `cwd` the repo root recorded repo-relative (`.`) so a committed `NNN-APPROVALS` file is portable across clones. The **executor is deliberately excluded** (VERIFY-D02) so a human's pre-approval matches a coder's run of the same command. Any change to the command or `Expect` re-arms approval; cached re-runs are free.
 - `run --lane <A|B>` on an unapproved command exits **4 before execution** — no state change, not a retry attempt. Approve, then re-run.
 - Lanes C/D (or no `--lane`) are exempt.
@@ -61,7 +61,7 @@ On a green `run` (exit 0 **and** the `Expect` marker present in the combined out
 
 ### Derived status
 
-`verify.py status --task <id>` reads the evidence block and reports:
+`python .agents/scripts/devagent/main.py verify status --task <id>` reads the evidence block and reports:
 
 | Status | Meaning |
 | :--- | :--- |
@@ -84,7 +84,7 @@ The per-task attempt counter is engine state — **never hand-tracked, never han
 
 ### The doctor (pre-flight)
 
-`verify.py doctor --spec <ref>` runs nine ordered preconditions, in order: (1) repo root resolved; (2) engine scripts parseable; (3) state files parseable; (4) the spec is `Status: COMPILED` or `BUILDING`; (5) a task file exists for every task in section 5; (6) `Depends On` forms a valid DAG; (7) every task's verify command is pre-approved; (8) the canonical AGENTS.md commands resolve; (9) a branch can be created off `main`/`master`. Output: `PRECONDITIONS OK` on success, else a **named list of gaps** + non-zero exit (VERIFY-D04). These preconditions are enforced for **unattended** runs; an interactive run asks the human at the moment instead of halting. `<ref>` is a spec id (`003`), a file name, a relative path, or an absolute path — the same forms `report --spec <ref>` accepts.
+`python .agents/scripts/devagent/main.py verify doctor --spec <ref>` runs nine ordered preconditions, in order: (1) repo root resolved; (2) engine scripts parseable; (3) state files parseable; (4) the spec is `Status: COMPILED` or `BUILDING`; (5) a task file exists for every task in section 5; (6) `Depends On` forms a valid DAG; (7) every task's verify command is pre-approved; (8) the canonical AGENTS.md commands resolve; (9) a branch can be created off `main`/`master`. Output: `PRECONDITIONS OK` on success, else a **named list of gaps** + non-zero exit (VERIFY-D04). These preconditions are enforced for **unattended** runs; an interactive run asks the human at the moment instead of halting. `<ref>` is a spec id (`003`), a file name, a relative path, or an absolute path — the same forms `report --spec <ref>` accepts.
 
 ### Fixing like a doctor, not a gambler
 
@@ -101,10 +101,10 @@ This is what makes run-to-exhaustion meaningful: the count is real, the logs are
 When a task exhausts its 3 attempts and no unblocked task remains:
 
 1. The engine writes the consolidated `NNN-ESCALATION-<slug>.md` (engine-generated, engine-enforced structure — never hand-write a substitute): every `FAILED` task with its attempts + last output, every `BLOCKED` task, and the dirty edits left in the tree.
-2. Finalize with `verify.py escalate --task <id> --hypothesis "<text>"`: it merges the stored attempt logs with the agent's hypothesis and guided remediation options into the report.
+2. Finalize with `python .agents/scripts/devagent/main.py verify escalate --task <id> --hypothesis "<text>"`: it merges the stored attempt logs with the agent's hypothesis and guided remediation options into the report.
 3. The spec is parked **`ESCALATED`** (not `ABORTED`) and that spec's branch stops; the batch **continues** to the next spec. Report the hand-back in response blocks 3/4: the escalation record, the attempts' verbatim logs, the hypothesis, and the options; block 4 states the halt — no further modifications without a human.
 
-`verify.py report --spec <ref>` writes the per-spec `NNN-REPORT-<slug>.md` (the same spec-reference forms as `doctor`): the per-task derived status + evidence, the `R#` outcome observations (one line each — a missing observation **fails** review), and the review summary. An `R#` is observed only when every task whose `Outcomes:` line names it is `MET` (an outcome delivered by no task is never observed). Reports are **per spec only**; there is no combined batch file (VERIFY-D05). A green report (every task `MET` **and** every declared `R#` observed) advances the spec `BUILDING`/`BUILT` → `REVIEWED` and exits **0**; a task that is not `MET` or an unobserved `R#` leaves the status unchanged and exits **1** (an unresolvable `<ref>` exits **2**); a Sign-off block parks it `REVIEW_REVISION_REQUIRED`.
+`python .agents/scripts/devagent/main.py verify report --spec <ref>` writes the per-spec `NNN-REPORT-<slug>.md` (the same spec-reference forms as `doctor`): the per-task derived status + evidence, the `R#` outcome observations (one line each — a missing observation **fails** review), and the review summary. An `R#` is observed only when every task whose `Outcomes:` line names it is `MET` (an outcome delivered by no task is never observed). Reports are **per spec only**; there is no combined batch file (VERIFY-D05). A green report (every task `MET` **and** every declared `R#` observed) advances the spec `BUILDING`/`BUILT` → `REVIEWED` and exits **0**; a task that is not `MET` or an unobserved `R#` leaves the status unchanged and exits **1** (an unresolvable `<ref>` exits **2**); a Sign-off block parks it `REVIEW_REVISION_REQUIRED`.
 
 ### Guardrails context
 

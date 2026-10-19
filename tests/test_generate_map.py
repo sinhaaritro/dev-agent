@@ -18,7 +18,10 @@ from pathlib import Path
 from unittest import mock
 
 REPO = Path(__file__).resolve().parent.parent
-ENGINE = REPO / ".agents" / "skills" / "map-generator" / "scripts" / "generate_map.py"
+RUNTIME = REPO / "skills" / "dev-agent" / "runtime" / "devagent"
+if str(RUNTIME) not in sys.path:
+    sys.path.insert(0, str(RUNTIME))
+ENGINE = RUNTIME / "mapgen.py"
 
 _spec = importlib.util.spec_from_file_location("generate_map", ENGINE)
 assert _spec is not None and _spec.loader is not None

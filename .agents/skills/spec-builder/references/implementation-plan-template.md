@@ -186,11 +186,11 @@ touches another.
 
 ---
 Usage: drafted at `specs/temp/draft-plan.md` during plan; validated with
-`promote_spec.py check <draft> --lane <B|A>` (the check lints the `tags:` field,
+`python .agents/scripts/devagent/main.py spec check <draft> --lane <B|A>` (the check lints the `tags:` field,
 validates the section-5 Tasks & Outcomes structure, and lints every Verify/Expect
 pair); on acceptance promoted to `specs/<NNN>-SPEC-<slug>.md` via
-`promote_spec.py promote <draft> --lane <B|A> --status <APPROVED|PROVISIONAL>`,
-then compiled into task files via `promote_spec.py compile <spec>`.
+`python .agents/scripts/devagent/main.py spec promote <draft> --lane <B|A> --status <APPROVED|PROVISIONAL>`,
+then compiled into task files via `python .agents/scripts/devagent/main.py spec compile <spec>`.
 Lane A mandates sections 1-8 (plus the 0 Frontmatter); Lane B uses sections 1, 4, 5
 only. The `tags:` field is mandatory on committed docs and lives in the YAML
 frontmatter block at the top of the file (lowercase-kebab, 2-30 chars, max 7); the

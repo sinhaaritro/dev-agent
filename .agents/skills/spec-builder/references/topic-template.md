@@ -2,7 +2,7 @@
 
 The single source of format truth for Topic-Based decision docs. Every topic doc
 filed under `docs/` must match this structure, which is why topic creation and
-revision run through the spec-builder engine (`promote_spec.py topic`) instead of
+revision run through the spec-builder engine (the runtime's `spec topic` command) instead of
 judgment. One topic doc per subsystem, not one ADR per decision.
 
 ```text
@@ -59,5 +59,5 @@ Rules:
 8. A change that reverses a decision is a revision (named, human-authorized,
    cross-file/topic, one approval) — never "delete + recreate."
 
-Usage: created and revised with `promote_spec.py topic` (Task 3). Pure research
+Usage: created and revised with the runtime's `spec topic` command (Task 3). Pure research
 (not implemented) is recorded only when the human says so.

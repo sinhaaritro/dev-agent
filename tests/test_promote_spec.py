@@ -14,10 +14,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-ENGINE = (
-    Path(__file__).resolve().parent.parent
-    / ".agents" / "skills" / "spec-builder" / "scripts" / "promote_spec.py"
-)
+REPO = Path(__file__).resolve().parent.parent
+RUNTIME = REPO / "skills" / "dev-agent" / "runtime" / "devagent"
+if str(RUNTIME) not in sys.path:
+    sys.path.insert(0, str(RUNTIME))
+ENGINE = RUNTIME / "specs.py"
 
 _spec = importlib.util.spec_from_file_location("promote_spec", ENGINE)
 assert _spec is not None and _spec.loader is not None
@@ -169,7 +170,9 @@ class TestNewTemplateCheck(unittest.TestCase):
         self.assertTrue(any("'Depends On:'" in v for v in violations))
 
     def test_missing_verify(self):
-        text = lane_a_draft().replace("- Verify: `python -m unittest tests.test_sandbox -v`\n", "", 1)
+        text = lane_a_draft().replace(
+            "- Verify: `python -m unittest tests.test_sandbox -v`\n", "", 1
+        )
         draft = write_draft(text)
         self.addCleanup(draft.unlink, missing_ok=True)
         passed, _, violations = promote_spec.check_draft(draft, "A")
@@ -177,7 +180,7 @@ class TestNewTemplateCheck(unittest.TestCase):
         self.assertTrue(any("'Verify:'" in v for v in violations))
 
     def test_missing_expect(self):
-        text = lane_a_draft().replace("- Expect: \"OK\"\n", "", 1)
+        text = lane_a_draft().replace('- Expect: "OK"\n', "", 1)
         draft = write_draft(text)
         self.addCleanup(draft.unlink, missing_ok=True)
         passed, _, violations = promote_spec.check_draft(draft, "A")
@@ -212,8 +215,8 @@ class TestNewTemplateCheck(unittest.TestCase):
         # A marker the command itself emits (grep -o) is a valid oracle, so a
         # marker appearing as a substring of the Verify command is allowed.
         text = lane_a_draft().replace(
-            "- Verify: `python -m unittest tests.test_sandbox -v`\n- Expect: \"OK\"",
-            "- Verify: `grep -o SB-MARKER src/sandbox.py | tail -1`\n- Expect: \"SB-MARKER\"",
+            '- Verify: `python -m unittest tests.test_sandbox -v`\n- Expect: "OK"',
+            '- Verify: `grep -o SB-MARKER src/sandbox.py | tail -1`\n- Expect: "SB-MARKER"',
             1,
         )
         draft = write_draft(text)
@@ -392,10 +395,13 @@ class TestCompilePurgeSyncAccept(unittest.TestCase):
         self.assertEqual(len(written), 2)
         for f in written:
             self.assertTrue(f.is_file())
-            self.assertEqual(promote_spec.validate_task_file(f.read_text(encoding="utf-8")), [])
+            self.assertEqual(
+                promote_spec.validate_task_file(f.read_text(encoding="utf-8")), []
+            )
         approvals = self.root / "specs" / "009-APPROVALS-sandbox-group.json"
         self.assertTrue(approvals.is_file())
         import json
+
         data = json.loads(approvals.read_text(encoding="utf-8"))
         self.assertEqual(len(data["approvals"]), 2)
         # fingerprint is the sha256 approval key shared with verify.py (C1);
@@ -443,7 +449,10 @@ class TestCompilePurgeSyncAccept(unittest.TestCase):
         if not readme.is_file():
             readme.write_text(
                 "# Specs\n\n"
-                + promote_spec.TOC_START + "\n" + promote_spec.TOC_END + "\n",
+                + promote_spec.TOC_START
+                + "\n"
+                + promote_spec.TOC_END
+                + "\n",
                 encoding="utf-8",
             )
         promote_spec.sync_specs_readme(self.root)
@@ -479,7 +488,9 @@ class TestTargetFilesPerTask(unittest.TestCase):
         return [ln.strip() for ln in body.splitlines() if ln.strip().startswith("-")]
 
     def test_check_rejects_missing_target_files(self):
-        text = lane_a_draft().replace("- Target Files: [MODIFY] src/sandbox.py\n", "", 1)
+        text = lane_a_draft().replace(
+            "- Target Files: [MODIFY] src/sandbox.py\n", "", 1
+        )
         draft = write_draft(text)
         self.addCleanup(draft.unlink, missing_ok=True)
         passed, _, violations = promote_spec.check_draft(draft, "A")
@@ -511,7 +522,7 @@ class TestTargetFilesPerTask(unittest.TestCase):
             "## 5. Tasks & Outcomes\n\n"
             "### Task 1: x\n"
             "- Depends On: None\n"
-            '- Verify: `python -m unittest tests.test_sandbox -v`\n'
+            "- Verify: `python -m unittest tests.test_sandbox -v`\n"
             '- Expect: "OK"\n',
             encoding="utf-8",
         )
@@ -529,10 +540,13 @@ class TestStatusTransitions(unittest.TestCase):
         self.spec = make_group_sandbox(self.root)  # Status: APPROVED
 
     def test_promote_writes_a_canonical_status(self):
-        self.assertIn(promote_spec.normalize_status("APPROVED"),
-                      promote_spec.CANONICAL_STATUSES)
-        self.assertIn(promote_spec.normalize_status("PROVISIONAL").split()[0],
-                      promote_spec.CANONICAL_STATUSES)
+        self.assertIn(
+            promote_spec.normalize_status("APPROVED"), promote_spec.CANONICAL_STATUSES
+        )
+        self.assertIn(
+            promote_spec.normalize_status("PROVISIONAL").split()[0],
+            promote_spec.CANONICAL_STATUSES,
+        )
         token = promote_spec.status_token(self.spec.read_text(encoding="utf-8"))
         self.assertIn(token, promote_spec.CANONICAL_STATUSES)
 

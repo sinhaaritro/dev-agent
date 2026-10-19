@@ -10,7 +10,7 @@ How the framework finds and loads skills: the generated `MAP.md` index, snapshot
 
 ### The index: `.agents/MAP.md`
 
-`MAP.md` is the single table-format index of all skills. It is **generated, never hand-edited**, and not part of the committed tree — it exists on disk after the first `generate_map.py` run and is rebuilt whenever its freshness check fails.
+`MAP.md` is the single table-format index of all skills. It is **generated, never hand-edited**, and not part of the committed tree — it exists on disk after the first `map` run and is rebuilt whenever its freshness check fails.
 
 Format (engine output, ASCII-only by design):
 
@@ -46,18 +46,18 @@ An earlier design compared timestamps; the implementation uses a **content snaps
 
 The hash is mtime-independent: it catches skills copied in with old timestamps (git restore, worktree checkout, clock skew) that a pure mtime check would miss. Without a `Snapshot:` line (pre-snapshot index), the engine falls back to mtime comparison.
 
-Engine: `python .agents/skills/map-generator/scripts/generate_map.py` (`--force` rebuilds unconditionally — use only after an accidental manual edit, which is forbidden).
+Engine: `python .agents/scripts/devagent/main.py map` (`--force` rebuilds unconditionally — use only after an accidental manual edit, which is forbidden).
 
 ### Why MAP.md gates everything
 
 `dev-agent-framework.md` step 1 runs the freshness check **before** any prompt is processed, and auto-router instruction 3 re-reads `MAP.md` whenever `regenerated` was reported. The rule is absolute: never match skills against a stale index. A missing or stale `MAP.md` is a boot-chain violation, not a degraded mode.
 
-### Recall stage 1: `match_skills.py`
+### Recall stage 1: the `route` command
 
 After triage, auto-router runs the recall engine on the raw prompt:
 
 ```text
-python .agents/skills/auto-router/scripts/match_skills.py "<prompt>"
+python .agents/scripts/devagent/main.py route "<prompt>"
 ```
 
 Mechanics:
@@ -87,8 +87,8 @@ Stage 2 is the agent's judgment over stage 1's output:
 ### Adding a new skill (dynamic discovery)
 
 1. Drop a folder: `.agents/skills/<name>/SKILL.md` with canonical frontmatter (`name`, `description`, `tags`; optional `scope: always`; `trigger_tags` is a legacy fallback for `tags`).
-2. Next session start, `generate_map.py` detects the hash mismatch and prints `regenerated`; the new row appears in `MAP.md`.
-3. `match_skills.py` can now score the new skill. No router, rulebook, or other file is edited — zero hardcoding of skill names anywhere.
+2. Next session start, the runtime's `map` command detects the hash mismatch and prints `regenerated`; the new row appears in `MAP.md`.
+3. The runtime's `route` command can now score the new skill. No router, rulebook, or other file is edited — zero hardcoding of skill names anywhere.
 
 To change a skill's indexed metadata, edit its `SKILL.md` frontmatter and let the engine regenerate — never hand-edit `MAP.md`.
 

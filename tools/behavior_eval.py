@@ -74,7 +74,7 @@ REPO = Path(__file__).resolve().parent.parent
 FIXTURES_REL = Path("tests") / "fixtures" / "behavior"
 DEFAULT_WORKSPACE = Path(tempfile.gettempdir()) / "dev-agent-behavior-workspaces"
 SKILLS_SOURCE = REPO / "skills"
-BOOTSTRAP_SCRIPT = SKILLS_SOURCE / "bootstrap" / "scripts" / "bootstrap.py"
+BOOTSTRAP_SCRIPT = SKILLS_SOURCE / "dev-agent" / "scripts" / "bootstrap.py"
 SKILL_CREATOR = REPO / ".agents" / "skills" / "skill-creator"
 REVIEWER = SKILL_CREATOR / "eval-viewer" / "generate_review.py"
 PREVIEW_DIR = REPO / ".behavior-review"
@@ -84,7 +84,14 @@ ROOT_CONFIG = "new_skill"  # lives at the run root for backwards compatibility
 LEGACY_CONFIGS = {"with_skill": "new_skill"}
 DEFAULT_SETUP = ["bootstrap", "skills:auto-router,phase-protocol"]
 
-ARTIFACT_KINDS = ("exists", "missing", "contains", "not-contains", "matches", "not-matches")
+ARTIFACT_KINDS = (
+    "exists",
+    "missing",
+    "contains",
+    "not-contains",
+    "matches",
+    "not-matches",
+)
 SCOPES = ("repo", "run")
 
 
@@ -179,7 +186,7 @@ def seed_repo(case: Case, dest: Path) -> None:
 
 def _run_bootstrap(target: Path) -> None:
     proc = subprocess.run(
-        [sys.executable, str(BOOTSTRAP_SCRIPT), "--target", str(target)],
+        [sys.executable, str(BOOTSTRAP_SCRIPT), "setup", "--target", str(target)],
         cwd=REPO,
         check=False,
         capture_output=True,
@@ -268,11 +275,14 @@ def apply_setup(
             _install_skills(repo, names, skills_source)
             notes.append("skills: " + ", ".join(names))
         elif step == "map":
-            script = repo / ".agents" / "skills" / "map-generator" / "scripts" / "generate_map.py"
+            script = repo / ".agents" / "scripts" / "devagent" / "main.py"
             if not script.is_file():
-                raise SystemExit("error: setup step 'map' needs 'skills:map-generator' first")
+                raise SystemExit(
+                    "error: setup step 'map' needs a 'bootstrap' step first "
+                    "(it installs the runtime at .agents/scripts/devagent/)"
+                )
             proc = subprocess.run(
-                [sys.executable, str(script)],
+                [sys.executable, str(script), "map"],
                 cwd=str(repo),
                 check=False,
                 capture_output=True,
@@ -281,7 +291,9 @@ def apply_setup(
                 errors="replace",
             )
             if proc.returncode != 0:
-                raise SystemExit("error: map generation failed\n" + proc.stdout + proc.stderr)
+                raise SystemExit(
+                    "error: map generation failed\n" + proc.stdout + proc.stderr
+                )
             notes.append("map: " + (proc.stdout or "").strip().splitlines()[-1])
         else:
             raise SystemExit(f"error: unknown setup step {step!r}")
@@ -298,7 +310,11 @@ def canonical_config(config: str) -> str:
 
 def config_path(run: Path, config: str) -> Path:
     """new_skill lives at the run root; other configs get a subdirectory."""
-    return run if canonical_config(config) == ROOT_CONFIG else run / canonical_config(config)
+    return (
+        run
+        if canonical_config(config) == ROOT_CONFIG
+        else run / canonical_config(config)
+    )
 
 
 def config_setup(case: Case, config: str) -> list[str]:
@@ -434,9 +450,14 @@ def check_artifact(run: Path, artifact: str) -> tuple[bool, str]:
     if kind == "contains":
         return found, f"{'found' if found else 'missing'} {text!r} in {scope}:{rel}"
     if kind == "matches":
-        return found, f"{'matched' if found else 'no match for'} /{text}/ in {scope}:{rel}"
+        return (
+            found,
+            f"{'matched' if found else 'no match for'} /{text}/ in {scope}:{rel}",
+        )
     if kind == "not-matches":
-        return (not found), f"{'matched' if found else 'no match for'} /{text}/ in {scope}:{rel}"
+        return (
+            not found
+        ), f"{'matched' if found else 'no match for'} /{text}/ in {scope}:{rel}"
     if found is False and not any(p.is_file() for p in matches):
         return False, f"file not found: {scope}:{rel}"
     return (not found), f"{'found' if found else 'absent'} {text!r} in {scope}:{rel}"
@@ -488,7 +509,9 @@ def check_config(case: Case, run: Path, config: str = ROOT_CONFIG) -> dict:
         "checks": checks,
         "checked_at": iso_now(),
     }
-    (base / "result.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    (base / "result.json").write_text(
+        json.dumps(result, indent=2) + "\n", encoding="utf-8"
+    )
     grading = {
         "expectations": [
             {
@@ -505,7 +528,9 @@ def check_config(case: Case, run: Path, config: str = ROOT_CONFIG) -> dict:
             "total": total,
         },
     }
-    (base / "grading.json").write_text(json.dumps(grading, indent=2) + "\n", encoding="utf-8")
+    (base / "grading.json").write_text(
+        json.dumps(grading, indent=2) + "\n", encoding="utf-8"
+    )
     return result
 
 
@@ -518,7 +543,9 @@ def skills_under_test(case: Case) -> list[str]:
     names: list[str] = []
     for step in case.setup:
         if step.startswith("skills:"):
-            names.extend(n.strip() for n in step.split(":", 1)[1].split(",") if n.strip())
+            names.extend(
+                n.strip() for n in step.split(":", 1)[1].split(",") if n.strip()
+            )
     return names
 
 
@@ -730,7 +757,11 @@ def write_answer(base: Path, stdout: str) -> None:
     """Materialize `outputs/answer.md` - what the viewer shows as 'what the AI generated'."""
     outputs = base / "outputs"
     outputs.mkdir(parents=True, exist_ok=True)
-    answer = extract_assistant_text(stdout) or stdout.strip() or "(no assistant text captured)"
+    answer = (
+        extract_assistant_text(stdout)
+        or stdout.strip()
+        or "(no assistant text captured)"
+    )
     (outputs / "answer.md").write_text(answer + "\n", encoding="utf-8")
 
 
@@ -826,9 +857,12 @@ def cmd_run(args: argparse.Namespace, fixtures_root: Path) -> int:
     rc = 0
     for config in configs:
         print(f"running config: {config}")
-        if drive_opencode(
-            target, case.prompt, args.timeout, args.model, args.agent, config
-        ) != 0:
+        if (
+            drive_opencode(
+                target, case.prompt, args.timeout, args.model, args.agent, config
+            )
+            != 0
+        ):
             rc = 1
     print(
         f"next: python tools/behavior_eval.py check --case {case.name} "
@@ -928,7 +962,9 @@ def cmd_batch(args: argparse.Namespace, fixtures_root: Path) -> int:
 
     skills = sorted({s for case in cases for s in skills_under_test(case)})
     skill_name = ", ".join(skills) or "behavior suite"
-    html = render_review(entries, batch_root, label=f"batch-{args.run_id}", skill_name=skill_name)
+    html = render_review(
+        entries, batch_root, label=f"batch-{args.run_id}", skill_name=skill_name
+    )
     (batch_root / "batch.json").write_text(
         json.dumps(
             {
@@ -974,7 +1010,9 @@ def cmd_feedback(args: argparse.Namespace, fixtures_root: Path) -> int:
         target = run_dir(case, args.run_id, args.workspace_root)
         label = case.name
         skills = skills_under_test(case)
-    path = _resolve(args.feedback, target) if args.feedback else target / "feedback.json"
+    path = (
+        _resolve(args.feedback, target) if args.feedback else target / "feedback.json"
+    )
     if not path.is_file():
         print(f"error: feedback not found: {path}", file=sys.stderr)
         print(
@@ -1028,7 +1066,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     list_p = sub.add_parser("list", help="list behavior cases")
-    list_p.add_argument("--skill", default=None, help="only cases exercising this skill")
+    list_p.add_argument(
+        "--skill", default=None, help="only cases exercising this skill"
+    )
     list_p.set_defaults(handler=cmd_list)
 
     for name, handler, helptext in (
@@ -1113,7 +1153,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="run N predefined prompts into one review (new vs old skill by default)",
     )
     batch_p.add_argument("--cases", default=None, help="comma-separated case names")
-    batch_p.add_argument("--skill", default=None, help="select every case for this skill")
+    batch_p.add_argument(
+        "--skill", default=None, help="select every case for this skill"
+    )
     batch_p.add_argument("--run-id", default=None)
     batch_p.add_argument(
         "--workspace-root",

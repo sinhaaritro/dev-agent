@@ -2,7 +2,7 @@
   "name": "b8-3-bootstrap-confirms-policy",
   "layer": "behavior",
   "profile": "bootstrapped-node",
-  "setup": ["bootstrap", "skills:bootstrap"],
+  "setup": ["bootstrap", "skills:dev-agent"],
   "prompt": "Re-run bootstrap on this repo and tell me exactly what the overwrite policy is.",
   "expectations": [
     "confirms the target and the overwrite policy",

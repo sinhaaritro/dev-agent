@@ -18,13 +18,17 @@ from pathlib import Path
 
 ENGINE = (
     Path(__file__).resolve().parent.parent
-    / ".agents" / "skills" / "map-generator" / "scripts" / "generate_map.py"
+    / "skills"
+    / "dev-agent"
+    / "runtime"
+    / "devagent"
+    / "main.py"
 )
 
 
 def run(args, cwd):
     return subprocess.run(
-        [sys.executable, str(ENGINE)] + args,
+        [sys.executable, str(ENGINE), "map"] + args,
         cwd=str(cwd),
         capture_output=True,
         text=True,

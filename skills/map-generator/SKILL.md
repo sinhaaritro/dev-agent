@@ -25,9 +25,9 @@ You keep `.agents/MAP.md` current — the single table-format index of all skill
 
 ## Instructions
 
-1. Engine: `.agents/skills/map-generator/scripts/generate_map.py`.
+1. Engine: `.agents/scripts/devagent/main.py`.
 2. Run it from the repo root:
-   `python .agents/skills/map-generator/scripts/generate_map.py`
+   `python .agents/scripts/devagent/main.py map`
    If the project uses a virtual environment, invoke that interpreter instead
    (`python` after activation; `.venv\Scripts\python.exe` on Windows,
    `.venv/bin/python` on macOS/Linux).
@@ -35,7 +35,7 @@ You keep `.agents/MAP.md` current — the single table-format index of all skill
    - `MAP.md is fresh` — index is current; proceed with the existing MAP.md.
    - `regenerated` — index was rebuilt; **re-read** `.agents/MAP.md` before matching anything against it.
 4. `--force` rebuilds unconditionally:
-   `.venv/bin/python .agents/skills/map-generator/scripts/generate_map.py --force`
+   `.venv/bin/python .agents/scripts/devagent/main.py map --force`
    (Use after manual MAP.md edits — which are forbidden; the file is auto-generated.)
 
 ## Output Contract

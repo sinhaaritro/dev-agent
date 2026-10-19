@@ -3,12 +3,12 @@
 The task file is the **coder's own working file**: exactly one task file is owned by
 exactly one coder, and only that coder writes it. It carries the **Progress** checklist the
 coder works through and the **evidence block** (the per-task verification record, written by
-`verify.py`). The **global** task list — which tasks are done — lives only in the spec's
+the runtime's `verify` command). The **global** task list — which tasks are done — lives only in the spec's
 section 5 and is written by the orchestrator; it is **not** copied into task files.
 
 ## Generation
 
-`promote_spec.py compile <spec>` (the compile step) reads the spec's section 5
+`python .agents/scripts/devagent/main.py spec compile <spec>` (the compile step) reads the spec's section 5
 **Tasks & Outcomes** and emits **one self-contained task file per task**, named
 `NNN-TASK-<NN>-<slug>.md` (parent `NNN` prefix + two-digit task number + a short task slug).
 It validates **every file it writes** with `validate_task_file(text)` — a missing or
@@ -42,7 +42,7 @@ task — `Verification` still decides pass/fail.
 The title is `# TASK <NNN>-<NN> — <title>`. Every generated file matches this shape:
 
 ````markdown
-# TASK 003-01 — add `verify.py doctor` pre-flight subcommand
+# TASK 003-01 — add the `verify doctor` pre-flight subcommand
 
 ## Role & rules
 Implement ONLY this task. Obey the given signatures. Do not plan, do not touch files you
@@ -53,7 +53,7 @@ Dev-agent: a meta-framework that drives coding tasks through a status protocol.
 (the global task list lives in the spec section 5 — not copied here)
 
 ## Task
-Add a `doctor` subcommand to verify.py that checks the unattended preconditions and fails
+Add a `doctor` subcommand to the verify engine that checks the unattended preconditions and fails
 fast with a named list of gaps.
 
 ### Progress
@@ -62,10 +62,10 @@ fast with a named list of gaps.
 - [ ] write the "named list of gaps" failure output
 
 ## Owns
-- `.agents/skills/verification-runner/scripts/verify.py`
+- `.agents/scripts/devagent/main.py`
 
 ## Reads / Context (read-only)
-- `.agents/skills/spec-builder/scripts/promote_spec.py`   (reuse find_root + spec parse)
+- `.agents/scripts/devagent/main.py`   (reuse find_root + spec parse)
 
 ## Skills to use
 - verification-runner
@@ -77,7 +77,7 @@ def find_root() -> Path
 
 ## Verification
 ```bash
-python .agents/skills/verification-runner/scripts/verify.py doctor
+python .agents/scripts/devagent/main.py verify doctor
 ```
 **Expect:** `PRECONDITIONS OK`
 ````
@@ -101,7 +101,7 @@ reports the violations.
 ## Ownership & evidence
 
 - A file is owned by exactly one task — the owning task owns **every** change to it.
-- `verify.py` writes the per-task **evidence block** (command, pass timestamp, content
+- the runtime's `verify` command writes the per-task **evidence block** (command, pass timestamp, content
   hash of every owned file) into the task file when the task's verify passes.
 - The task's `Verify` is the single pass/fail oracle; subtasks are the coder's checklist,
   not a second gate.

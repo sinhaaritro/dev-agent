@@ -18,15 +18,21 @@ from pathlib import Path
 
 ENGINE = (
     Path(__file__).resolve().parent.parent
-    / ".agents" / "skills" / "spec-builder" / "scripts" / "promote_spec.py"
+    / "skills"
+    / "dev-agent"
+    / "runtime"
+    / "devagent"
+    / "main.py"
 )
 
-ROOT_README = "# Sandbox Project\n\nKnown root README content for the regression suite.\n"
+ROOT_README = (
+    "# Sandbox Project\n\nKnown root README content for the regression suite.\n"
+)
 
 
 def run(args, cwd):
     return subprocess.run(
-        [sys.executable, str(ENGINE)] + args,
+        [sys.executable, str(ENGINE), "spec"] + args,
         cwd=str(cwd),
         capture_output=True,
         text=True,
@@ -37,6 +43,10 @@ def run(args, cwd):
 def make_sandbox(tmp: Path) -> None:
     (tmp / "AGENTS.md").write_text("# sandbox project\n", encoding="utf-8")
     (tmp / "README.md").write_text(ROOT_README, encoding="utf-8")
+    (tmp / ".agents").mkdir()
+    (tmp / ".agents" / ".devagent.json").write_text(
+        '{"schema": 1, "runtime_version": "0.1.0"}\n', encoding="utf-8"
+    )
 
 
 class SandboxTestCase(unittest.TestCase):
@@ -84,8 +94,11 @@ class TestBTocRepoRoot(SandboxTestCase):
         self.assert_root_readme_untouched(extra_note=" after toc --root <repo-root>")
         self.assert_indexes_written()
         specs_readme = (self.root / "specs" / "README.md").read_text(encoding="utf-8")
-        self.assertIn("001-sandbox-feature.md", specs_readme,
-                      "specs index was not written to specs/README.md")
+        self.assertIn(
+            "001-sandbox-feature.md",
+            specs_readme,
+            "specs index was not written to specs/README.md",
+        )
 
 
 if __name__ == "__main__":

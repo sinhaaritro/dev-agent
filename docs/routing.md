@@ -15,7 +15,7 @@ Single source of truth: `.agents/skills/auto-router/references/lane-matrix.md`.
 | Lane | Name | Scope criteria | Docs artifact | Gate | Verification |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **D** | Read-Only / Informational | No file mutations. Explanations, comparisons, code Q&A. | None | None — informational | None |
-| **C** | Micro-Edit | Single file; no schema/public-API/auth/dependency changes; diff under ~30 lines | None (inline diff output) | Non-blocking only | Single pass with `Verify` + `Expect` via `verify.py` (PASS = exit 0 + marker); 3 failed attempts -> `ESCALATED` |
+| **C** | Micro-Edit | Single file; no schema/public-API/auth/dependency changes; diff under ~30 lines | None (inline diff output) | Non-blocking only | Single pass with `Verify` + `Expect` via the runtime's `verify` command (PASS = exit 0 + marker); 3 failed attempts -> `ESCALATED` |
 | **B** | Scoped Multi-File Edit | 2–5 files; no schema/API/auth/security surface; no new external dependencies | Abbreviated plan (sections 1, 4, 5), compiled into a spec group on approval | Non-blocking by default; blocking only if scope creeps toward A | Task verify with 3-attempt run-to-exhaustion, then `ESCALATED` |
 | **A** | Full SDLC | >5 files, OR database schema, public API contracts, auth/security, OR a new architectural dependency | Full implementation plan, compiled on approval, topic decision per architectural decision | Blocking mandatory at every decision point | Task verify + review, run-to-exhaustion, then `ESCALATED` |
 
@@ -75,7 +75,7 @@ phase-protocol consumes the verdict into the `[STATUS: ...]` header and drives t
 
 ### Recall stage 2 (judgment)
 
-Stage 1 is `match_skills.py` (see `skill-discovery.md`). Stage 2 is judgment: engine output is candidates only and can never exclude a skill. Thin or zero candidates → re-read the full `MAP.md` and match by semantic relation; a skill with zero literal hits can still apply. Absence from the engine's list is never proof a skill does not apply.
+Stage 1 is the runtime's `route` command (see `skill-discovery.md`). Stage 2 is judgment: engine output is candidates only and can never exclude a skill. Thin or zero candidates → re-read the full `MAP.md` and match by semantic relation; a skill with zero literal hits can still apply. Absence from the engine's list is never proof a skill does not apply.
 
 ## Decision Log
 

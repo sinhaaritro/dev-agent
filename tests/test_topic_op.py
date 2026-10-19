@@ -20,10 +20,16 @@ from pathlib import Path
 
 ENGINE = (
     Path(__file__).resolve().parent.parent
-    / ".agents" / "skills" / "spec-builder" / "scripts" / "promote_spec.py"
+    / "skills"
+    / "dev-agent"
+    / "runtime"
+    / "devagent"
+    / "main.py"
 )
 
-ROOT_README = "# Sandbox Project\n\nKnown root README content for the regression suite.\n"
+ROOT_README = (
+    "# Sandbox Project\n\nKnown root README content for the regression suite.\n"
+)
 
 DRAFT_PLAN = """---
 tags: [sandbox]
@@ -77,7 +83,7 @@ ROOT_GUARD = ("README.md",)
 
 def run(args, cwd):
     return subprocess.run(
-        [sys.executable, str(ENGINE)] + args,
+        [sys.executable, str(ENGINE), "spec"] + args,
         cwd=str(cwd),
         capture_output=True,
         text=True,
@@ -87,6 +93,10 @@ def run(args, cwd):
 
 def make_sandbox(tmp: Path) -> Path:
     (tmp / "AGENTS.md").write_text("# sandbox project\n", encoding="utf-8")
+    (tmp / ".agents").mkdir()
+    (tmp / ".agents" / ".devagent.json").write_text(
+        '{"schema": 1, "runtime_version": "0.1.0"}\n', encoding="utf-8"
+    )
     return tmp
 
 
@@ -133,9 +143,18 @@ class TopicOpTests(unittest.TestCase):
             seed_topic(folder / "gotchas.md", "db", [("DB-D03", "Retries")])
 
             result = run(
-                ["topic", "db", "--file", "core",
-                 "--why", "Switch to the new engine", "--title", "New engine",
-                 "--docs-dir", str(docs)],
+                [
+                    "topic",
+                    "db",
+                    "--file",
+                    "core",
+                    "--why",
+                    "Switch to the new engine",
+                    "--title",
+                    "New engine",
+                    "--docs-dir",
+                    str(docs),
+                ],
                 root,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -157,11 +176,18 @@ class TopicOpTests(unittest.TestCase):
             docs = root / "docs"
 
             result = run(
-                ["topic", "auth",
-                 "--why", "Cookies beat JWT for our session model",
-                 "--title", "Session cookies over JWT",
-                 "--tags", "auth,session",
-                 "--docs-dir", str(docs)],
+                [
+                    "topic",
+                    "auth",
+                    "--why",
+                    "Cookies beat JWT for our session model",
+                    "--title",
+                    "Session cookies over JWT",
+                    "--tags",
+                    "auth,session",
+                    "--docs-dir",
+                    str(docs),
+                ],
                 root,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -179,16 +205,26 @@ class TopicOpTests(unittest.TestCase):
             root = make_sandbox(Path(tmp))
             docs = root / "docs"
             seed_topic(
-                docs / "file.md", "file",
+                docs / "file.md",
+                "file",
                 [("FILE-D01", "Initial layout"), ("FILE-D02", "Nested")],
             )
 
             result = run(
-                ["topic", "file",
-                 "--why", "Flat layout wins", "--title", "Flat layout",
-                 "--supersedes", "FILE-D02",
-                 "--state", "Flat layout, no nesting.",
-                 "--docs-dir", str(docs)],
+                [
+                    "topic",
+                    "file",
+                    "--why",
+                    "Flat layout wins",
+                    "--title",
+                    "Flat layout",
+                    "--supersedes",
+                    "FILE-D02",
+                    "--state",
+                    "Flat layout, no nesting.",
+                    "--docs-dir",
+                    str(docs),
+                ],
                 root,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -209,20 +245,31 @@ class TopicOpTests(unittest.TestCase):
             root = make_sandbox(Path(tmp))
             docs = root / "docs"
             seed_topic(
-                docs / "auth.md", "auth",
+                docs / "auth.md",
+                "auth",
                 [("AUTH-D01", "JWT bearer"), ("AUTH-D02", "localStorage JWT")],
             )
             seed_topic(docs / "api.md", "api", [("API-D01", "Bearer auth header")])
 
             result = run(
-                ["topic", "auth",
-                 "--why", "JWT in localStorage is XSS-exposed",
-                 "--title", "Back to session cookies",
-                 "--supersedes", "AUTH-D02",
-                 "--affects", "api.md#api-auth",
-                 "--reciprocal", "api",
-                 "--reciprocal-why", "Auth arrives via cookie, not bearer header.",
-                 "--docs-dir", str(docs)],
+                [
+                    "topic",
+                    "auth",
+                    "--why",
+                    "JWT in localStorage is XSS-exposed",
+                    "--title",
+                    "Back to session cookies",
+                    "--supersedes",
+                    "AUTH-D02",
+                    "--affects",
+                    "api.md#api-auth",
+                    "--reciprocal",
+                    "api",
+                    "--reciprocal-why",
+                    "Auth arrives via cookie, not bearer header.",
+                    "--docs-dir",
+                    str(docs),
+                ],
                 root,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -247,23 +294,40 @@ class TopicOpTests(unittest.TestCase):
             specs = root / "specs"
 
             promoted = run(
-                ["promote", str(draft), "--lane", "B", "--status", "APPROVED",
-                 "--specs-dir", str(specs), "--root", str(root)],
+                [
+                    "promote",
+                    str(draft),
+                    "--lane",
+                    "B",
+                    "--status",
+                    "APPROVED",
+                    "--specs-dir",
+                    str(specs),
+                    "--root",
+                    str(root),
+                ],
                 root,
             )
             self.assertEqual(promoted.returncode, 0, promoted.stdout + promoted.stderr)
             spec = next(specs.glob("0*.md"))
 
             topic = run(
-                ["topic", "sandbox-topic", "--why", "Chose the flat layout",
-                 "--docs-dir", str(root)],
+                [
+                    "topic",
+                    "sandbox-topic",
+                    "--why",
+                    "Chose the flat layout",
+                    "--docs-dir",
+                    str(root),
+                ],
                 root,
             )
             self.assertEqual(topic.returncode, 0, topic.stdout + topic.stderr)
 
             # nothing engine-side may clobber the project's root README
             self.assertEqual(
-                (root / "README.md").read_text(encoding="utf-8"), ROOT_README,
+                (root / "README.md").read_text(encoding="utf-8"),
+                ROOT_README,
                 "root README was rewritten",
             )
             # the artifacts landed under the sandbox docs root

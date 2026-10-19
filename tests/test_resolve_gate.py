@@ -21,7 +21,10 @@ from pathlib import Path
 from unittest import mock
 
 REPO = Path(__file__).resolve().parent.parent
-ENGINE = REPO / ".agents" / "skills" / "phase-protocol" / "scripts" / "resolve_gate.py"
+RUNTIME = REPO / "skills" / "dev-agent" / "runtime" / "devagent"
+if str(RUNTIME) not in sys.path:
+    sys.path.insert(0, str(RUNTIME))
+ENGINE = RUNTIME / "gates.py"
 
 _spec = importlib.util.spec_from_file_location("resolve_gate", ENGINE)
 assert _spec is not None and _spec.loader is not None
@@ -157,8 +160,18 @@ class AutonomousResolveTest(GateBase):
     def test_appends_a_second_entry_without_losing_the_first(self):
         draft = self.write_draft()
         args = (
-            "--gate", "blocking", "--session", "non-interactive", "--lane", "B",
-            "--autonomy", "autonomous", "--question", "q1", "--options", "A: x; B: y",
+            "--gate",
+            "blocking",
+            "--session",
+            "non-interactive",
+            "--lane",
+            "B",
+            "--autonomy",
+            "autonomous",
+            "--question",
+            "q1",
+            "--options",
+            "A: x; B: y",
         )
         self.assertEqual(self.run_gate(*args)[0], 0)
         self.assertEqual(self.run_gate(*args)[0], 0)
@@ -175,9 +188,20 @@ class AutonomousResolveTest(GateBase):
             encoding="utf-8",
         )
         code, out = self.run_gate(
-            "--gate", "blocking", "--session", "non-interactive", "--lane", "B",
-            "--autonomy", "autonomous", "--question", "pick", "--options", "A: x; B: y",
-            "--spec", "specs/001-SPEC-x.md",
+            "--gate",
+            "blocking",
+            "--session",
+            "non-interactive",
+            "--lane",
+            "B",
+            "--autonomy",
+            "autonomous",
+            "--question",
+            "pick",
+            "--options",
+            "A: x; B: y",
+            "--spec",
+            "specs/001-SPEC-x.md",
         )
         self.assertEqual(code, 0, out)
         self.assertIn("Choice made: A", spec.read_text(encoding="utf-8"))
@@ -188,8 +212,18 @@ class AutonomousResolveTest(GateBase):
         spec = self.root / "specs" / "001-SPEC-x.md"
         spec.write_text("# Spec\n\nStatus: BUILDING\n\n## 6. Gates\n", encoding="utf-8")
         code, out = self.run_gate(
-            "--gate", "blocking", "--session", "non-interactive", "--lane", "B",
-            "--autonomy", "autonomous", "--question", "q", "--options", "A: x; B: y",
+            "--gate",
+            "blocking",
+            "--session",
+            "non-interactive",
+            "--lane",
+            "B",
+            "--autonomy",
+            "autonomous",
+            "--question",
+            "q",
+            "--options",
+            "A: x; B: y",
         )
         self.assertEqual(code, 0, out)
         self.assertIn("Choice made: A", spec.read_text(encoding="utf-8"))
@@ -199,8 +233,18 @@ class AutonomousResolveTest(GateBase):
     def test_creates_the_gates_section_when_missing(self):
         draft = self.write_draft(with_gates=False)
         code, out = self.run_gate(
-            "--gate", "blocking", "--session", "non-interactive", "--lane", "B",
-            "--autonomy", "autonomous", "--question", "q", "--options", "A: x; B: y",
+            "--gate",
+            "blocking",
+            "--session",
+            "non-interactive",
+            "--lane",
+            "B",
+            "--autonomy",
+            "autonomous",
+            "--question",
+            "q",
+            "--options",
+            "A: x; B: y",
         )
         self.assertEqual(code, 0, out)
         text = draft.read_text(encoding="utf-8")
@@ -209,8 +253,18 @@ class AutonomousResolveTest(GateBase):
 
     def test_no_target_fails_closed_without_scratch_log(self):
         code, out = self.run_gate(
-            "--gate", "blocking", "--session", "non-interactive", "--lane", "B",
-            "--autonomy", "autonomous", "--question", "q", "--options", "A: x; B: y",
+            "--gate",
+            "blocking",
+            "--session",
+            "non-interactive",
+            "--lane",
+            "B",
+            "--autonomy",
+            "autonomous",
+            "--question",
+            "q",
+            "--options",
+            "A: x; B: y",
         )
         self.assertEqual(code, 2, out)
         self.assertIn("no plan or spec", out)
@@ -297,19 +351,38 @@ class GateBlockStatusTest(GateBase):
         spec.parent.mkdir(parents=True, exist_ok=True)
         spec.write_text("# 007\n\nStatus: COMPILED\n", encoding="utf-8")
         code, out = self.run_gate(
-            "--gate", "blocking", "--session", "non-interactive", "--lane", "B",
-            "--autonomy", "supervised",
-            "--question", "q", "--options", "A (Recommended): x; B: y",
-            "--spec", str(spec),
+            "--gate",
+            "blocking",
+            "--session",
+            "non-interactive",
+            "--lane",
+            "B",
+            "--autonomy",
+            "supervised",
+            "--question",
+            "q",
+            "--options",
+            "A (Recommended): x; B: y",
+            "--spec",
+            str(spec),
         )
         self.assertEqual(code, 2, out)
         self.assertIn("PLAN_REVISION_REQUIRED", spec.read_text(encoding="utf-8"))
 
     def test_fail_closed_without_target_writes_only_escalation(self):
         code, out = self.run_gate(
-            "--gate", "blocking", "--session", "non-interactive", "--lane", "B",
-            "--autonomy", "supervised",
-            "--question", "q", "--options", "A (Recommended): x; B: y",
+            "--gate",
+            "blocking",
+            "--session",
+            "non-interactive",
+            "--lane",
+            "B",
+            "--autonomy",
+            "supervised",
+            "--question",
+            "q",
+            "--options",
+            "A (Recommended): x; B: y",
         )
         self.assertEqual(code, 2, out)
         self.assertTrue(self.escalation().exists())

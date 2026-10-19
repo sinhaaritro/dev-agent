@@ -14,7 +14,11 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-ENGINE = REPO / ".agents" / "skills" / "spec-builder" / "scripts" / "promote_spec.py"
+RUNTIME = REPO / "skills" / "dev-agent" / "runtime" / "devagent"
+if str(RUNTIME) not in sys.path:
+    sys.path.insert(0, str(RUNTIME))
+ENGINE = RUNTIME / "specs.py"
+MAIN = RUNTIME / "main.py"
 
 _spec = importlib.util.spec_from_file_location("promote_spec", ENGINE)
 assert _spec is not None and _spec.loader is not None
@@ -39,7 +43,8 @@ class SpecsLintBase(unittest.TestCase):
         return subprocess.run(
             [
                 sys.executable,
-                str(ENGINE),
+                str(MAIN),
+                "spec",
                 "specs-lint",
                 "--root",
                 str(self.root),
@@ -56,7 +61,9 @@ class SpecsLintBase(unittest.TestCase):
 
 class InboundReferenceTest(SpecsLintBase):
     def test_docs_reference_fails(self):
-        write(self.root / "docs" / "guide.md", "# Guide\n\nSee `specs/001-SPEC-x.md`.\n")
+        write(
+            self.root / "docs" / "guide.md", "# Guide\n\nSee `specs/001-SPEC-x.md`.\n"
+        )
 
         hits = promote_spec.scan_specs_references(self.root)
         self.assertEqual(len(hits), 1)
@@ -116,8 +123,14 @@ class NoiseTest(SpecsLintBase):
         self.assertEqual(promote_spec.scan_specs_references(self.root), [])
 
     def test_vendored_and_ignored_trees_are_skipped(self):
-        write(self.root / ".agents" / "skills" / "x" / "SKILL.md", "see specs/001-SPEC-x.md\n")
-        write(self.root / "node_modules" / "pkg" / "README.md", "see specs/001-SPEC-x.md\n")
+        write(
+            self.root / ".agents" / "skills" / "x" / "SKILL.md",
+            "see specs/001-SPEC-x.md\n",
+        )
+        write(
+            self.root / "node_modules" / "pkg" / "README.md",
+            "see specs/001-SPEC-x.md\n",
+        )
         self.assertEqual(promote_spec.scan_specs_references(self.root), [])
 
     def test_non_text_files_are_skipped(self):
@@ -131,13 +144,14 @@ class NoiseTest(SpecsLintBase):
         self.assertEqual(promote_spec.scan_specs_references(self.root), [])
 
 
-
 class FrameworkRepoExemptionTest(SpecsLintBase):
     """H6: the framework repo is the product - it is exempt from its own
     one-way gate, while consumer repos stay strict."""
 
     def _make_framework_repo(self):
-        write(self.root / ".agents" / "rules" / "dev-agent-framework.md", "# rule" + "\n")
+        write(
+            self.root / ".agents" / "rules" / "dev-agent-framework.md", "# rule" + "\n"
+        )
         write(self.root / "skills" / "demo" / "SKILL.md", "# Demo" + "\n")
         write(self.root / "docs" / "guide.md", "See specs/001-SPEC-x.md." + "\n")
 
@@ -160,7 +174,10 @@ class FrameworkRepoExemptionTest(SpecsLintBase):
 
 class EncodingGuardTest(SpecsLintBase):
     def test_non_utf8_console_does_not_crash(self):
-        write(self.root / "docs" / "guide.md", "See specs/001-SPEC-x.md \u2192 done" + "\n")
+        write(
+            self.root / "docs" / "guide.md",
+            "See specs/001-SPEC-x.md \u2192 done" + "\n",
+        )
         env = dict(os.environ, PYTHONIOENCODING="cp1252")
         proc = self.run_lint(env=env)
         self.assertEqual(proc.returncode, 1)

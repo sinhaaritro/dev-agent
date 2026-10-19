@@ -12,9 +12,9 @@ Decision knowledge is recorded **Topic-Based**: one doc per subsystem under `doc
 
 ### How it works
 
-- A topic doc is a normal doc — headers, prose, plain heading-anchor links — not a special artifact. It is created and revised only through the spec-builder engine (`promote_spec.py topic`), so numbering, format, and the no-silent-edits floor are enforced rather than left to judgment (DECISION-RECORDS-D01).
+- A topic doc is a normal doc — headers, prose, plain heading-anchor links — not a special artifact. It is created and revised only through the spec-builder engine (the runtime's `spec topic` command), so numbering, format, and the no-silent-edits floor are enforced rather than left to judgment (DECISION-RECORDS-D01).
 - Decision IDs are topic-global across a topic's files; a reversal is a *revision* — the next ID with `Supersedes:` — never "delete + recreate".
-- `docs/_topics.md` is the generated AI-routing index (covers from `tags:`, sections/files from headings), rebuilt by `generate_map.py sync-docs`; humans start at `docs/README.md` and read the topic docs themselves.
+- `docs/_topics.md` is the generated AI-routing index (covers from `tags:`, sections/files from headings), rebuilt by `python .agents/scripts/devagent/main.py map sync-docs`; humans start at `docs/README.md` and read the topic docs themselves.
 - Lane-tied guardrail (dev-agent-framework.md section 3): Lanes A/B consult topic docs at plan time and surface a Conflict Surface when a plan reverses a Current State; Lanes C/D skip docs and escalate on pattern-breaks.
 
 ### Why this shape
@@ -60,21 +60,21 @@ Format-of-truth: `.agents/skills/spec-builder/references/topic-template.md`.
 
 ```text
 # create / revise (single + cross-topic), human-gated via the approval step
-python .agents/skills/spec-builder/scripts/promote_spec.py topic <name> \
+python .agents/scripts/devagent/main.py spec topic <name> \
     --why <text> [--title <t>] [--file <sub>] [--state <text>] \
     [--supersedes <ID>] [--affects <target>] \
     [--reciprocal <topic>] [--reciprocal-file <sub>] [--reciprocal-why <text>]
 
 # rebuild the AI routing index after editing a topic doc
-python .agents/skills/map-generator/scripts/generate_map.py sync-docs
+python .agents/scripts/devagent/main.py map sync-docs
 ```
 
 ### ID conventions
 
 - **Topic docs:** `docs/<name>.md` (or `docs/<name>/`), plain lowercase, no numeric prefix (kebab for multi-word: `docs/data-storage.md`). The name is the decision-ID namespace. Reserved names a topic may not use: `README.md` and anything underscore-prefixed (generated files, e.g. `_topics.md`).
-- **`specs/`:** a **group** of companions sharing one `NNN` prefix: `NNN-SPEC-<slug>.md` (the spec), `NNN-TASK-<NN>-<slug>.md` (one per section 5 task), `NNN-APPROVALS-<slug>.json` (committed with the group; pre-approved verify fingerprints), `NNN-REPORT-<slug>.md` (the review report, `verify.py report`), and `NNN-ESCALATION-<slug>.md` (the consolidated failure record, when a run parks the spec `ESCALATED`). Sub-IDs `NNN-<letter><NN>` (e.g. `001-A01`), deeper `NNN-<letter><NN>-<letter><NN>` (e.g. `001-A01-B01`); a sub-ID child compiles into the parent group (the engine strips the `NNN-LNN:` title prefix).
+- **`specs/`:** a **group** of companions sharing one `NNN` prefix: `NNN-SPEC-<slug>.md` (the spec), `NNN-TASK-<NN>-<slug>.md` (one per section 5 task), `NNN-APPROVALS-<slug>.json` (committed with the group; pre-approved verify fingerprints), `NNN-REPORT-<slug>.md` (the review report, the runtime's `verify report`), and `NNN-ESCALATION-<slug>.md` (the consolidated failure record, when a run parks the spec `ESCALATED`). Sub-IDs `NNN-<letter><NN>` (e.g. `001-A01`), deeper `NNN-<letter><NN>-<letter><NN>` (e.g. `001-A01-B01`); a sub-ID child compiles into the parent group (the engine strips the `NNN-LNN:` title prefix).
 
-**Numbering is engine-derived.** `promote_spec.py` computes the next `NNN` by scanning the specs folder, and the next `<TOPIC>-D<nn>` by scanning every file of the topic; a hand-written number can silently collide with a committed record.
+**Numbering is engine-derived.** The runtime's `spec` engine computes the next `NNN` by scanning the specs folder, and the next `<TOPIC>-D<nn>` by scanning every file of the topic; a hand-written number can silently collide with a committed record.
 
 ### Tags contract
 
@@ -106,13 +106,13 @@ Incoming requirement
         │
         ▼
  specs/temp/draft-plan.md          (Lane B: sections 1,4,5 / Lane A: sections 0-8)
-        │  validated: promote_spec.py check <draft> --lane <B|A>
+        │  validated: spec check <draft> --lane <B|A>
         ▼
  [ Vetting gate — optional, when the spec's vetting: on ]
         │  a block drops the spec to PLAN_REVISION_REQUIRED (re-plan)
         ▼
  [ "approve draft" gate — human acceptance or compliant autonomous resolution ]
-        │  promote_spec.py compile <spec>
+        │  spec compile <spec>
         ├──► specs/NNN-SPEC-<slug>.md          (committed, Status: COMPILED)
         ├──► specs/NNN-TASK-<NN>-<slug>.md     (one per section 5 task, the coder's briefing)
         ├──► specs/NNN-APPROVALS-<slug>.json   (pre-approved verify fingerprints)
@@ -122,9 +122,9 @@ Incoming requirement
         ▼
  STEP 2: an explicit RUN (a new session / lead agent) reads the COMPILED spec
  group (verified via Status: COMPILED), runs
- verify.py doctor (PRECONDITIONS OK), creates one branch per spec off main,
+ verify doctor (PRECONDITIONS OK), creates one branch per spec off main,
  dispatches unblocked tasks to coders (each ticks its own task file, Verify +
- Expect with content-hash evidence), runs verify.py report at review,
+ Expect with content-hash evidence), runs verify report at review,
  commits on the branch at the run's stop point (commit → COMPLETED,
  pre-commit → stop at REVIEWED), then task-cleaner purges the scratchpad on
  acceptance. A failure parks the spec ESCALATED (NNN-ESCALATION-<slug>.md)
@@ -144,16 +144,16 @@ Rules that make the split real:
 
 In `.agents/skills/spec-builder/references/`:
 
-- **`implementation-plan-template.md`** — the plan, sections 0–8: 0 Frontmatter (`tags`, `vetting`, `signoff`, `review_revision`), 1 Goal & Context, 2 The Change (thematic subsections), 3 Risks & Open Questions, 4 Affected Files & Contracts, 5 Tasks & Outcomes (each `Task N` carries `Depends On:`, `Outcomes: R#`, and a `Verify:`/`Expect:` pair; subtasks live in the task file, not the spec), 6 Gates, 7 Verification Commands, 8 Rollback Strategy. Lane B uses a single task (`Depends On: None`). `promote_spec.py check` validates the section 5 structure and statically lints the oracles (rejects no-op `Verify`, empty `Expect`, and a trivially-satisfied `Expect` — the whole command or a bare `echo`/`printf`; a marker the command emits from real state is allowed).
-- **`task-file-format.md`** — the task-file contract: a self-contained briefing (Role & rules, Project overview, Owns, Reads / Context, a `### Progress` subtask checklist) generated per task at compile; the `verify.py` evidence block is appended on a green verify (see `task-files.md`).
-- **`todo-checklist-format.md`** — subtasks are the **coder's own checklist** (`- [ ]` → `- [/]` → `- [x]`), not a second verification gate: the task's task-level `Verify` decides pass/fail. Task state is **derived**, not asserted — `MET` (evidence green + owned-file hashes still match) / `NOT MET` / `STALE` (an owned file drifted) / `NO-EVIDENCE` (via `verify.py status`); a task that exhausts its 3 attempts parks `ESCALATED`.
+- **`implementation-plan-template.md`** — the plan, sections 0–8: 0 Frontmatter (`tags`, `vetting`, `signoff`, `review_revision`), 1 Goal & Context, 2 The Change (thematic subsections), 3 Risks & Open Questions, 4 Affected Files & Contracts, 5 Tasks & Outcomes (each `Task N` carries `Depends On:`, `Outcomes: R#`, and a `Verify:`/`Expect:` pair; subtasks live in the task file, not the spec), 6 Gates, 7 Verification Commands, 8 Rollback Strategy. Lane B uses a single task (`Depends On: None`). The runtime's `spec check` validates the section 5 structure and statically lints the oracles (rejects no-op `Verify`, empty `Expect`, and a trivially-satisfied `Expect` — the whole command or a bare `echo`/`printf`; a marker the command emits from real state is allowed).
+- **`task-file-format.md`** — the task-file contract: a self-contained briefing (Role & rules, Project overview, Owns, Reads / Context, a `### Progress` subtask checklist) generated per task at compile; the runtime's `verify` evidence block is appended on a green verify (see `task-files.md`).
+- **`todo-checklist-format.md`** — subtasks are the **coder's own checklist** (`- [ ]` → `- [/]` → `- [x]`), not a second verification gate: the task's task-level `Verify` decides pass/fail. Task state is **derived**, not asserted — `MET` (evidence green + owned-file hashes still match) / `NOT MET` / `STALE` (an owned file drifted) / `NO-EVIDENCE` (via the runtime's `verify status`); a task that exhausts its 3 attempts parks `ESCALATED`.
 - **`topic-template.md`** — the topic doc contract: `tags:` frontmatter, H1 display title, `## Current State`, `## Decision Log` with `### <TOPIC>-D<nn> - <title>` subheadings (`Date` / `Why` / `Supersedes` / `Affects` / `Ref`) and the per-file / folder-growth rules.
 
 ### Deterministic TOC rollup + topic index
 
-`python .agents/skills/spec-builder/scripts/promote_spec.py toc [--root <root>]` regenerates the `specs/README.md` `## Index` marker block, sorted by NNN/sub-ID, showing name + status + version-pin + backlinks. It is hooked into `compile` / `topic` / `accept` so the TOC never drifts, is idempotent (rewrites only the marker block, never surrounding prose), and `--dry-run` prints without writing. **Never hand-edit a marker block** — prose outside the markers is safe from regeneration.
+`python .agents/scripts/devagent/main.py spec toc [--root <root>]` regenerates the `specs/README.md` `## Index` marker block, sorted by NNN/sub-ID, showing name + status + version-pin + backlinks. It is hooked into `compile` / `topic` / `accept` so the TOC never drifts, is idempotent (rewrites only the marker block, never surrounding prose), and `--dry-run` prints without writing. **Never hand-edit a marker block** — prose outside the markers is safe from regeneration.
 
-The topic index is a separate, lighter rebuild: `python .agents/skills/map-generator/scripts/generate_map.py sync-docs` scans `docs/`, copies each topic's `tags:` frontmatter into a `covers:` line, derives `sections` (file topics) / `files` (folder topics) from headings, and writes `docs/_topics.md`. The agent runs it after editing a topic doc; a human runs it after hand edits. Every `docs/` file and folder is a topic, and the only thing skipped is the generated `_topics.md` itself (it would otherwise index itself).
+The topic index is a separate, lighter rebuild: `python .agents/scripts/devagent/main.py map sync-docs` scans `docs/`, copies each topic's `tags:` frontmatter into a `covers:` line, derives `sections` (file topics) / `files` (folder topics) from headings, and writes `docs/_topics.md`. The agent runs it after editing a topic doc; a human runs it after hand edits. Every `docs/` file and folder is a topic, and the only thing skipped is the generated `_topics.md` itself (it would otherwise index itself).
 
 ### Scratchpad lifecycle & garbage collection
 
@@ -162,7 +162,7 @@ The topic index is a separate, lighter rebuild: `python .agents/skills/map-gener
 `task-cleaner` purges it (default preserves `.gitignore` only; a human may pass `--preserve` to keep specific files):
 
 ```text
-python .agents/skills/task-cleaner/scripts/clean.py clean
+python .agents/scripts/devagent/main.py clean clean
 ```
 
 - Default: everything purged **except** `.gitignore`; retired scratch artifacts (the old `gate-log.md`, `verify-state.json`, `approvals.json`) are purged when present. Report is `purged: N, preserved: M`.

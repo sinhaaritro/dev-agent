@@ -28,7 +28,7 @@ out-of-scope is **never deleted** — it gets `ABANDON: <non-empty reason>`.
 
 ## 2. Task state (derived, not asserted)
 
-`verify.py status --task <id>` reads the task file's evidence block and reports:
+`python .agents/scripts/devagent/main.py verify status --task <id>` reads the task file's evidence block and reports:
 
 | Status | Meaning |
 | :--- | :--- |

@@ -20,18 +20,19 @@ Dev Agent is a drop-in configuration framework (a set of composable skills plus 
 
 ## Repo map
 
-- `skills/` - **THE PRODUCT.** One folder per shipped skill (`SKILL.md` plus `scripts/`, `references/`, `reference/`). This is the canonical source of truth and exactly what users install.
+- `skills/` - **THE PRODUCT.** One folder per shipped skill. `dev-agent` bundles the shared runtime (`runtime/devagent/`), the installer (`scripts/bootstrap.py`), the seed rulebook, and the coder contract; the other six skills are thin wrappers (`SKILL.md` + `references/`) that call the runtime by subcommand. This is the canonical source of truth and exactly what users install.
 - `.agents/` - this repo's workspace, never shipped:
   - `.agents/rules/dev-agent-framework.md` - behavioral contract (loaded every session)
   - `.agents/agents/coder.md` - the coder subagent contract
   - `.agents/skills/` - the derived dogfood mirror of `skills/` (does not ship; stamped `metadata.internal: true`) plus repo-only tools (`promote`, `author-skill`) and vendored third-party `skill-creator`
+  - `.agents/scripts/devagent/` - this repo's own installed runtime, mirrored from `skills/dev-agent/runtime/devagent/` by `promote` (never shipped; makes the local rulebook path runnable in-repo)
   - `.agents/MAP.md` - generated skill index (gitignored)
-- `tools/` - maintainer engines, not skills. `tools/promote.py` mirrors `skills/` into `.agents/skills/`; `tools/skill_eval.py` runs the skill-creator golden evals; `tools/behavior_eval.py` runs prompt-level behavior cases; `tools/suite_report.py` diffs the unit suite against its golden baseline.
+- `tools/` - maintainer engines, not skills. `tools/promote.py` mirrors `skills/` into `.agents/skills/` (and the bundled runtime into `.agents/scripts/devagent/`); `tools/skill_eval.py` runs the skill-creator golden evals; `tools/behavior_eval.py` runs prompt-level behavior cases; `tools/suite_report.py` diffs the unit suite against its golden baseline.
 - `specs/` - what to build: approved specs with a single `Status:` lifecycle (`DRAFTED -> COMPILED -> BUILDING -> BUILT -> REVIEWED -> COMPLETED`) plus `specs/temp/` (gitignored scratchpad)
 - `docs/` - what is + why we chose: one topic doc per subsystem (`## Current State` + `## Decision Log`; AI index at `docs/_topics.md`); human landing page at `docs/README.md`
 - `tests/` - test suite
 
-> The consumer template lives at `skills/bootstrap/reference/AGENTS.md` - that is the `AGENTS.md` bootstrap installs into *other* repos. **This** file is the maintainer's, and the two are intentionally different.
+> The consumer template lives at `skills/dev-agent/reference/AGENTS.md` - that is the `AGENTS.md` the `dev-agent` installer sets up in *other* repos. **This** file is the maintainer's, and the two are intentionally different.
 
 ## Commands
 

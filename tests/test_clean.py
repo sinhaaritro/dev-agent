@@ -21,7 +21,10 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-ENGINE = REPO / ".agents" / "skills" / "task-cleaner" / "scripts" / "clean.py"
+RUNTIME = REPO / "skills" / "dev-agent" / "runtime" / "devagent"
+if str(RUNTIME) not in sys.path:
+    sys.path.insert(0, str(RUNTIME))
+ENGINE = RUNTIME / "clean.py"
 
 _spec = importlib.util.spec_from_file_location("clean", ENGINE)
 assert _spec is not None and _spec.loader is not None
@@ -64,10 +67,16 @@ class CleanScopeTest(unittest.TestCase):
 
     def test_default_preserves_only_gitignore(self):
         temp = self._tmp / "specs" / "temp"
-        _fill(temp, ["draft-plan.md", "active-task.md", "flow.md", ".gitignore", "gate-log.md"])
+        _fill(
+            temp,
+            ["draft-plan.md", "active-task.md", "flow.md", ".gitignore", "gate-log.md"],
+        )
         purged, preserved = self._purge(temp, [".gitignore"], dry_run=False)
         self.assertEqual(preserved, [".gitignore"])
-        self.assertEqual(sorted(purged), ["active-task.md", "draft-plan.md", "flow.md", "gate-log.md"])
+        self.assertEqual(
+            sorted(purged),
+            ["active-task.md", "draft-plan.md", "flow.md", "gate-log.md"],
+        )
         # gate-log.md is retired as a scratch concept: it is purged, not preserved.
         self.assertFalse((temp / "gate-log.md").exists())
         self.assertTrue((temp / ".gitignore").exists())
@@ -76,7 +85,9 @@ class CleanScopeTest(unittest.TestCase):
         temp = self._tmp / "specs" / "temp"
         _fill(temp, ["gate-log.md", "verify-state.json", "approvals.json"])
         purged, _ = self._purge(temp, [".gitignore"], dry_run=False)
-        self.assertEqual(sorted(purged), ["approvals.json", "gate-log.md", "verify-state.json"])
+        self.assertEqual(
+            sorted(purged), ["approvals.json", "gate-log.md", "verify-state.json"]
+        )
 
     def test_purge_all_with_empty_preserve(self):
         temp = self._tmp / "specs" / "temp"
@@ -148,12 +159,16 @@ class ScratchpadGuardTest(unittest.TestCase):
     def test_cli_refuses_root_target(self):
         """The CLI exits non-zero when --temp-dir points at the repo root."""
         sandbox = self._tmp / "repo"
-        (sandbox / ".agents" / "skills" / "task-cleaner" / "scripts").mkdir(parents=True)
-        shutil.copy2(ENGINE, sandbox / ".agents" / "skills" / "task-cleaner" / "scripts" / "clean.py")
+        sandbox.mkdir()
         (sandbox / "AGENTS.md").write_text("# Test\n", encoding="utf-8")
         proc = subprocess.run(
-            [sys.executable, str(sandbox / ".agents/skills/task-cleaner/scripts/clean.py"),
-             "clean", "--temp-dir", str(sandbox)],
+            [
+                sys.executable,
+                str(ENGINE),
+                "clean",
+                "--temp-dir",
+                str(sandbox),
+            ],
             capture_output=True,
             text=True,
             cwd=sandbox,

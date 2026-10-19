@@ -17,10 +17,13 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+RUNTIME = REPO / "skills" / "dev-agent" / "runtime" / "devagent"
+if str(RUNTIME) not in sys.path:
+    sys.path.insert(0, str(RUNTIME))
 
 # Import the engine's canonical status set so the test tracks the engine, not a
 # hand-copied list (no drift between the two).
-_ENGINE = REPO / ".agents" / "skills" / "spec-builder" / "scripts" / "promote_spec.py"
+_ENGINE = RUNTIME / "specs.py"
 _spec = importlib.util.spec_from_file_location("promote_spec", _ENGINE)
 assert _spec is not None and _spec.loader is not None
 _promote_spec = importlib.util.module_from_spec(_spec)
@@ -100,18 +103,36 @@ class AgCommandsTest(unittest.TestCase):
 
     def test_agents_md_commands_filled(self):
         text = _read(REPO / "AGENTS.md")
-        self.assertNotIn("Build: <command>", text, "AGENTS.md Build command is still a placeholder")
-        self.assertNotIn("Test: <command>", text, "AGENTS.md Test command is still a placeholder")
-        self.assertNotIn("Lint: <command>", text, "AGENTS.md Lint command is still a placeholder")
-        self.assertIn("compileall", text, "AGENTS.md Build command should be the compileall canonical")
-        self.assertIn("unittest discover", text, "AGENTS.md Test command should be the canonical suite")
+        self.assertNotIn(
+            "Build: <command>", text, "AGENTS.md Build command is still a placeholder"
+        )
+        self.assertNotIn(
+            "Test: <command>", text, "AGENTS.md Test command is still a placeholder"
+        )
+        self.assertNotIn(
+            "Lint: <command>", text, "AGENTS.md Lint command is still a placeholder"
+        )
+        self.assertIn(
+            "compileall",
+            text,
+            "AGENTS.md Build command should be the compileall canonical",
+        )
+        self.assertIn(
+            "unittest discover",
+            text,
+            "AGENTS.md Test command should be the canonical suite",
+        )
 
     def test_canonical_commands_resolve(self):
         """The canonical Build command actually passes in this repo."""
         import subprocess
+
         proc = subprocess.run(
             [sys.executable, "-m", "compileall", "-q", ".agents", "tests"],
-            cwd=REPO, capture_output=True, text=True, check=False,
+            cwd=REPO,
+            capture_output=True,
+            text=True,
+            check=False,
         )
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 
@@ -133,7 +154,6 @@ class SpecStatusDriftTest(unittest.TestCase):
         self.assertEqual(offenders, [], f"non-canonical spec statuses: {offenders}")
 
 
-
 class DraftedLaneSectionsTest(unittest.TestCase):
     """H1: the Lane checklists in drafted.md match the engine's LANE_SECTIONS."""
 
@@ -148,7 +168,9 @@ class DraftedLaneSectionsTest(unittest.TestCase):
 
     def _section_list(self, prefix):
         line = self._line(prefix)
-        self.assertIn("\u2014", line, "checklist should separate the list with an em dash")
+        self.assertIn(
+            "\u2014", line, "checklist should separate the list with an em dash"
+        )
         return line.split("\u2014")[-1]
 
     def test_lane_a_checklist_lists_every_enforced_section(self):
@@ -197,9 +219,7 @@ class ContradictionDriftTest(unittest.TestCase):
                 text = _read(path)
                 for phrase in self.RETIRED:
                     if phrase in text:
-                        offenders.append(
-                            f"{path.relative_to(REPO)}: {phrase}"
-                        )
+                        offenders.append(f"{path.relative_to(REPO)}: {phrase}")
         self.assertEqual(offenders, [], f"retired phrasing present: {offenders}")
 
 

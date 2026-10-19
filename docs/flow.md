@@ -121,7 +121,7 @@ flowchart LR
 
 ### 5. Build loop (orchestrator / coders / verify)
 
-**Related topics:** `run-contract.md` (primary — trigger, mode, rolling dispatch), `task-files.md` (task files, ownership, progress), `verification.md` (`verify.py` and the 3-attempt budget).
+**Related topics:** `run-contract.md` (primary — trigger, mode, rolling dispatch), `task-files.md` (task files, ownership, progress), `verification.md` (the runtime's `verify` command and the 3-attempt budget).
 
 Identical for supervised and unattended — the only difference is whether a `signoff: on` spec pauses for a human at 4.5.
 
@@ -130,7 +130,7 @@ Identical for supervised and unattended — the only difference is whether a `si
 sequenceDiagram
     participant O as Orchestrator
     participant C as Coder subagents
-    participant V as verify.py
+    participant V as verify (runtime)
     O->>V: doctor --spec N
     V-->>O: preconditions OK
     loop rolling dispatch until no unblocked task remains

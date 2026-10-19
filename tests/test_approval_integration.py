@@ -21,12 +21,11 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SPEC_ENGINE = (
-    ROOT / ".agents" / "skills" / "spec-builder" / "scripts" / "promote_spec.py"
-)
-VERIFY_ENGINE = (
-    ROOT / ".agents" / "skills" / "verification-runner" / "scripts" / "verify.py"
-)
+RUNTIME = ROOT / "skills" / "dev-agent" / "runtime" / "devagent"
+if str(RUNTIME) not in sys.path:
+    sys.path.insert(0, str(RUNTIME))
+SPEC_ENGINE = RUNTIME / "specs.py"
+VERIFY_ENGINE = RUNTIME / "verify.py"
 
 RUN_COMMAND = "python -c \"print('MARKER')\""
 
