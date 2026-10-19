@@ -235,6 +235,95 @@ class StatusCommandTest(SandboxCase):
         self.assertIn("state: NO-EVIDENCE", buf.getvalue())
 
 
+class ReferenceResolutionTest(SandboxCase):
+    """H3: --spec/--task accept a spec/task id, file name, relative path, or
+    absolute path (not just a concrete path)."""
+
+    def setUp(self):
+        super().setUp()
+        self.spec = _spec_file(self.tmp)
+        self.task_file = _task_file(self.tmp)
+        verify._write_evidence(self.task_file, _evidence_for(self.tmp, self.task_file))
+
+    def test_spec_forms(self):
+        for raw in (
+            "007",
+            "7",
+            "007-SPEC-do-things.md",
+            "specs/007-SPEC-do-things.md",
+            str(self.spec),
+        ):
+            path, err = verify.resolve_spec(raw, self.tmp)
+            self.assertEqual(err, "", raw)
+            self.assertEqual(path, self.spec.resolve(), raw)
+
+    def test_spec_unknown_is_a_clear_error(self):
+        path, err = verify.resolve_spec("999", self.tmp)
+        self.assertIsNone(path)
+        self.assertIn("no spec matches", err)
+
+    def test_task_forms(self):
+        for raw in (
+            "007-Task 1",
+            "007-01",
+            "Task 1",
+            "007-TASK-01-do-things.md",
+            "specs/007-TASK-01-do-things.md",
+            str(self.task_file),
+        ):
+            path, err = verify.resolve_task(raw, self.tmp)
+            self.assertEqual(err, "", raw)
+            self.assertEqual(path, self.task_file.resolve(), raw)
+
+    def test_bare_task_ambiguous_across_specs(self):
+        (self.tmp / "specs" / "002-SPEC-other.md").write_text(
+            "# 002: Other\n\nStatus: COMPILED\n", encoding="utf-8"
+        )
+        (self.tmp / "specs" / "002-TASK-01-other.md").write_text(
+            "# TASK 002-01 - other\n", encoding="utf-8"
+        )
+        path, err = verify.resolve_task("Task 1", self.tmp)
+        self.assertIsNone(path)
+        self.assertIn("ambiguous", err)
+
+    def test_status_derives_from_task_id(self):
+        buf = StringIO()
+        with redirect_stdout(buf):
+            rc = verify.cmd_status(_ns(task_id="007-Task 1", state_dir=self.tmp))
+        self.assertEqual(rc, 0)
+        self.assertIn("state: MET", buf.getvalue())
+
+    def test_status_spec_disambiguates_bare_id(self):
+        (self.tmp / "specs" / "002-SPEC-other.md").write_text(
+            "# 002: Other\n\nStatus: COMPILED\n", encoding="utf-8"
+        )
+        (self.tmp / "specs" / "002-TASK-01-other.md").write_text(
+            "# TASK 002-01 - other\n", encoding="utf-8"
+        )
+        buf = StringIO()
+        with redirect_stdout(buf):
+            rc = verify.cmd_status(
+                _ns(task_id="Task 1", spec="007", state_dir=self.tmp)
+            )
+        self.assertEqual(rc, 0)
+        self.assertIn("state: MET", buf.getvalue())
+
+    def test_doctor_accepts_spec_number(self):
+        buf = StringIO()
+        with redirect_stdout(buf):
+            verify.cmd_doctor(_ns(spec="007"))
+        self.assertNotIn("cannot read spec", buf.getvalue())
+
+    def test_report_accepts_spec_id_without_a_stray_file(self):
+        verify._set_spec_status(self.spec, "BUILT")
+        buf = StringIO()
+        with redirect_stdout(buf):
+            rc = verify.cmd_report(_ns(spec="007"))
+        self.assertEqual(rc, 0)
+        self.assertTrue((self.tmp / "specs" / "007-REPORT-do-things.md").is_file())
+        self.assertFalse((self.tmp / "007-REPORT-spec.md").exists())
+
+
 class DoctorTest(SandboxCase):
     def setUp(self):
         super().setUp()

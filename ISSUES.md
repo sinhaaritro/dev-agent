@@ -17,7 +17,7 @@
 | C4 | Critical | ✅ **Fixed 2026-10-19** — `APPROVED`/`PROVISIONAL` are canonical; build/report/gate own their transitions; `check`/`doctor` validate and a drift test guards `specs/` |
 | H1 | High | ✅ **Fixed 2026-10-19** — `drafted.md` Lane-A now lists the real 1–8 template (Gates/Verification/Rollback in the right slots) |
 | H2 | High | ✅ **Fixed 2026-10-19** — the documented convention is `NNN-SPEC-<slug>.md` everywhere; the fresh README scaffold and the dead tag-index block are corrected |
-| H3 | High | Documented CLI invocations (`doctor/report/status --spec|--task <NNN>`) do not work; `report` writes a stray file |
+| H3 | High | ✅ **Fixed 2026-10-19** — `--spec`/`--task` accept an id, file name, relative path, or absolute path; unresolved references are named errors, not stray files |
 | H4 | High | ✅ **Fixed 2026-10-19** — `report` emits one `R#` outcome observation per declared outcome and fails review (exit 1, no advance) on a missing one |
 | H5 | High | Approvals are documented as gitignored but are committed, and embed machine-absolute CWDs |
 | H6 | High | `specs-lint` is unusable in this repo, scans gitignored eval output, and crashes on Windows/cp1252 |
@@ -249,6 +249,8 @@ Following the docs silently produces wrong state or a stray file; a user cannot 
 **Suggested fix**
 
 Accept both a path and a bare `NNN` (resolve `specs/NNN-SPEC-*.md`), error when unresolved, and require a path for `status` or add a `--task-file` option. Update the skill text to match.
+
+**Status: ✅ Fixed (2026-10-19).** Added `resolve_spec`/`resolve_task`: `--spec` now accepts a spec id (`003` / `3`), a bare file name, a relative path, or an absolute path (matching the file name or leading `NNN` against the `specs/` group), and `report`/`doctor` resolve it before use — so `report --spec 003` writes `specs/003-REPORT-<slug>.md`, never a stray `003-REPORT-spec.md`. `status --task` derives `MET`/`STALE` from a task id (`007-Task 1`, `007-01`), file name, or path, with a new optional `--spec` to disambiguate a bare id and a ledger fallback otherwise; an ambiguous bare id is rejected with the candidate list and a miss is a named error (report exits 2). `verification-runner/SKILL.md` and `docs/verification.md` document the accepted forms. Regression test: `tests/test_verify.py::ReferenceResolutionTest`.
 
 ---
 

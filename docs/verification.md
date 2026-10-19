@@ -70,6 +70,8 @@ On a green `run` (exit 0 **and** the `Expect` marker present in the combined out
 | `STALE` | evidence exists but an owned file changed since — re-verify required |
 | `NO-EVIDENCE` | no evidence block recorded |
 
+`<id>` is a task id (`007-Task 1`, `007-01`), a bare file name, a relative path, or an absolute path; a bare id that is ambiguous across specs is rejected with the candidate list, and `--spec <ref>` disambiguates it. Without a resolvable task file, `status` falls back to the retry ledger (`attempts`, `green`/`escalated`).
+
 ### The per-task retry ledger (engine-owned counter)
 
 The per-task attempt counter is engine state — **never hand-tracked, never hand-edited**. The durable completion record is the task file's evidence block.
@@ -82,7 +84,7 @@ The per-task attempt counter is engine state — **never hand-tracked, never han
 
 ### The doctor (pre-flight)
 
-`verify.py doctor --spec <spec>` runs nine ordered preconditions, in order: (1) repo root resolved; (2) engine scripts parseable; (3) state files parseable; (4) the spec is `Status: COMPILED` or `BUILDING`; (5) a task file exists for every task in section 5; (6) `Depends On` forms a valid DAG; (7) every task's verify command is pre-approved; (8) the canonical AGENTS.md commands resolve; (9) a branch can be created off `main`. Output: `PRECONDITIONS OK` on success, else a **named list of gaps** + non-zero exit (VERIFY-D04). These preconditions are enforced for **unattended** runs; an interactive run asks the human at the moment instead of halting.
+`verify.py doctor --spec <ref>` runs nine ordered preconditions, in order: (1) repo root resolved; (2) engine scripts parseable; (3) state files parseable; (4) the spec is `Status: COMPILED` or `BUILDING`; (5) a task file exists for every task in section 5; (6) `Depends On` forms a valid DAG; (7) every task's verify command is pre-approved; (8) the canonical AGENTS.md commands resolve; (9) a branch can be created off `main`/`master`. Output: `PRECONDITIONS OK` on success, else a **named list of gaps** + non-zero exit (VERIFY-D04). These preconditions are enforced for **unattended** runs; an interactive run asks the human at the moment instead of halting. `<ref>` is a spec id (`003`), a file name, a relative path, or an absolute path — the same forms `report --spec <ref>` accepts.
 
 ### Fixing like a doctor, not a gambler
 
@@ -102,7 +104,7 @@ When a task exhausts its 3 attempts and no unblocked task remains:
 2. Finalize with `verify.py escalate --task <id> --hypothesis "<text>"`: it merges the stored attempt logs with the agent's hypothesis and guided remediation options into the report.
 3. The spec is parked **`ESCALATED`** (not `ABORTED`) and that spec's branch stops; the batch **continues** to the next spec. Report the hand-back in response blocks 3/4: the escalation record, the attempts' verbatim logs, the hypothesis, and the options; block 4 states the halt — no further modifications without a human.
 
-`verify.py report --spec <spec>` writes the per-spec `NNN-REPORT-<slug>.md`: the per-task derived status + evidence, the `R#` outcome observations (one line each — a missing observation **fails** review), and the review summary. An `R#` is observed only when every task whose `Outcomes:` line names it is `MET` (an outcome delivered by no task is never observed). Reports are **per spec only**; there is no combined batch file (VERIFY-D05). A green report (every task `MET` **and** every declared `R#` observed) advances the spec `BUILDING`/`BUILT` → `REVIEWED` and exits **0**; a task that is not `MET` or an unobserved `R#` leaves the status unchanged and exits **1**; a Sign-off block parks it `REVIEW_REVISION_REQUIRED`.
+`verify.py report --spec <ref>` writes the per-spec `NNN-REPORT-<slug>.md` (the same spec-reference forms as `doctor`): the per-task derived status + evidence, the `R#` outcome observations (one line each — a missing observation **fails** review), and the review summary. An `R#` is observed only when every task whose `Outcomes:` line names it is `MET` (an outcome delivered by no task is never observed). Reports are **per spec only**; there is no combined batch file (VERIFY-D05). A green report (every task `MET` **and** every declared `R#` observed) advances the spec `BUILDING`/`BUILT` → `REVIEWED` and exits **0**; a task that is not `MET` or an unobserved `R#` leaves the status unchanged and exits **1** (an unresolvable `<ref>` exits **2**); a Sign-off block parks it `REVIEW_REVISION_REQUIRED`.
 
 ### Guardrails context
 
@@ -133,3 +135,7 @@ Verification never overrides the global guardrails (see `overview.md`): running 
 ### VERIFY-D06 - An outcome is observed only when its tasks are MET
 - **Date:** 2026-10-19
 - **Why:** The documented review gate ("a missing observation **fails** review") needs a derived, not asserted, meaning of "observed". Tying each `R#` to the tasks whose `Outcomes:` line names it, and requiring every such task to be `MET`, makes the report fail closed: an outcome no task delivers — or one whose task regressed to `STALE` — is `MISSING`, and a failed review exits 1 without advancing the spec to `REVIEWED`.
+
+### VERIFY-D07 - Spec and task references resolve from their segments
+- **Date:** 2026-10-19
+- **Why:** The documented `--spec <NNN>` / `--task <id>` forms only worked with a concrete path, so a caller had to know the file's directory. `resolve_spec`/`resolve_task` now accept a spec/task number, a bare file name, a relative path, or an absolute path, matching the file name or the leading `NNN` against the `specs/` group. An ambiguous bare id is rejected with the candidate list (never guessed), and `status --spec` disambiguates across specs; a genuine miss is a named error, not a stray file.

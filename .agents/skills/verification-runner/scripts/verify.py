@@ -68,15 +68,17 @@ Modes:
               a human inspects the exact command before its first execution.
               Exit 0.
 
-    status   verify.py status --task <id> [--state-dir <dir>]
+    status   verify.py status --task <id> [--spec <ref>] [--state-dir <dir>]
               Print the ledger: attempts and state (green | escalated). Exit 0.
-              A task file path as <id> derives completion from its evidence
-              block instead: MET (verify passed and every owned file's hash
-              still matches) | NOT MET (no passing evidence) | STALE (an owned
-              file changed since the evidence) | NO-EVIDENCE (no evidence
-              block). Exit 0.
+              A task reference in <id> - a task file path, a bare file name, or
+              a task id ('007-Task 1', '007-01', or a bare 'Task 1') - derives
+              completion from the evidence block instead: MET (verify passed and
+              every owned file's hash still matches) | NOT MET (no passing
+              evidence) | STALE (an owned file changed since the evidence) |
+              NO-EVIDENCE (no evidence block). --spec disambiguates a bare id.
+              Exit 0 (or 2 when --spec cannot be resolved).
 
-    doctor   verify.py doctor --spec <NNN> [--root <dir>]
+    doctor   verify.py doctor --spec <ref> [--root <dir>]
               Run the 9 ordered per-spec preconditions (spec 002, section 2.6):
               repo root resolved; engine scripts importable; state files
               parseable; the spec is Status: COMPILED/BUILDING (canonical);
@@ -85,17 +87,20 @@ Modes:
               every verify command is pre-approved (fingerprint =
               command | expect | cwd); the canonical AGENTS.md commands
               resolve; a branch can be created off the default branch
-              (main/master). Prints PRECONDITIONS
+              (main/master). <ref> is a spec number ('003' / '3'), a file name,
+              a relative path, or an absolute path. Prints PRECONDITIONS
               OK on success, else a named list of gaps + exit 1.
 
-    report   verify.py report --spec <NNN> [--root <dir>]
-              Regenerate NNN-REPORT-<slug>.md: run state, per-task verify
+    report   verify.py report --spec <ref> [--root <dir>]
+              Regenerate NNN-REPORT-<slug>.md for the spec named by <ref> (same
+              accepted forms as doctor): run state, per-task verify
               status (derived from each task file's evidence block), the R#
               outcome observations (one line each; a missing observation fails
               review), and the Review re-run result. A green report (every task
               MET and every R# observed) advances BUILDING/BUILT to REVIEWED
               (review owner). Exit 0; exit 1 when review fails (a task is not
-              MET, or a declared R# has no observation).
+              MET, or a declared R# has no observation); exit 2 when <ref>
+              cannot be resolved.
 
     escalate verify.py escalate --task <id> --hypothesis "<text>"
                   --options "A (Recommended): ...; B: ..." [--state-dir <dir>]
@@ -563,6 +568,123 @@ def task_file_for(root: Path, num: int, task_id: str) -> Path | None:
         if task_id in head.split("\n", 1)[0]:
             return path
     return None
+
+
+def _candidate_file(raw: str, root: Path) -> Path | None:
+    """An existing file for a raw path (as given, or relative to the root)."""
+    for cand in (Path(raw), root / raw):
+        try:
+            if cand.is_file():
+                return cand
+        except OSError:
+            continue
+    return None
+
+
+def _spec_index(root: Path) -> list[Path]:
+    """Every NNN-SPEC-<slug>.md under ``root/specs``, sorted."""
+    specs_dir = root / "specs"
+    if not specs_dir.is_dir():
+        return []
+    return sorted(p for p in specs_dir.iterdir() if p.is_file() and SPEC_KIND.match(p.name))
+
+
+def resolve_spec(raw: str, root: Path) -> tuple[Path | None, str]:
+    """Resolve a spec reference to its file.
+
+    Accepts any of: an absolute path, a path relative to the CWD or the repo
+    root, a bare file name (``003-SPEC-slug.md``), or a spec number (``003`` /
+    ``3``). Returns ``(path, "")`` on success, or ``(None, reason)`` when
+    nothing matches or the reference is ambiguous.
+    """
+    raw = str(raw or "").strip().strip('"').strip("'")
+    direct = _candidate_file(raw, root)
+    if direct is not None:
+        return direct.resolve(), ""
+    name = Path(raw.replace("\\", "/")).name
+    num = None
+    m = re.match(r"^(\d+)(?:$|[-\s_])", name)
+    if m:
+        num = int(m.group(1))
+    matches: list[Path] = []
+    for spec in _spec_index(root):
+        sm = SPEC_KIND.match(spec.name)
+        if spec.name == name or (num is not None and int(sm.group(1)) == num):
+            matches.append(spec)
+    if len(matches) == 1:
+        return matches[0].resolve(), ""
+    if not matches:
+        return None, f"no spec matches '{raw}' under {root / 'specs'}"
+    names = ", ".join(p.name for p in matches)
+    return None, f"ambiguous spec '{raw}': matches {names}"
+
+
+def _task_index(root: Path, num: int | None = None) -> list[Path]:
+    """Every NNN-TASK-NN-<slug>.md under ``root/specs`` (one spec, or all)."""
+    specs_dir = root / "specs"
+    if not specs_dir.is_dir():
+        return []
+    out: list[Path] = []
+    for p in sorted(specs_dir.iterdir()):
+        if not p.is_file():
+            continue
+        m = TASK_KIND.match(p.name)
+        if m and (num is None or int(m.group(1)) == num):
+            out.append(p)
+    return out
+
+
+def _normalize_task_token(token: str) -> str:
+    """Normalize a task reference tail to the ``Task N`` form task_file_for wants."""
+    t = token.strip()
+    m = re.match(r"^(?:TASK|Task|task)[-\s_]*0*(\d+)$", t) or re.match(r"^0*(\d+)$", t)
+    if m:
+        return f"Task {int(m.group(1))}"
+    return t
+
+
+def resolve_task(
+    raw: str, root: Path, num: int | None = None
+) -> tuple[Path | None, str]:
+    """Resolve a task reference to its task file.
+
+    Accepts any of: an absolute path, a path relative to the CWD or the repo
+    root, a bare file name (``007-TASK-01-slug.md``), or a task id such as
+    ``007-Task 1``, ``007-01`` (optionally ``--spec``-qualified via ``num``), or
+    a bare ``Task 1``. Returns ``(path, "")`` on success, or ``(None, reason)``.
+    """
+    raw = str(raw or "").strip().strip('"').strip("'")
+    direct = _candidate_file(raw, root)
+    if direct is not None:
+        return direct.resolve(), ""
+    name = Path(raw.replace("\\", "/")).name
+    tm = TASK_KIND.match(name)
+    if tm:
+        for cand in _task_index(root, int(tm.group(1))):
+            if cand.name == name:
+                return cand.resolve(), ""
+    token = name
+    m = re.match(r"^(\d{3})[-\s_]+(.+)$", name)
+    if m:
+        num = int(m.group(1))
+        token = m.group(2)
+    token = _normalize_task_token(token)
+    hits: list[Path] = []
+    if num is not None:
+        found = task_file_for(root, num, token)
+        if found is not None:
+            hits.append(found)
+    else:
+        for cand in _task_index(root):
+            cm = TASK_KIND.match(cand.name)
+            if cm and token == f"Task {int(cm.group(2))}":
+                hits.append(cand)
+    if len(hits) == 1:
+        return hits[0].resolve(), ""
+    if not hits:
+        return None, f"no task file matches '{raw}' under {root / 'specs'}"
+    names = ", ".join(p.name for p in hits)
+    return None, f"ambiguous task '{raw}': matches {names}"
 
 
 def _file_hash(path: Path) -> str:
@@ -1283,10 +1405,20 @@ def cmd_approve(args: argparse.Namespace) -> int:
 
 
 def cmd_status(args: argparse.Namespace) -> int:
-    # A task file path derives completion from its evidence block.
-    if args.task_id.endswith(".md") and Path(args.task_id).is_file():
-        print("task: " + args.task_id)
-        print("state: " + status(Path(args.task_id)))
+    # A task reference (path, file name, or task id) derives completion from
+    # its evidence block; anything else falls through to the retry ledger.
+    root = find_root()
+    num = None
+    if getattr(args, "spec", None):
+        spec, err = resolve_spec(args.spec, root)
+        if spec is None:
+            print("status: " + err)
+            return 2
+        num = _spec_num(spec)
+    task_file, _ = resolve_task(args.task_id, root, num)
+    if task_file is not None:
+        print("task: " + task_file.name)
+        print("state: " + status(task_file))
         return 0
     state = read_state(args.state_dir)
     task = state["tasks"].get(
@@ -1323,7 +1455,12 @@ def cmd_escalate(args: argparse.Namespace) -> int:
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
-    gaps = doctor(args.spec)
+    spec, err = resolve_spec(args.spec, find_root())
+    if spec is None:
+        print("PRECONDITIONS FAILED:")
+        print("- 4: " + err)
+        return 1
+    gaps = doctor(spec)
     if gaps:
         print("PRECONDITIONS FAILED:")
         for gap in gaps:
@@ -1344,22 +1481,26 @@ def cmd_report(args: argparse.Namespace) -> int:
     # BUILDING/BUILT -> REVIEWED. Advance before writing the report so its
     # Status: line matches; a failed review leaves the spec where it is.
     root = find_root()
+    spec, err = resolve_spec(args.spec, root)
+    if spec is None:
+        print("report: " + err)
+        return 2
     try:
-        text = args.spec.read_text(encoding="utf-8-sig")
+        text = spec.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeDecodeError):
         text = ""
     tasks = _section5_tasks(text)
     missing = [
         rid
-        for rid, observed, _ in _outcome_observations(root, _spec_num(args.spec), text, tasks)
+        for rid, observed, _ in _outcome_observations(root, _spec_num(spec), text, tasks)
         if not observed
     ]
-    all_met = _all_tasks_met(root, args.spec)
+    all_met = _all_tasks_met(root, spec)
     if all_met and not missing:
-        token = _status_token(args.spec)
+        token = _status_token(spec)
         if token in ("BUILDING", "BUILT"):
-            _set_spec_status(args.spec, "REVIEWED")
-    path = report(args.spec)
+            _set_spec_status(spec, "REVIEWED")
+    path = report(spec)
     print("report: " + str(path))
     if missing:
         print("review FAILED: missing outcome observation(s): " + ", ".join(missing))
@@ -1433,7 +1574,11 @@ def main() -> int:
     approve_p.set_defaults(func=cmd_approve)
 
     status_p = sub.add_parser("status", help="read the retry ledger")
-    status_p.add_argument("--task", dest="task_id", required=True)
+    status_p.add_argument("--task", dest="task_id", required=True,
+                          help="task file path, file name, or task id "
+                               "(e.g. '007-Task 1', '007-01')")
+    status_p.add_argument("--spec", default=None,
+                          help="NNN, file name, or path - disambiguates a bare task id")
     status_p.add_argument("--state-dir", type=Path, default=None)
     status_p.set_defaults(func=cmd_status)
 
@@ -1455,15 +1600,17 @@ def main() -> int:
     doctor_p = sub.add_parser(
         "doctor", help="run the 9 ordered per-spec preconditions"
     )
-    doctor_p.add_argument("--spec", type=Path, required=True,
-                          help="the NNN-SPEC-<slug>.md spec to pre-flight")
+    doctor_p.add_argument("--spec", required=True,
+                          help="spec as NNN ('003'), file name, relative path, "
+                               "or absolute path")
     doctor_p.set_defaults(func=cmd_doctor)
 
     report_p = sub.add_parser(
         "report", help="regenerate the spec's NNN-REPORT-<slug>.md"
     )
-    report_p.add_argument("--spec", type=Path, required=True,
-                          help="the NNN-SPEC-<slug>.md spec to report on")
+    report_p.add_argument("--spec", required=True,
+                          help="spec as NNN ('003'), file name, relative path, "
+                               "or absolute path")
     report_p.set_defaults(func=cmd_report)
 
     args = parser.parse_args()

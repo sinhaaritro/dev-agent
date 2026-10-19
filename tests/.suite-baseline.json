@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T04:14:18Z",
+  "generated": "2026-10-19T04:26:19Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_doctor_precondition_7_accepts_compile_preapproval": "pass",
@@ -237,6 +237,14 @@
     "test_verify.OutcomeObservationTest.test_all_observed_passes_review": "pass",
     "test_verify.OutcomeObservationTest.test_missing_observation_fails_review": "pass",
     "test_verify.OutcomeObservationTest.test_one_observation_line_per_r": "pass",
+    "test_verify.ReferenceResolutionTest.test_bare_task_ambiguous_across_specs": "pass",
+    "test_verify.ReferenceResolutionTest.test_doctor_accepts_spec_number": "pass",
+    "test_verify.ReferenceResolutionTest.test_report_accepts_spec_id_without_a_stray_file": "pass",
+    "test_verify.ReferenceResolutionTest.test_spec_forms": "pass",
+    "test_verify.ReferenceResolutionTest.test_spec_unknown_is_a_clear_error": "pass",
+    "test_verify.ReferenceResolutionTest.test_status_derives_from_task_id": "pass",
+    "test_verify.ReferenceResolutionTest.test_status_spec_disambiguates_bare_id": "pass",
+    "test_verify.ReferenceResolutionTest.test_task_forms": "pass",
     "test_verify.ReportTest.test_report_writes_group_report": "pass",
     "test_verify.RunEvidenceTest.test_run_writes_hash_evidence_on_pass": "pass",
     "test_verify.ShellCommandTest.test_run_executes_command_substitution": "skip",
