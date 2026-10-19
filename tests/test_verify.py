@@ -343,5 +343,77 @@ class ShellCommandTest(SandboxCase):
         self.assertEqual(rc, 0)
 
 
+class EscalationRecordTest(SandboxCase):
+    """C3: the circuit-breaker escalation is a durable, per-spec record."""
+
+    def _fail_once(self, task_id="007-Task 1", state_dir=None):
+        return verify.cmd_run(
+            _ns(
+                command='python -c "raise SystemExit(1)"',
+                task_id=task_id,
+                expect=None,
+                lane=None,
+                timeout=60,
+                hypothesis=None,
+                options=None,
+                suggest=False,
+                state_dir=state_dir or (self.tmp / "specs" / "temp"),
+            )
+        )
+
+    def test_circuit_breaker_writes_durable_record_and_stamps_spec(self):
+        _spec_file(self.tmp)
+        _task_file(self.tmp)
+        self.assertEqual(self._fail_once(), 1)
+        self.assertEqual(self._fail_once(), 1)
+        self.assertEqual(self._fail_once(), 2)  # third consecutive failure trips
+        esc = self.tmp / "specs" / "007-ESCALATION-do-things.md"
+        self.assertTrue(esc.is_file(), "durable escalation was not written")
+        text = esc.read_text(encoding="utf-8")
+        self.assertIn("# ESCALATION - 007-Task 1", text)
+        self.assertIn("Spec: 007-SPEC-do-things.md", text)
+        self.assertIn("never reverts", text)
+        self.assertNotIn("revert broken dirty edits", text)
+        # a known spec group never uses the ephemeral scratchpad copy
+        self.assertFalse((self.tmp / "specs" / "temp" / "escalation.md").is_file())
+        # the spec is parked ESCALATED
+        spec_text = (self.tmp / "specs" / "007-SPEC-do-things.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Status: ESCALATED", spec_text)
+
+    def test_no_spec_group_falls_back_to_scratchpad(self):
+        _task_file(self.tmp)
+        state_dir = self.tmp / "specs" / "temp"
+        self.assertEqual(self._fail_once(task_id="ad-hoc", state_dir=state_dir), 1)
+        self.assertEqual(self._fail_once(task_id="ad-hoc", state_dir=state_dir), 1)
+        self.assertEqual(self._fail_once(task_id="ad-hoc", state_dir=state_dir), 2)
+        self.assertTrue((state_dir / "escalation.md").is_file())
+        self.assertFalse(list((self.tmp / "specs").glob("*-ESCALATION-*.md")))
+
+    def test_escalate_rewrites_durable_record(self):
+        _spec_file(self.tmp)
+        state_dir = self.tmp / "specs" / "temp"
+        for _ in range(3):
+            self._fail_once(state_dir=state_dir)
+        durable = self.tmp / "specs" / "007-ESCALATION-do-things.md"
+        durable.unlink()
+        buf = StringIO()
+        with redirect_stdout(buf):
+            rc = verify.cmd_escalate(
+                _ns(
+                    task_id="007-Task 1",
+                    hypothesis="try a lock",
+                    options="A (Recommended): lock; B: queue",
+                    state_dir=state_dir,
+                )
+            )
+        self.assertEqual(rc, 0)
+        self.assertTrue(durable.is_file())
+        text = durable.read_text(encoding="utf-8")
+        self.assertIn("try a lock", text)
+        self.assertIn("lock", text)
+
+
 if __name__ == "__main__":
     unittest.main()

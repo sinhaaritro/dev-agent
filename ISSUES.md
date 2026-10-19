@@ -129,6 +129,8 @@ The failure audit trail — the whole point of the 3-attempt circuit breaker —
 
 Write the consolidated escalation to `specs/NNN-ESCALATION-<slug>.md` in the spec group and stamp the spec `ESCALATED`; keep `specs/temp/escalation.md` only as a pre-spec (Lane C/no-spec) fallback. Make the "no revert" wording consistent.
 
+**Status: ✅ Fixed (2026-10-19).** `verify.py` now routes the circuit-breaker escalation through `escalation_target()`: a task id carrying a spec number (`NNN-…`) whose spec file exists writes the durable `specs/NNN-ESCALATION-<slug>.md` and stamps the spec `Status: ESCALATED` (via `_stamp_escalated()`, preserving trailing metadata); otherwise (no spec number, or the spec is not on disk yet — Lane C / ad-hoc) it falls back to the ephemeral `specs/temp/escalation.md`. `format_escalation()` gained a `Spec:` line and no longer says "revert broken dirty edits" — the hand-back now states the run never reverts mid-build. Regression tests: `tests/test_verify.py::EscalationRecordTest`. Scope note: `phase-protocol/scripts/resolve_gate.py` also writes the scratchpad `escalation.md`, but its fail-closed gate is a *vetting*-stage block (lifecycle target `PLAN_REVISION_REQUIRED`), not the build-red `ESCALATED` transition, so it is intentionally not changed here.
+
 ---
 
 ### C4 — The `Status:` lifecycle is not engine-enforced; `promote` emits a non-canonical state

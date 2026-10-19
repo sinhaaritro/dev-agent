@@ -10,7 +10,9 @@ silently reset by forgetting. The engine is a ledger, never a judge: it
 records what the command actually returned and trips at the threshold.
 
 State: specs/temp/verify-state.json (gitignored scratchpad, per-task keys,
-purged by task-cleaner on acceptance). Escalation: specs/temp/escalation.md.
+purged by task-cleaner on acceptance). Escalation: the spec group's
+NNN-ESCALATION-<slug>.md when the task belongs to a spec, else the
+ephemeral specs/temp/escalation.md.
 Approvals: specs/temp/approvals.json (gitignored scratch, per-task lifetime;
 a new session re-approves - the safe default).
 
@@ -28,8 +30,10 @@ Modes:
               (Lane C ad-hoc runs, legacy invocations). Exit 0 = PASS, counter
               reset to 0. Non-zero exit or marker mismatch = FAIL, counter
               incremented. At the 3rd consecutive failure the circuit breaker
-              trips: escalation.md is written and exit 2 - halt, human
-              hand-back; further runs on the same task are refused. With no
+              trips: the escalation report is written (a spec's durable
+              NNN-ESCALATION-<slug>.md, else specs/temp/escalation.md) and
+              exit 2 - halt, human hand-back; further runs on the same task
+              are refused. With no
               --command and no --suggest: exit 3 (command source unresolved).
 
               --lane <A|B|C|D> makes command approval mandatory for lanes A
@@ -85,8 +89,10 @@ Modes:
     escalate verify.py escalate --task <id> --hypothesis "<text>"
                   --options "A (Recommended): ...; B: ..." [--state-dir <dir>]
               Finalize the escalation report: merge the stored attempt logs
-              with the agent-supplied hypothesis and remediation options.
-              Exit 0.
+              with the agent-supplied hypothesis and remediation options. The
+              report lands in the spec group's NNN-ESCALATION-<slug>.md
+              (spec parked ESCALATED), or specs/temp/escalation.md when the
+              task has no spec group. Exit 0.
 
     detect   verify.py detect [--root <dir>]
               Scan repo manifests and print the framework + its reference page
@@ -103,7 +109,7 @@ Usage:
         status --task auth-001
 
 Exit codes: 0 = green / informational; 1 = failed (retry remaining);
-2 = circuit breaker tripped (escalation.md written, halt); 3 = command source
+2 = circuit breaker tripped (escalation report written, halt); 3 = command source
 unresolved; 4 = approval required (refused before execution, no state change,
 not a retry attempt).
 """
@@ -335,13 +341,18 @@ def format_escalation(
     hypothesis: str,
     options: str,
     max_attempts: int,
+    spec_name: str = "",
 ) -> str:
-    """The escalation report structure - the audit record for a halted task."""
+    """The consolidated escalation report - the durable audit record for a halt."""
     lines = [
         "# ESCALATION - " + task_id,
         "",
         "Date: " + time.strftime("%Y-%m-%d %H:%M"),
         "Task: " + task_id,
+    ]
+    if spec_name:
+        lines.append("Spec: " + spec_name)
+    lines += [
         f"Attempts: {attempts}/{max_attempts}",
         "",
         "## Attempts (verbatim logs)",
@@ -375,15 +386,50 @@ def format_escalation(
     lines.append("")
     lines.append("## Hand-back")
     lines.append(
-        f"Circuit breaker tripped ({max_attempts} consecutive failures). Cease all modifications, revert broken dirty edits, halt, and hand off to a human."
+        f"Circuit breaker tripped ({max_attempts} consecutive failures). Cease "
+        "all modifications on this task, leave the working tree as-is (a run "
+        "never reverts mid-build), halt, and hand off to a human."
     )
     return "\n".join(lines)
 
 
-def write_escalation(state_dir: Path, content: str) -> Path:
-    path = state_dir / ESCALATION_FILE
+def escalation_target(
+    root: Path, state_dir: Path, task_id: str
+) -> tuple[Path, Path | None]:
+    """Where the escalation report belongs, and the spec to stamp (or None).
+
+    A task id carrying a spec number ('NNN-...') whose spec group exists gets the
+    durable ``specs/NNN-ESCALATION-<slug>.md`` (committed with the group) and the
+    spec is parked ESCALATED. Otherwise - no spec number, or the spec file is not
+    on disk yet (Lane C / ad-hoc runs) - it stays in the ephemeral scratchpad
+    ``specs/temp/escalation.md``.
+    """
+    m = re.match(r"^(\d{3})-", task_id or "")
+    if m:
+        num = int(m.group(1))
+        spec = spec_path(root, num)
+        kind = SPEC_KIND.match(spec.name)
+        if spec.is_file() and kind:
+            return spec.parent / f"{num:03d}-ESCALATION-{kind.group(2)}.md", spec
+    return state_dir / ESCALATION_FILE, None
+
+
+def write_escalation(path: Path, content: str) -> Path:
+    """Write the escalation report to ``path`` (durable spec group or scratchpad)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return path
+
+
+def _stamp_escalated(spec: Path) -> None:
+    """Park the spec as 'Status: ESCALATED' (preserves any trailing metadata)."""
+    try:
+        text = spec.read_text(encoding="utf-8-sig")
+    except OSError:
+        return
+    updated = re.sub(r"(?m)^(Status:\s*)\S+", r"\g<1>ESCALATED", text, count=1)
+    if updated != text:
+        spec.write_text(updated, encoding="utf-8")
 
 
 SPEC_KIND = re.compile(r"^(\d{3})-SPEC-(.+)\.md$")
@@ -1020,6 +1066,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     if attempt >= MAX_ATTEMPTS:
         task["tripped"] = True
         write_state(args.state_dir, state)
+        path, spec = escalation_target(root, args.state_dir, args.task_id)
         content = format_escalation(
             args.task_id,
             attempt,
@@ -1027,8 +1074,11 @@ def cmd_run(args: argparse.Namespace) -> int:
             args.hypothesis or "",
             args.options or "",
             MAX_ATTEMPTS,
+            spec.name if spec is not None else "",
         )
-        path = write_escalation(args.state_dir, content)
+        path = write_escalation(path, content)
+        if spec is not None:
+            _stamp_escalated(spec)
         print(f"CIRCUIT BREAKER TRIPPED - attempt {attempt}/{MAX_ATTEMPTS}")
         print("escalation: " + str(path))
         return 2
@@ -1076,10 +1126,12 @@ def cmd_status(args: argparse.Namespace) -> int:
 
 
 def cmd_escalate(args: argparse.Namespace) -> int:
+    root = find_root()
     state = read_state(args.state_dir)
     task = state["tasks"].get(
         args.task_id, {"attempts": 0, "failures": [], "tripped": False}
     )
+    path, spec = escalation_target(root, args.state_dir, args.task_id)
     content = format_escalation(
         args.task_id,
         task["attempts"],
@@ -1087,8 +1139,11 @@ def cmd_escalate(args: argparse.Namespace) -> int:
         args.hypothesis or "",
         args.options or "",
         MAX_ATTEMPTS,
+        spec.name if spec is not None else "",
     )
-    path = write_escalation(args.state_dir, content)
+    path = write_escalation(path, content)
+    if spec is not None:
+        _stamp_escalated(spec)
     print("escalation: " + str(path))
     return 0
 

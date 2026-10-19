@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T02:44:32Z",
+  "generated": "2026-10-19T03:10:40Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_doctor_precondition_7_accepts_compile_preapproval": "pass",
@@ -209,6 +209,9 @@
     "test_verify.DoctorTest.test_doctor_detects_not_compiled": "pass",
     "test_verify.DoctorTest.test_doctor_detects_unapproved_command": "pass",
     "test_verify.DoctorTest.test_doctor_detects_uncompiled_spec": "pass",
+    "test_verify.EscalationRecordTest.test_circuit_breaker_writes_durable_record_and_stamps_spec": "pass",
+    "test_verify.EscalationRecordTest.test_escalate_rewrites_durable_record": "pass",
+    "test_verify.EscalationRecordTest.test_no_spec_group_falls_back_to_scratchpad": "pass",
     "test_verify.EvidenceStatusTest.test_met_when_hashes_match": "pass",
     "test_verify.EvidenceStatusTest.test_missing_owned_file_is_stale": "pass",
     "test_verify.EvidenceStatusTest.test_no_evidence_when_absent": "pass",
