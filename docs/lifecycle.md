@@ -36,7 +36,7 @@ The canonical `Status:` values are: `DRAFTED`, `APPROVED`, `PROVISIONAL`, `COMPI
 | :--- | :--- | :--- | :--- |
 | **DRAFTED** (planning) | B, A (C runs a single pass; D is header-only, no lifecycle) | Read-only — no file edits | Validated draft in `specs/temp/` (`Status: DRAFTED`) |
 | **APPROVED** / **PROVISIONAL** (promoted) | B, A | Read-only | Promoted spec in `specs/` (`Status: APPROVED`, or `PROVISIONAL - AUTONOMOUS DEFAULT`); compile follows |
-| **Vetting gate** | B, A — optional, when the spec's `vetting: on` | Read-only | Vetting gate cleared on the draft (a block drops the spec to `PLAN_REVISION_REQUIRED`) |
+| **Vetting gate** | B, A — optional, when the spec's `vetting: on` | Read-only | `spec vetting --verdict pass\|block` records the receipt; a block drops the spec to `PLAN_REVISION_REQUIRED`, a pass/`--accept` returns it to `DRAFTED`; the 3rd block stays `PLAN_REVISION_REQUIRED` and hands back |
 | **COMPILED** (compile) | B, A — mandatory after "approve draft" | Read-only | Spec compiled into one task file per task, `Status: COMPILED`, **session stops** |
 | **BUILDING** (build) | B, A — always a *new* session / explicit run, starting from the `COMPILED` spec | Edits within the spec's branch, task scope only | All task files `MET` (`Verify` + `Expect`, content-hash evidence recorded) via the runtime's `verify` command; commands pre-approved on lanes A/B → `Status: BUILT` |
 | **REVIEWED** (review) | B, A | Read-only | the runtime's `verify report` green (every `R#` outcome observed); missing outcome fails review → `Status: REVIEWED` (a review block drops it to `REVIEW_REVISION_REQUIRED`) |
@@ -140,7 +140,7 @@ The five header tags are **Status**, Task, Lane, Worktree (`main` unless a workt
 | Status | Allowed |
 | :--- | :--- |
 | DRAFTED (planning) | Read-only: inspect, search, draft in `specs/temp/` |
-| Vetting gate | Read-only: vetting gate on the draft |
+| Vetting gate | Read-only: run the optional `spec vetting` gate/receipt on the draft |
 | COMPILED (compile) | Read-only: engine compile (spec + task files), topic decisions, `COMPILED` stamp |
 | BUILDING (build) | Edits on the spec's branch within task `Owns` scope; verification through the runtime's `verify` command |
 | REVIEWED (review) | Read-only: the runtime's `verify report`, audit |

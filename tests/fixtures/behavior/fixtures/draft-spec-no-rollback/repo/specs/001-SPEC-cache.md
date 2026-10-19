@@ -1,3 +1,8 @@
+---
+tags: [cache, vetting]
+vetting: on
+---
+
 # 001-SPEC: Cache Layer
 
 Status: DRAFTED | Date: 2026-10-18

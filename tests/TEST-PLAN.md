@@ -265,10 +265,10 @@ Cases: `tests/fixtures/behavior/cases/`. Each case below mirrors its
     - a run is refused on a spec that is not COMPILED
     - the refusal names the required status
 - **B4.3** Vetting gate revision.
-  - **Given** Bootstrapped repo plus a DRAFTED spec with no rollback strategy.
+  - **Given** Bootstrapped repo plus a DRAFTED spec (with `vetting: on`) that has no rollback strategy.
   - **When** Run the vetting gate on specs/001-SPEC-cache.md. Reject the plan: it has no rollback strategy.
   - **Then**
-    - a failed vetting gate produces PLAN_REVISION_REQUIRED
+    - the engine records a Vetting block receipt and sets PLAN_REVISION_REQUIRED
     - the spec is not built
 
 ### 2.5 Verification orchestration

@@ -108,8 +108,9 @@ Incoming requirement
  specs/temp/draft-plan.md          (Lane B: sections 1,4,5 / Lane A: sections 0-8)
         │  validated: spec check <draft> --lane <B|A>
         ▼
- [ Vetting gate — optional, when the spec's vetting: on ]
-        │  a block drops the spec to PLAN_REVISION_REQUIRED (re-plan)
+ [ Vetting gate — optional, when the spec's vetting: on; receipt via spec vetting ]
+        │  a block drops the spec to PLAN_REVISION_REQUIRED (re-plan); a pass/accept
+        │  returns it to DRAFTED; the 3rd block stays PLAN_REVISION_REQUIRED and hands back
         ▼
  [ "approve draft" gate — human acceptance or compliant autonomous resolution ]
         │  spec compile <spec>

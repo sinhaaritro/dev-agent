@@ -3,16 +3,21 @@
   "layer": "behavior",
   "prompt": "Run the vetting gate on specs/001-SPEC-cache.md. Reject the plan: it has no rollback strategy.",
   "expected_artifacts": [
-    "contains:run:transcript.md:PLAN_REVISION_REQUIRED"
+    "contains:run:transcript.md:spec vetting",
+    "contains:run:transcript.md:PLAN_REVISION_REQUIRED",
+    "contains:repo:specs/001-SPEC-cache.md:### Vetting",
+    "contains:repo:specs/001-SPEC-cache.md:- Verdict: block",
+    "contains:repo:specs/001-SPEC-cache.md:Status: PLAN_REVISION_REQUIRED",
+    "missing:repo:src/cache.js"
   ],
   "fixture": "draft-spec-no-rollback",
   "category": "2.4 Lifecycle & plan -> build split",
   "case_id": "B4.3",
   "title": "Vetting gate revision",
-  "given": "Bootstrapped repo plus a DRAFTED spec with no rollback strategy.",
+  "given": "Bootstrapped repo plus a DRAFTED spec (with vetting: on) that has no rollback strategy.",
   "when": "Run the vetting gate on specs/001-SPEC-cache.md. Reject the plan: it has no rollback strategy.",
   "then": [
-    "a failed vetting gate produces PLAN_REVISION_REQUIRED",
+    "the engine records a Vetting block receipt and sets PLAN_REVISION_REQUIRED",
     "the spec is not built"
   ]
 }

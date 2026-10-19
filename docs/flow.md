@@ -34,9 +34,7 @@ flowchart LR
 | :--- | :--- | :--- |
 | `DRAFTED` | `DRAFTED` | re-draft until plan-readiness is green |
 | `DRAFTED` | `PLAN_REVISION_REQUIRED` | vetting blocks |
-| `PLAN_REVISION_REQUIRED` | `DRAFTED` | fix · re-vet (3-try cap) |
-| `PLAN_REVISION_REQUIRED` | `COMPILED` | accept as-is |
-| `PLAN_REVISION_REQUIRED` | `ESCALATED` | cap hit |
+| `PLAN_REVISION_REQUIRED` | `DRAFTED` | fix and re-vet, or accept as-is; the 3rd block hands back at `PLAN_REVISION_REQUIRED` |
 | `PLAN_REVISION_REQUIRED` | `ABORTED` | human abort |
 | `BUILDING` | `ESCALATED` | build red — any task exhausted its 3 attempts |
 | `BUILT` | `BUILDING` | `review_revision: auto` fails (≤3 cycles) |
