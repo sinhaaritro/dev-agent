@@ -1,6 +1,9 @@
 {
-  "generated": "2026-10-18T14:13:17Z",
+  "generated": "2026-10-19T02:36:02Z",
   "tests": {
+    "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
+    "test_approval_integration.CompileRunApprovalTest.test_doctor_precondition_7_accepts_compile_preapproval": "pass",
+    "test_approval_integration.CompileRunApprovalTest.test_run_lane_a_accepts_compile_preapproval": "pass",
     "test_behavior_harness.ArtifactDslTest.test_bad_regex_fails_the_check": "pass",
     "test_behavior_harness.ArtifactDslTest.test_case_assertion_labels_override_the_default_wording": "pass",
     "test_behavior_harness.ArtifactDslTest.test_check_run_fails_when_any_artifact_fails": "pass",

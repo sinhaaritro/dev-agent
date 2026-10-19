@@ -104,6 +104,7 @@ Exit codes: 0 = ok; 1 = check failed, exists, or violation/error.
 """
 
 import argparse
+import hashlib
 import re
 import sys
 from datetime import date
@@ -514,8 +515,14 @@ def _slug_from_title_or_name(name: str, text: str) -> str:
 
 
 def _fingerprint(command: str, expect: str, cwd: Path) -> str:
-    """The verify-approval fingerprint: command | expect | cwd (no executor)."""
-    return (command.strip() + "|" + expect.strip() + "|" + str(cwd))
+    """The verify-approval fingerprint: sha256(command | expect | cwd).
+
+    Must match verify.py's ``command_fingerprint`` byte-for-byte: a
+    compile-time pre-approval only satisfies a lane-A/B ``verify.py run``
+    when both engines hash the same payload (audit finding C1).
+    """
+    payload = "|".join((command.strip(), expect.strip(), str(cwd)))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _write_approvals(specs_dir: Path, num: int, slug: str,

@@ -236,7 +236,7 @@ def command_fingerprint(command: str, expect: str, cwd: str,
     section 2.5). The ``executor`` argument is accepted for backward
     compatibility but never hashed.
     """
-    payload = "|".join((command, expect or "", cwd))
+    payload = "|".join((command.strip(), (expect or "").strip(), cwd))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -259,6 +259,37 @@ def write_approvals(state_dir: Path, data: dict) -> None:
     (state_dir / APPROVALS_FILE).write_text(
         json.dumps(data, indent=2), encoding="utf-8"
     )
+
+
+def spec_preapprovals(root: Path, task_id: str = "") -> set[str]:
+    """Fingerprints pre-approved at compile in ``specs/NNN-APPROVALS-*.json``.
+
+    A compiled spec carries a group-level approvals companion (spec 002,
+    section 2.5). A lane-A/B run must honor it without a separate manual
+    ``verify.py approve``. Scoped to the task's ``NNN`` prefix when the task id
+    carries one; otherwise every spec's approvals are considered.
+    """
+    specs_dir = root / "specs"
+    if not specs_dir.is_dir():
+        return set()
+    matched = re.match("^([0-9]{3})-", task_id or "")
+    pattern = f"{matched.group(1)}-APPROVALS-*.json" if matched else "*-APPROVALS-*.json"
+    approved: set[str] = set()
+    for path in specs_dir.glob(pattern):
+        if not path.is_file():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            continue
+        entries = data.get("approvals", [])
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            fingerprint = entry.get("fingerprint")
+            if fingerprint:
+                approved.add(fingerprint)
+    return approved
 
 
 def split_command(command: str) -> list[str]:
@@ -892,7 +923,10 @@ def cmd_run(args: argparse.Namespace) -> int:
     lane = getattr(args, "lane", None)
     if lane in APPROVAL_REQUIRED_LANES:
         fingerprint = command_fingerprint(args.command, args.expect or "", str(root))
-        if fingerprint not in read_approvals(args.state_dir)["approvals"]:
+        approved = read_approvals(args.state_dir)["approvals"]
+        if fingerprint not in approved and fingerprint not in spec_preapprovals(
+            root, args.task_id
+        ):
             print(
                 "approval required (lane " + lane + "): command not approved - "
                 + "refused before execution, no state change, not an attempt"
@@ -1112,7 +1146,8 @@ def main() -> int:
         "--lane",
         default=None,
         choices=["A", "B", "C", "D"],
-        help="lanes A/B require a prior 'approve' for this command fingerprint",
+        help="lanes A/B require a prior 'approve' or a compile-time "
+        "specs/NNN-APPROVALS-*.json pre-approval for this fingerprint",
     )
     run_p.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
     run_p.add_argument("--hypothesis", default=None)

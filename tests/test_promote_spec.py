@@ -396,10 +396,13 @@ class TestCompilePurgeSyncAccept(unittest.TestCase):
         import json
         data = json.loads(approvals.read_text(encoding="utf-8"))
         self.assertEqual(len(data["approvals"]), 2)
-        # fingerprint has no executor field (spec 002 section 2.5): command|expect|cwd
-        fp = data["approvals"][0]["fingerprint"]
-        self.assertEqual(fp.count("|"), 2)
-        self.assertNotIn("executor", fp)
+        # fingerprint is the sha256 approval key shared with verify.py (C1);
+        # the command/expect/cwd fields are the human-readable companion copy.
+        entry = data["approvals"][0]
+        self.assertRegex(entry["fingerprint"], r"^[0-9a-f]{64}$")
+        self.assertIn("command", entry)
+        self.assertIn("expect", entry)
+        self.assertIn("cwd", entry)
         # compile stamps Status: COMPILED on the spec
         text = self.spec.read_text(encoding="utf-8")
         self.assertEqual(promote_spec.status_value(text), "COMPILED")
