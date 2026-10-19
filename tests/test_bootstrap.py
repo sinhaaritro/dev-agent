@@ -173,6 +173,71 @@ class RefusalTest(BootstrapBase):
         self.assertEqual(proc.returncode, 1)
         self.assertIn("refusing to bootstrap", proc.stdout + proc.stderr)
 
+    def test_project_install_is_not_mistaken_for_the_source_tree(self):
+        # A consumer repo keeps its own AGENTS.md (some tools generate one) and a
+        # skills lock recording the install; neither is evidence that the repo is
+        # the framework source, so setup must proceed.
+        consumer = self.target
+        installed = consumer / ".agents" / "skills" / "dev-agent"
+        shutil.copytree(
+            SKILL, installed, ignore=shutil.ignore_patterns("__pycache__", "*.pyc")
+        )
+        (consumer / "AGENTS.md").write_text("# My project\n", encoding="utf-8")
+        (consumer / "skills-lock.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "skills": {
+                        "dev-agent": {
+                            "source": "github/sinhaaritro/dev-agent",
+                            "skillPath": "skills/dev-agent/SKILL.md",
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        proc = subprocess.run(
+            [
+                sys.executable,
+                str(installed / "scripts" / "bootstrap.py"),
+                "setup",
+                "--target",
+                str(consumer),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("self-bootstrap guard skipped", proc.stdout)
+        self.assertNotIn("refusing to bootstrap", proc.stdout + proc.stderr)
+        self.assertEqual(
+            (consumer / "AGENTS.md").read_bytes(),
+            (REFERENCE / "AGENTS.md").read_bytes(),
+        )
+        self.assertTrue((consumer / MANIFEST_REL).is_file())
+
+    def test_catalog_without_the_framework_grouping_is_not_refused(self):
+        # A repo can publish its own skills.sh.json catalog; only one that groups
+        # dev-agent is the framework's source tree.
+        consumer = self.target
+        (consumer / "skills.sh.json").write_text(
+            json.dumps(
+                {
+                    "groupings": [
+                        {"title": "Web", "skills": ["astro", "tailwind"]},
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        proc = self.setup_target()
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertNotIn("refusing to bootstrap", proc.stdout + proc.stderr)
+
     def test_missing_target_is_an_error(self):
         missing = self.target / "does-not-exist"
         proc = self.run_bootstrap("setup", "--target", str(missing))

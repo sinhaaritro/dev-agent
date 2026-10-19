@@ -67,6 +67,8 @@ DESCRIPTOR_NAME = "skills.json"
 SCHEMA = 1
 FRAMEWORK = "dev-agent"
 PYTHON_REQUIRES = ">=3.10"
+SOURCE_CATALOG = "skills.sh.json"
+LOCK_FILE = "skills-lock.json"
 
 
 # --------------------------------------------------------------------------- #
@@ -89,18 +91,52 @@ def find_skill_root() -> Path:
         current = parent
 
 
-def find_source_repo_root(skill_root: Path) -> Path | None:
-    """Walk up from just above the skill root to the framework's own repo root.
+def _load_json(path: Path) -> dict | None:
+    """Parse a JSON object, returning None for a missing or malformed file."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
 
-    The marker is an AGENTS.md file, and the search starts at skill_root.parent so
-    a stray AGENTS.md inside the skill itself can never be mistaken for the repo
-    root. Returns None when the skill sits outside the framework tree (e.g. copied
-    into a standalone project), where there is no source tree to protect.
+
+def catalog_groups_framework(catalog: Path) -> bool:
+    """True when a ``skills.sh.json`` catalog groups this framework's skill."""
+    data = _load_json(catalog)
+    groupings = data.get("groupings") if data else None
+    if not isinstance(groupings, list):
+        return False
+    return any(
+        isinstance(group, dict) and FRAMEWORK in (group.get("skills") or ())
+        for group in groupings
+    )
+
+
+def lock_installs_framework(lock: Path) -> bool:
+    """True when a ``skills-lock.json`` records this framework as installed."""
+    data = _load_json(lock)
+    installed = data.get("skills") if data else None
+    return isinstance(installed, dict) and FRAMEWORK in installed
+
+
+def find_source_repo_root(target: Path) -> Path | None:
+    """Walk up from ``target`` to the nearest repo that publishes this framework.
+
+    A repo is the framework's source tree when its ``skills.sh.json`` catalog groups
+    ``dev-agent``. A consumer repo is recognised by ``skills-lock.json`` recording a
+    dev-agent install, and is never the source tree. ``AGENTS.md`` is deliberately
+    not a marker: consumer repos carry their own, and setup writes one into every
+    installed repo. Walking stops at a repo boundary (``.git``) or the filesystem
+    root, so a nested clone is never mistaken for its parent.
     """
-    current = skill_root.parent
+    current = target.resolve()
     while True:
-        if (current / "AGENTS.md").is_file():
+        if catalog_groups_framework(current / SOURCE_CATALOG):
             return current
+        if lock_installs_framework(current / LOCK_FILE):
+            return None
+        if (current / ".git").exists():
+            return None
         parent = current.parent
         if parent == current:
             return None
@@ -325,19 +361,18 @@ def _resolve_target(raw: str) -> Path:
     return target
 
 
-def _guard_self_bootstrap(skill_root: Path, target: Path) -> None:
-    source_root = find_source_repo_root(skill_root)
+def _guard_self_bootstrap(target: Path) -> None:
+    source_root = find_source_repo_root(target)
     if source_root is None:
         print(
-            "note: no framework source tree found above the skill; self-bootstrap guard skipped"
+            "note: target is not the framework's source checkout; self-bootstrap guard skipped"
         )
         return
-    if target == source_root or target.is_relative_to(source_root):
-        sys.exit(
-            "error: refusing to bootstrap the framework's own source tree ("
-            + str(source_root)
-            + ") - this repo is the source of truth, not a target"
-        )
+    sys.exit(
+        "error: refusing to bootstrap the framework's own source tree ("
+        + str(source_root)
+        + ") - this repo is the source of truth, not a target"
+    )
 
 
 def _apply_seeds(skill_root: Path, target: Path, dry_run: bool) -> tuple[int, int, int]:
@@ -396,7 +431,7 @@ def _reconcile_runtime(
 
 
 def cmd_setup(args, skill_root: Path) -> int:
-    _guard_self_bootstrap(skill_root, _resolve_target(args.target))
+    _guard_self_bootstrap(_resolve_target(args.target))
     verify_seeds(skill_root)
     target = _resolve_target(args.target)
     version = read_runtime_version(skill_root)
@@ -499,7 +534,7 @@ def cmd_check(args, skill_root: Path) -> int:
 
 def cmd_update(args, skill_root: Path) -> int:
     target = _resolve_target(args.target)
-    _guard_self_bootstrap(skill_root, target)
+    _guard_self_bootstrap(target)
     version = read_runtime_version(skill_root)
     runtime_files = iter_runtime_source(skill_root)
     manifest = read_manifest(target)

@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T13:08:18Z",
+  "generated": "2026-10-19T14:16:30Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_portable_repo_relative_cwd": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
@@ -79,8 +79,10 @@
     "test_bootstrap.InstallTest.test_second_run_is_idempotent": "pass",
     "test_bootstrap.InstallTest.test_success_summary_counts_every_file": "pass",
     "test_bootstrap.OverwriteTest.test_divergent_seed_is_overwritten": "pass",
+    "test_bootstrap.RefusalTest.test_catalog_without_the_framework_grouping_is_not_refused": "pass",
     "test_bootstrap.RefusalTest.test_downgrade_is_refused": "pass",
     "test_bootstrap.RefusalTest.test_missing_target_is_an_error": "pass",
+    "test_bootstrap.RefusalTest.test_project_install_is_not_mistaken_for_the_source_tree": "pass",
     "test_bootstrap.RefusalTest.test_self_bootstrap_is_refused": "pass",
     "test_bootstrap.SkillsDescriptorTest.test_descriptor_names_the_six_wrappers": "pass",
     "test_bootstrap.SkillsDescriptorTest.test_missing_descriptor_is_an_error": "pass",
