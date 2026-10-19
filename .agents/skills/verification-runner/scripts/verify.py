@@ -84,7 +84,8 @@ Modes:
               exists for every task in section 5; Depends On forms a valid DAG;
               every verify command is pre-approved (fingerprint =
               command | expect | cwd); the canonical AGENTS.md commands
-              resolve; a branch can be created off main. Prints PRECONDITIONS
+              resolve; a branch can be created off the default branch
+              (main/master). Prints PRECONDITIONS
               OK on success, else a named list of gaps + exit 1.
 
     report   verify.py report --spec <NNN> [--root <dir>]
@@ -851,8 +852,11 @@ def _branch_possible(root: Path) -> tuple[bool, str]:
         )
         if proc.returncode != 0:
             return False, "not a git repository"
+        # Serve repos whose default branch is either 'main' or 'master':
+        # prefer the remote's declared default, then the two conventional names.
+        names: list[str] = []
         proc = subprocess.run(
-            ["git", "rev-parse", "--verify", "refs/heads/main"],
+            ["git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
             cwd=str(root),
             check=False,
             capture_output=True,
@@ -860,8 +864,24 @@ def _branch_possible(root: Path) -> tuple[bool, str]:
             timeout=10,
             errors="replace",
         )
-        if proc.returncode != 0:
-            return False, "no 'main' branch to branch from"
+        if proc.returncode == 0:
+            ref = proc.stdout.strip()
+            if ref:
+                names.append(ref.rsplit("/", 1)[-1])
+        names += ["main", "master"]
+        for name in names:
+            proc = subprocess.run(
+                ["git", "rev-parse", "--verify", f"refs/heads/{name}"],
+                cwd=str(root),
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                errors="replace",
+            )
+            if proc.returncode == 0:
+                return True, ""
+        return False, "no 'main' or 'master' branch to branch from"
     except (OSError, subprocess.TimeoutExpired) as exc:
         return False, f"git unavailable ({exc})"
     return True, ""

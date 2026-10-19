@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T03:40:29Z",
+  "generated": "2026-10-19T03:54:20Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_doctor_precondition_7_accepts_compile_preapproval": "pass",
@@ -125,6 +125,7 @@
     "test_promote_spec.TestNewTemplateCheck.test_no_tasks_rejected": "pass",
     "test_promote_spec.TestNewTemplateCheck.test_noop_verify_rejected": "pass",
     "test_promote_spec.TestNewTemplateCheck.test_whole_command_expect_rejected": "pass",
+    "test_promote_spec.TestSpecsReadmeScaffold.test_stub_names_the_canonical_spec_filename": "pass",
     "test_promote_spec.TestStatusTransitions.test_check_rejects_non_canonical_status": "pass",
     "test_promote_spec.TestStatusTransitions.test_promote_writes_a_canonical_status": "pass",
     "test_promote_spec.TestStatusTransitions.test_transition_illegal_edge_refused": "pass",
@@ -212,6 +213,9 @@
     "test_topic_op.TopicOpTests.test_cross_topic_revision_writes_affects_and_ref": "pass",
     "test_topic_op.TopicOpTests.test_revision_supersedes_without_reusing_id": "pass",
     "test_topic_op.TopicOpTests.test_topic_full_lifecycle_leaves_root_clean": "pass",
+    "test_verify.BranchPossibleTest.test_main_default_is_accepted": "pass",
+    "test_verify.BranchPossibleTest.test_master_default_is_accepted": "pass",
+    "test_verify.BranchPossibleTest.test_non_repo_is_rejected": "pass",
     "test_verify.DoctorTest.test_doctor_all_pass": "pass",
     "test_verify.DoctorTest.test_doctor_detects_missing_task_file": "pass",
     "test_verify.DoctorTest.test_doctor_detects_not_compiled": "pass",

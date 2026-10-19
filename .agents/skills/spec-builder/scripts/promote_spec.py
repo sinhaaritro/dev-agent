@@ -136,8 +136,6 @@ SPEC_FOLDER = "specs"
 COMMIT_FOLDERS = ("specs",)
 TOC_START = "<!-- TOC:START -->"
 TOC_END = "<!-- TOC:END -->"
-TAG_START = "<!-- TAG-INDEX:START -->"
-TAG_END = "<!-- TAG-INDEX:END -->"
 TAG_LINE = re.compile(r"(?m)^tags:\s*\[([^\]]*)\]\s*$")
 TAG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 FM_BLOCK = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
@@ -1075,15 +1073,15 @@ def _specs_readme_stub() -> str:
     """Rich specs/README.md scaffold (creator half, D6).
 
     Carries human-curated prose (heading, purpose, naming/ID convention,
-    frontmatter note) plus both marker blocks, so a fresh repo's specs README
+    frontmatter note) plus the TOC marker block, so a fresh repo's specs README
     reads like the hand-curated one on first creation.
     """
     body = (
         "# Specs\n\n"
         "Permanent functional & technical specs. Promotion pipeline:\n\n"
         "- Draft: `specs/temp/draft-plan.md` (gitignored)\n"
-        "- Acceptance: promoted to `specs/<NNN>-<feature-slug>.md` and committed\n\n"
-        "Naming: `NNN-<feature-slug>.md` (e.g. `001-feature-spec.md`). Sub-documents use\n"
+        "- Acceptance: promoted to `specs/<NNN>-SPEC-<slug>.md` and committed\n\n"
+        "Naming: `NNN-SPEC-<slug>.md` (e.g. `001-SPEC-topic-based-adr.md`). Sub-documents use\n"
         "sub-IDs that share the parent `NNN` prefix: `NNN-<letter><NN>` (e.g. `001-A01`),\n"
         "deeper `NNN-<letter><NN>-<letter><NN>` (e.g. `001-A01-B01`). Parent and child\n"
         "share the `NNN` so a worktree can claim the subtree.\n\n"
@@ -1093,9 +1091,7 @@ def _specs_readme_stub() -> str:
     return (
         body
         + f"{TOC_START}\n"
-        + f"{TOC_END}\n\n"
-        + f"{TAG_START}\n"
-        + f"{TAG_END}\n"
+        + f"{TOC_END}\n"
     )
 
 

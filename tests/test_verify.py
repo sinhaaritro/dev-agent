@@ -468,5 +468,50 @@ class StatusAdvanceTest(SandboxCase):
         self.assertFalse(any(g.startswith("4:") for g in gaps))
 
 
+class BranchPossibleTest(unittest.TestCase):
+    """H7: doctor's branch precondition accepts 'main' or 'master'."""
+
+    def setUp(self):
+        if shutil.which("git") is None:
+            self.skipTest("git not available")
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.tmp = Path(self._tmp.name)
+
+    def _git(self, *args):
+        return subprocess.run(
+            ["git", *args],
+            cwd=str(self.tmp),
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            errors="replace",
+        )
+
+    def _init_repo(self, branch):
+        if self._git("init", "-b", branch).returncode != 0:
+            self._git("init")
+            self._git("symbolic-ref", "HEAD", f"refs/heads/{branch}")
+        self._git(
+            "-c", "user.email=t@example.com", "-c", "user.name=test",
+            "commit", "--allow-empty", "-m", "init",
+        )
+
+    def test_master_default_is_accepted(self):
+        self._init_repo("master")
+        ok, detail = verify._branch_possible(self.tmp)
+        self.assertTrue(ok, detail)
+
+    def test_main_default_is_accepted(self):
+        self._init_repo("main")
+        ok, detail = verify._branch_possible(self.tmp)
+        self.assertTrue(ok, detail)
+
+    def test_non_repo_is_rejected(self):
+        ok, _detail = verify._branch_possible(self.tmp)
+        self.assertFalse(ok)
+
+
 if __name__ == "__main__":
     unittest.main()

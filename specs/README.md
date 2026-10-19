@@ -3,9 +3,9 @@
 Permanent functional & technical specs. Promotion pipeline:
 
 - Draft: `specs/temp/draft-plan.md` (gitignored)
-- Acceptance: promoted to `specs/<NNN>-<feature-slug>.md` and committed
+- Acceptance: promoted to `specs/<NNN>-SPEC-<slug>.md` and committed
 
-Naming: `NNN-<feature-slug>.md` (e.g. `001-feature-spec.md`). Sub-documents use
+Naming: `NNN-SPEC-<slug>.md` (e.g. `001-SPEC-topic-based-adr.md`). Sub-documents use
 sub-IDs that share the parent `NNN` prefix: `NNN-<letter><NN>` (e.g. `001-A01`),
 deeper `NNN-<letter><NN>-<letter><NN>` (e.g. `001-A01-B01`). Parent and child
 share the `NNN` so a worktree can claim the subtree.
@@ -42,6 +42,3 @@ Every spec carries `tags: [lowercase-kebab, ...]`; the promotion gate runs
   - 📄 [003-TASK-05-update-the-regression-tests.md](./003-TASK-05-update-the-regression-tests.md)
   - 📄 [003-TASK-06-make-promote-write-the-nnn-spec-slug-md-.md](./003-TASK-06-make-promote-write-the-nnn-spec-slug-md-.md)
 <!-- TOC:END -->
-
-<!-- TAG-INDEX:START -->
-<!-- TAG-INDEX:END -->

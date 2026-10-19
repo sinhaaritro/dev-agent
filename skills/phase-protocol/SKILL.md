@@ -55,7 +55,7 @@ Every response uses exactly this schema, inherited by every other skill:
    The exact execution step that happens on human reply or autonomous resolution. When a subtask is ABANDONed or any work is unmet, this block states the halt/hand-back (escalation.md) — never a silent "done".
 ```
 
-Set `Worktree:` to `main` unless a worktree is active. The `Status:` tag is always a canonical `Status:` value (`DRAFTED` … `ABORTED`) — never a step label such as `plan` or `review`: lanes A/B carry the active spec's receipt; Lane C uses `DRAFTED` → `BUILDING` → `BUILT` → `COMPLETED`; Lane D uses `COMPLETED`. Lane D answers carry the header without steps or gates.
+Set `Worktree:` to the default branch (`main` or `master`) unless a worktree is active. The `Status:` tag is always a canonical `Status:` value (`DRAFTED` … `ABORTED`) — never a step label such as `plan` or `review`: lanes A/B carry the active spec's receipt; Lane C uses `DRAFTED` → `BUILDING` → `BUILT` → `COMPLETED`; Lane D uses `COMPLETED`. Lane D answers carry the header without steps or gates.
 
 ## Notes
 

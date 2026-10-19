@@ -17,7 +17,7 @@ Approval already produced Step 1 of the spec-first lifecycle: promoted spec plus
 ## 3. Compile the spec
 
 1. Run the engine compile:
-   `python .agents/skills/spec-builder/scripts/promote_spec.py compile specs/<NNN>-<slug>.md`
+   `python .agents/skills/spec-builder/scripts/promote_spec.py compile specs/<NNN>-SPEC-<slug>.md`
    This is the `COMPILED` compile: it reads the spec's section 5 Tasks & Outcomes, writes one task file per task (`NNN-TASK-<NN>-<slug>.md`), writes `NNN-APPROVALS-<slug>.json` (pre-approving every verify command), and stamps `Status: COMPILED` on the spec header (durable). Exit 0 = compiled; non-zero prints the failure — fix the gap first.
 2. If the engine is unavailable (dogfooding before it ships), write the task files manually and label the compile MANUAL.
 

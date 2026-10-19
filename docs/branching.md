@@ -10,11 +10,11 @@ The isolation model: how planning, coding, and committing are separated, how par
 
 **Picture:** [flow.md](flow.md) — diagram 4, *Multi-spec + escalation*.
 
-The branching model separates **planning** (on `main`) from **code** (on a per-spec branch), and makes the commit **terminal**.
+The branching model separates **planning** (on the default branch — `main` or `master`) from **code** (on a per-spec branch), and makes the commit **terminal**.
 
-### Specs live on `main`; a run creates one branch per spec
+### Specs live on the default branch; a run creates one branch per spec
 
-Planning artifacts — the spec, its task files, the report — are authored on `main`. When a run starts, the orchestrator creates **one branch per spec off `main` (+ worktree)** and does all coding there. It **never edits `main`**: code changes live only on the spec's branch. Because each spec runs on its own branch, nothing crosses between specs: spec N runs through review on its branch, and only once its final verification is green does it commit **on that branch** before spec N+1 starts (BRANCH-D01).
+Planning artifacts — the spec, its task files, the report — are authored on the default branch (`main`/`master`). When a run starts, the orchestrator creates **one branch per spec off it (+ worktree)** and does all coding there. It **never edits the default branch**: code changes live only on the spec's branch. Because each spec runs on its own branch, nothing crosses between specs: spec N runs through review on its branch, and only once its final verification is green does it commit **on that branch** before spec N+1 starts (BRANCH-D01).
 
 ### Commit is terminal
 

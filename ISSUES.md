@@ -3,7 +3,7 @@
 - **Date:** 2026-10-19
 - **Scope:** full repo — shipped skills (`skills/`), dogfood mirror (`.agents/`), engines, docs, specs, tests, maintainer tools
 - **Method:** manual read-through plus the canonical commands (see [Checks run](#checks-run))
-- **Status:** C1–C4 have since been fixed (see C1–C4); all other findings are unchanged.
+- **Status:** C1–C4, H2 and H7 have since been fixed (see those entries); all other findings are unchanged.
 
 > These are captured here at the repo root because the request was to preserve the audit in one place. Entries that are promoted into work should move to `BACKLOG.md` (or a spec) using its five-field format.
 
@@ -16,12 +16,12 @@
 | C3 | Critical | ✅ **Fixed 2026-10-19** — the circuit-breaker writes the durable `NNN-ESCALATION-<slug>.md` and stamps `ESCALATED` (scratchpad only as the no-spec fallback) |
 | C4 | Critical | ✅ **Fixed 2026-10-19** — `APPROVED`/`PROVISIONAL` are canonical; build/report/gate own their transitions; `check`/`doctor` validate and a drift test guards `specs/` |
 | H1 | High | `drafted.md` Lane-A section map is stale and fails `check` |
-| H2 | High | Spec filename convention is documented three different ways; fresh `specs/README.md` is born with the wrong one |
+| H2 | High | ✅ **Fixed 2026-10-19** — the documented convention is `NNN-SPEC-<slug>.md` everywhere; the fresh README scaffold and the dead tag-index block are corrected |
 | H3 | High | Documented CLI invocations (`doctor/report/status --spec|--task <NNN>`) do not work; `report` writes a stray file |
 | H4 | High | `verify.py report` omits the `R#` outcome observations the docs require |
 | H5 | High | Approvals are documented as gitignored but are committed, and embed machine-absolute CWDs |
 | H6 | High | `specs-lint` is unusable in this repo, scans gitignored eval output, and crashes on Windows/cp1252 |
-| H7 | High | The framework hardcodes `main`; this repo's default branch is `master`, so `doctor` precondition 9 always fails |
+| H7 | High | ✅ **Fixed 2026-10-19** — `doctor` precondition 9 resolves the default branch and accepts `main` or `master` |
 | M1 | Medium | MAP freshness ignores persona files (`.agents/agents/*.md`) |
 | M2 | Medium | Global `npx skills -g` installs break four engines' root resolution and every documented command path |
 | M3 | Medium | Contradictory statements: Lane C escalation, subtask gating, autonomous status, review promotion |
@@ -208,6 +208,8 @@ A corrected skill cannot be followed literally; a fresh repo's `specs/README.md`
 
 Use `NNN-SPEC-<slug>.md` in the skill, the stub, and `specs/README.md`; remove the dead tag-index markers/constants.
 
+**Status: ✅ Fixed (2026-10-19).** The canonical spec filename is `NNN-SPEC-<slug>.md` everywhere it is documented: `skills/spec-builder/SKILL.md` (compile + ID-conventions lines), `skills/phase-protocol/references/compiled.md`, the `_specs_readme_stub()` scaffold in `promote_spec.py`, and `specs/README.md`. The dead `<!-- TAG-INDEX:START/END -->` scaffold and its `TAG_START`/`TAG_END` constants (orphaned when the `tag-index` subcommand was removed by spec 003) are gone. Regression test: `tests/test_promote_spec.py::TestSpecsReadmeScaffold`.
+
 ---
 
 ### H3 — Documented CLI forms do not work; `report` creates a stray file
@@ -347,6 +349,8 @@ $ git branch -a
 **Suggested fix**
 
 Resolve the default branch (`git symbolic-ref refs/remotes/origin/HEAD`, `init.defaultBranch`, or a project setting) with `main` as fallback.
+
+**Status: ✅ Fixed (2026-10-19).** `verify.py`'s precondition 9 (`_branch_possible`) now resolves the base branch: it prefers the remote's declared default (`git symbolic-ref refs/remotes/origin/HEAD`) and otherwise accepts `refs/heads/main` **or** `refs/heads/master`, failing only when neither exists. The shipped skill docs (`phase-protocol/SKILL.md`, `references/building.md`) and `docs/branching.md` now say "the default branch (`main`/`master`)" instead of hardcoding `main`. Regression test: `tests/test_verify.py::BranchPossibleTest` (master accepted, main accepted, non-repo rejected).
 
 ---
 

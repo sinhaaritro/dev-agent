@@ -559,5 +559,15 @@ class TestStatusTransitions(unittest.TestCase):
         self.assertTrue(any("canonical" in v for v in violations))
 
 
+class TestSpecsReadmeScaffold(unittest.TestCase):
+    """H2: the fresh specs/README scaffold names NNN-SPEC-<slug>.md, no dead block."""
+
+    def test_stub_names_the_canonical_spec_filename(self):
+        stub = promote_spec._specs_readme_stub()
+        self.assertIn("NNN-SPEC-<slug>.md", stub)
+        self.assertNotIn("feature-slug", stub)
+        self.assertNotIn("TAG-INDEX", stub)
+
+
 if __name__ == "__main__":
     unittest.main()

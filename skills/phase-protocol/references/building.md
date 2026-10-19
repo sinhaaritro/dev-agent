@@ -23,7 +23,7 @@ Load when the compiled spec + task files exist (Step 1 complete; drafted.md sect
 
 ## 3. Branch-per-spec & commit model
 
-- **Branch per spec.** Specs are authored on `main`; a run creates **one branch per spec off `main` (+ worktree)** and does all coding there. It **never edits `main`** — planning artifacts live on `main`, code changes live on the spec's branch.
+- **Branch per spec.** Specs are authored on the default branch (`main`/`master`); a run creates **one branch per spec off it (+ worktree)** and does all coding there. It **never edits the default branch** — planning artifacts live there, code changes live on the spec's branch.
 - **Commit is terminal.** At spec end (final verification green), the run **commits on its branch and stamps `Status: COMPLETED` immediately; there are no post-commit checks.**
 - **Failure parks as `ESCALATED`, not `ABORTED`.** When a spec cannot complete (a task exhausts its 3 attempts and no unblocked task remains), it is marked `ESCALATED` (a visible, resumable halt) and the batch **continues to the next spec** — a bad spec cannot cascade. `ABORTED` is reserved for an explicit human cancel, not a run failure.
 
