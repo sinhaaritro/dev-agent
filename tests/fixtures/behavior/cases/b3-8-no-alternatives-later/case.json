@@ -1,0 +1,19 @@
+{
+  "name": "b3-8-no-alternatives-later",
+  "layer": "behavior",
+  "fixture": "build",
+  "category": "2.3 Gates & autonomy",
+  "case_id": "B3.8",
+  "title": "No alternatives later",
+  "prompt": "The cache storage decision was already settled as in-memory. Continue the build without reopening it.",
+  "expected_artifacts": [
+    "contains:run:transcript.md:default",
+    "not-contains:run:transcript.md:Which option"
+  ],
+  "given": "Bootstrapped repo with spec-builder + verification-runner (build discipline).",
+  "when": "The cache storage decision was already settled as in-memory. Continue the build without reopening it.",
+  "then": [
+    "a settled non-blocking decision just states the default",
+    "no menu is reopened at build time"
+  ]
+}

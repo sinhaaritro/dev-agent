@@ -1,0 +1,24 @@
+{
+  "name": "b2-4-explain-then-fix",
+  "layer": "behavior",
+  "fixture": "bootstrapped",
+  "category": "2.2 Triage / lanes",
+  "case_id": "B2.4",
+  "title": "Explain then fix",
+  "prompt": "Explain why handle() returns 401 for a valid token, then fix it.",
+  "expected_artifacts": [
+    "contains:run:transcript.md:[STATUS:",
+    "matches:run:transcript.md:Lane: (A|B)"
+  ],
+  "assertion_labels": {
+    "contains:run:transcript.md:[STATUS:": "the answer carries the framework status header",
+    "matches:run:transcript.md:Lane: (A|B)": "the fix half is re-triaged to Lane A or B, not built as part of the explanation"
+  },
+  "given": "Framework installed: gateway rulebook + auto-router + phase-protocol.",
+  "when": "Explain why handle() returns 401 for a valid token, then fix it.",
+  "then": [
+    "answers the explanation first",
+    "the 'then fix it' half triggers a re-triage instead of silently building",
+    "an auth fix is Lane A (or B), never silently folded into the explanation"
+  ]
+}

@@ -4,9 +4,22 @@
 A behavior case is the same `case.json` + `repo/` contract as a skill-creator
 case, so the two tools share one mental model:
 
-    tests/fixtures/behavior/cases/<case>/case.json
-    tests/fixtures/behavior/cases/<case>/repo/          # optional override
-    tests/fixtures/behavior/profiles/<profile>/repo/    # shared starting state
+    tests/fixtures/behavior/fixtures/<fixture>/fixture.json  # repo state + setup
+    tests/fixtures/behavior/fixtures/<fixture>/repo/         # optional overlay
+    tests/fixtures/behavior/profiles/<profile>/repo/         # shared starting state
+    tests/fixtures/behavior/cases/<case>/case.json           # prompts + checks
+
+A **fixture** owns the input state: the profile, the `setup` (bootstrap + which
+skills are installed), and an optional overlay. A case owns one prompt and its
+assertions, and references a fixture by name. The catalog has one case directory
+per TEST-PLAN id (`b4-1-compile-then-stop`, ...), grouped by `category`. Cases
+that name the same fixture share one prepared repo, so `batch` installs it once
+per config and copies it for each case. Every case carries a human
+`given` / `when` / `then` description (printed by `list --verbose`); the
+`then` items are the observable outcomes that `expected_artifacts` must prove.
+Every step also carries the TEST-PLAN id (`case_id`) + `title` so the review and
+feedback name `B4.1 Compile then stop`, not just a slug. (`steps` is still
+supported for a genuine multi-prompt scenario.)
 
 `setup` performs the real install path (bootstrap + local skill copy) so the
 prompt runs against a framework-installed tree, never a hand-made one.
@@ -34,20 +47,27 @@ Each case can run in three configurations, like skill-creator's eval loop:
     without_skill  the raw repo, no framework installed
 
 A case is either a single `prompt` or a **scenario**: a list of `steps`
-(`{id, prompt, expectations, expected_artifacts}`). A scenario installs one repo
-per config and runs each step as an independent request against a freshly reset
-copy of that repo, so M prompts cost `configs` installs instead of `M x configs`.
-Every step is graded on its own (N checks) and gets its own review page.
+(`{id, case_id, title, given, when, then, prompt, expected_artifacts}`). A
+scenario installs one repo per config and runs each step as an independent
+request against its own copy of the pristine repo, so M prompts cost `configs`
+installs instead of `M x configs`, and the prompts can run in parallel
+(`--jobs`). Every step is graded on its own (N checks) and gets its own review
+page. `given`/`when`/`then` are the human description; `then` is the list of
+observable outcomes the artifacts must prove.
 
 `batch` runs many predefined prompts into ONE review: every prompt gets its own
 eval page, configs of the same prompt sit side by side, and the vendored
-benchmark aggregator adds the Benchmark (summary) tab. `check` grades one run;
-`batch` does init -> run -> grade -> review for N prompts.
+benchmark aggregator adds the Benchmark (summary) tab. Cases sharing a fixture
+reuse one prepared repo; independent case/config units run in parallel with
+`--jobs N`. `check` grades one run; `batch` does init -> run -> grade -> review
+for N prompts. `coverage` shows every TEST-PLAN behavior id (`B4.1`, ...) against
+the catalog, so a missing scenario is visible before a live run.
 
 `check`/`batch` write `review.html` with the vendored skill-creator viewer. Open
-the trusted copy under `.behavior-review/`, read the answers, and click "Submit
-All Reviews" to download `feedback.json`; save it at `<run>/feedback.json` and
-run `feedback` to turn it into a revision digest.
+the trusted copy under `.behavior-review/` (or pass `--open`), read the answers,
+and click "Submit All Reviews" to download `feedback.json`; save it at
+`<run>/feedback.json` and run `feedback` to turn it into a revision digest. The
+digest ends with the exact `retest:` command for the changed cases.
 
 `accept` records a checked run as the case's baseline under
 `tests/fixtures/behavior/cases/baselines/<case>.json`, pinning the hashes of the
@@ -57,16 +77,18 @@ re-accepted.
 
 Usage:
     python tools/behavior_eval.py list --skill spec-builder
+    python tools/behavior_eval.py coverage [--strict]
     python tools/behavior_eval.py init --case b2-1-four-lanes --config compare
-    python tools/behavior_eval.py run  --case b2-1-four-lanes --run-id <id> --config compare
-    python tools/behavior_eval.py check --case b2-1-four-lanes --run-id <id>
+    python tools/behavior_eval.py run  --case b2-lane-triage --run-id <id> --jobs 4
+    python tools/behavior_eval.py check --case b2-1-four-lanes --run-id <id> --open
     python tools/behavior_eval.py accept --case b2-1-four-lanes --run-id <id>
     python tools/behavior_eval.py baseline [--strict]
-    python tools/behavior_eval.py batch --run-id <id> --skill auto-router
+    python tools/behavior_eval.py batch --run-id <id> --skill auto-router --jobs 4 --open
     python tools/behavior_eval.py feedback --run-dir <batch-dir>
 
-`run` drives OpenCode headlessly; `init`, `check`, `accept`, `baseline` and
-`feedback` are offline (tests/test_behavior_harness.py covers them).
+`run` drives OpenCode headlessly; `init`, `check`, `coverage`, `accept`,
+`baseline`, and `feedback` are offline (tests/test_behavior_harness.py covers
+them).
 """
 
 from __future__ import annotations
@@ -87,6 +109,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 FIXTURES_REL = Path("tests") / "fixtures" / "behavior"
+FIXTURE_DIR = "fixtures"
+FIXTURE_INDEX = "fixture.json"
 DEFAULT_WORKSPACE = Path(tempfile.gettempdir()) / "dev-agent-behavior-workspaces"
 SKILLS_SOURCE = REPO / "skills"
 BOOTSTRAP_SCRIPT = SKILLS_SOURCE / "dev-agent" / "scripts" / "bootstrap.py"
@@ -141,14 +165,61 @@ def _resolve(path: Path | str, base: Path) -> Path:
     return path if path.is_absolute() else base / path
 
 
+def fixture_dir(fixtures_root: Path, name: str) -> Path:
+    return Path(fixtures_root) / FIXTURE_DIR / name
+
+
+def load_fixture(fixtures_root: Path, name: str) -> dict:
+    """Load `fixtures/<name>/fixture.json` (profile + setup + optional overlay)."""
+    meta_path = fixture_dir(fixtures_root, name) / FIXTURE_INDEX
+    if not meta_path.is_file():
+        raise SystemExit(f"error: fixture not found: {meta_path}")
+    try:
+        data = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"error: unreadable fixture {meta_path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise SystemExit(f"error: fixture {meta_path} must be an object")
+    profile = data.get("profile")
+    if not isinstance(profile, str) or not profile.strip():
+        raise SystemExit(f"error: fixture {meta_path} needs a non-empty 'profile'")
+    return data
+
+
+def list_fixtures(fixtures_root: Path) -> list[str]:
+    root = Path(fixtures_root) / FIXTURE_DIR
+    if not root.is_dir():
+        return []
+    return sorted(p.name for p in root.iterdir() if (p / FIXTURE_INDEX).is_file())
+
+
 @dataclass
 class Step:
-    """One prompt in a scenario, with its own artifact checks."""
+    """One prompt in a scenario, with its own artifact checks.
+
+    ``case_id`` is the TEST-PLAN id (``B4.1``); ``title`` is the human name.
+    ``given`` / ``when`` / ``then`` are the human Given-When-Then description
+    (``then`` is stored in ``expectations`` for compatibility with the existing
+    grading/reporting code).
+    """
 
     id: str
     prompt: str
     expectations: list[str] = field(default_factory=list)
     expected_artifacts: list[str] = field(default_factory=list)
+    case_id: str = ""
+    title: str = ""
+    given: str = ""
+    when: str = ""
+
+    @property
+    def label(self) -> str:
+        """Review/coverage label: ``B4.1 Compile then stop`` (or the slug)."""
+        if self.case_id and self.title:
+            return f"{self.case_id} {self.title}"
+        if self.case_id:
+            return self.case_id
+        return self.title or self.id
 
 
 @dataclass
@@ -167,6 +238,15 @@ class Case:
     # that declares `steps` shares one repo across them (`legacy=False`).
     steps: list[Step] = field(default_factory=list)
     legacy: bool = True
+    # Catalog metadata: a named fixture owns the repo state + setup; a category
+    # groups cases by what the framework is trying to guarantee.
+    fixture: str = ""
+    category: str = ""
+    fixtures_root: Path | None = None
+    case_id: str = ""
+    title: str = ""
+    given: str = ""
+    when: str = ""
 
     @classmethod
     def load(cls, fixtures_root: Path, name: str) -> Case:
@@ -177,14 +257,27 @@ class Case:
             data = json.loads(case_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise SystemExit(f"error: unreadable case {case_path}: {exc}") from exc
-        for key in ("name", "profile"):
+        for key in ("name",):
             if not isinstance(data.get(key), str) or not data[key].strip():
                 raise SystemExit(f"error: case {case_path} needs a non-empty {key!r}")
         if data.get("layer", "behavior") != "behavior":
             raise SystemExit(f"error: case {case_path} layer must be 'behavior'")
+        fixture_name = data.get("fixture", "")
+        if not isinstance(fixture_name, str):
+            raise SystemExit(f"error: case {case_path} 'fixture' must be a string")
+        profile = data.get("profile", "")
         setup = list(data.get("setup", DEFAULT_SETUP))
+        if fixture_name:
+            meta = load_fixture(fixtures_root, fixture_name)
+            profile = meta["profile"]
+            setup = list(meta.get("setup", DEFAULT_SETUP))
+        elif not isinstance(profile, str) or not profile.strip():
+            raise SystemExit(
+                f"error: case {case_path} needs a non-empty 'profile' or a 'fixture'"
+            )
         assertion_labels = dict(data.get("assertion_labels", {}))
         layer = data.get("layer", "behavior")
+        category = data.get("category", "")
 
         raw_steps = data.get("steps")
         if raw_steps is not None:
@@ -225,29 +318,44 @@ class Case:
                     Step(
                         id=step_id,
                         prompt=step_prompt,
-                        expectations=list(raw.get("expectations", [])),
+                        expectations=list(raw.get("then", raw.get("expectations", []))),
                         expected_artifacts=artifacts,
+                        case_id=str(raw.get("case_id", "")),
+                        title=str(raw.get("title", "")),
+                        given=str(raw.get("given", "")),
+                        when=str(raw.get("when", step_prompt)),
                     )
                 )
             return cls(
                 name=data["name"],
-                profile=data["profile"],
+                profile=profile,
                 setup=setup,
                 assertion_labels=assertion_labels,
                 layer=layer,
                 path=case_path.parent,
                 steps=steps,
                 legacy=False,
+                fixture=fixture_name,
+                category=str(category),
+                fixtures_root=Path(fixtures_root),
+                case_id=str(data.get("case_id", "")),
+                title=str(data.get("title", "")),
+                given=str(data.get("given", "")),
+                when=str(data.get("when", "")),
             )
 
         prompt = data.get("prompt")
         if not isinstance(prompt, str) or not prompt.strip():
             raise SystemExit(f"error: case {case_path} needs a non-empty 'prompt'")
-        expectations = list(data.get("expectations", []))
+        expectations = list(data.get("then", data.get("expectations", [])))
         expected_artifacts = list(data.get("expected_artifacts", []))
+        case_id = str(data.get("case_id", ""))
+        title = str(data.get("title", ""))
+        given = str(data.get("given", ""))
+        when = str(data.get("when", prompt))
         return cls(
             name=data["name"],
-            profile=data["profile"],
+            profile=profile,
             prompt=prompt,
             setup=setup,
             expectations=expectations,
@@ -261,14 +369,44 @@ class Case:
                     prompt=prompt,
                     expectations=expectations,
                     expected_artifacts=expected_artifacts,
+                    case_id=case_id,
+                    title=title,
+                    given=given,
+                    when=when,
                 )
             ],
             legacy=True,
+            fixture=fixture_name,
+            category=str(category),
+            fixtures_root=Path(fixtures_root),
+            case_id=case_id,
+            title=title,
+            given=given,
+            when=when,
         )
 
     @property
+    def label(self) -> str:
+        """Human label: ``B4.1 Compile then stop`` (falls back to the dir name)."""
+        if self.case_id and self.title:
+            return f"{self.case_id} {self.title}"
+        if self.case_id:
+            return self.case_id
+        return self.title or self.name
+
+    @property
     def overlay(self) -> Path | None:
-        """Case-local `repo/` overlay applied on top of the profile repo."""
+        """The repo overlay applied on top of the profile repo.
+
+        A named fixture owns its overlay (`fixtures/<name>/repo/`); an inline
+        case can still keep `cases/<case>/repo/`.
+        """
+        if self.fixture and self.fixtures_root is not None:
+            fixture_repo = (
+                Path(self.fixtures_root) / FIXTURE_DIR / self.fixture / "repo"
+            )
+            if fixture_repo.is_dir():
+                return fixture_repo
         if self.path is None:
             return None
         local = self.path / "repo"
@@ -283,8 +421,17 @@ def list_cases(fixtures_root: Path) -> list[str]:
 
 
 def seed_repo(case: Case, dest: Path) -> None:
-    """Copy the shared profile, then apply the case's optional `repo/` overlay."""
-    profile = REPO / FIXTURES_REL / "profiles" / case.profile / "repo"
+    """Copy the shared profile, then apply the fixture's optional `repo/` overlay."""
+    base = (
+        Path(case.fixtures_root)
+        if case.fixtures_root is not None
+        else REPO / FIXTURES_REL
+    )
+    profile = base / "profiles" / case.profile / "repo"
+    if not profile.is_dir():
+        # Hand-built cases in tests may point at a temp fixtures root that has
+        # no profiles/ tree; fall back to the repo's shared profile.
+        profile = REPO / FIXTURES_REL / "profiles" / case.profile / "repo"
     if not profile.is_dir():
         raise SystemExit(f"error: profile {case.profile!r} has no repo/")
     shutil.copytree(profile, dest)
@@ -473,6 +620,72 @@ def existing_configs(run: Path) -> tuple[str, ...]:
     return tuple(found)
 
 
+def prepare_config(
+    case: Case, config: str, base: Path, old_skills_dir: Path | None = None
+) -> list[str]:
+    """Seed + set up one config into ``base`` (the repo lives at ``base/repo``)."""
+    base.mkdir(parents=True, exist_ok=True)
+    seed_repo(case, base / "repo")
+    setup = config_setup(case, config)
+    source = SKILLS_SOURCE
+    staged: Path | None = None
+    if config == "old_skill":
+        staged = base / "_old_skills"
+        materialize_old_skills(case, staged, old_skills_dir)
+        source = staged
+    notes = apply_setup(base / "repo", setup, source)
+    if staged is not None and staged.exists():
+        shutil.rmtree(staged)
+    return notes
+
+
+def prepare_fixture_cache(
+    cases: list[Case],
+    configs: tuple[str, ...],
+    cache_root: Path,
+    old_skills_dir: Path | None = None,
+) -> tuple[dict[str, dict[str, Path]], dict[str, dict[str, list[str]]]]:
+    """Prepare each named fixture once per config (the shared repo state)."""
+    cache: dict[str, dict[str, Path]] = {}
+    notes: dict[str, dict[str, list[str]]] = {}
+    for case in cases:
+        key = fixture_key(case)
+        if key in cache:
+            continue
+        cache[key] = {}
+        notes[key] = {}
+        for config in configs:
+            dest = cache_root / key / config
+            notes[key][config] = prepare_config(case, config, dest, old_skills_dir)
+        print(f"fixture: {key} ({', '.join(configs)})")
+    return cache, notes
+
+
+def run_metadata(
+    case: Case,
+    run_id: str,
+    configs: tuple[str, ...],
+    setups: dict[str, list[str]],
+    notes: list[str],
+) -> dict:
+    return {
+        "case": case.name,
+        "run_id": run_id,
+        "profile": case.profile,
+        "fixture": case.fixture,
+        "category": case.category,
+        "case_ids": [step.case_id for step in case.steps if step.case_id],
+        "configs": [canonical_config(c) for c in configs],
+        "setup": setups,
+        "prompt": case.prompt,
+        "steps": [step.id for step in case.steps],
+        "step_labels": [step.label for step in case.steps],
+        "multi_step": not case.legacy,
+        "created_at": iso_now(),
+        "setup_notes": notes,
+    }
+
+
 def init_run(
     case: Case,
     run_id: str,
@@ -480,7 +693,10 @@ def init_run(
     force: bool = False,
     configs: tuple[str, ...] = (ROOT_CONFIG,),
     old_skills_dir: Path | None = None,
+    prepared: dict[str, Path] | None = None,
+    prepared_notes: dict[str, list[str]] | None = None,
 ) -> tuple[Path, list[str]]:
+    """Create a run directory, reusing prepared fixture repos when given."""
     target = run_dir(case, run_id, workspace_root)
     if target.exists():
         if not force:
@@ -489,40 +705,21 @@ def init_run(
     target.mkdir(parents=True)
     notes: list[str] = []
     setups: dict[str, list[str]] = {}
+    prepared = prepared or {}
+    prepared_notes = prepared_notes or {}
     for raw_config in configs:
         config = canonical_config(raw_config)
         base = config_path(target, config)
         base.mkdir(parents=True, exist_ok=True)
-        seed_repo(case, base / "repo")
-        setup = config_setup(case, config)
-        source = SKILLS_SOURCE
-        staged: Path | None = None
-        if config == "old_skill":
-            staged = base / "_old_skills"
-            materialize_old_skills(case, staged, old_skills_dir)
-            source = staged
-        config_notes = apply_setup(base / "repo", setup, source)
-        if staged is not None and staged.exists():
-            shutil.rmtree(staged)
-        setups[config] = setup
+        setups[config] = config_setup(case, config)
+        if config in prepared:
+            shutil.copytree(prepared[config], base, dirs_exist_ok=True)
+            config_notes = list(prepared_notes.get(config, []))
+        else:
+            config_notes = prepare_config(case, config, base, old_skills_dir)
         notes.extend(f"[{config}] {note}" for note in config_notes)
     (target / "run.json").write_text(
-        json.dumps(
-            {
-                "case": case.name,
-                "run_id": run_id,
-                "profile": case.profile,
-                "configs": [canonical_config(c) for c in configs],
-                "setup": setups,
-                "prompt": case.prompt,
-                "steps": [step.id for step in case.steps],
-                "multi_step": not case.legacy,
-                "created_at": iso_now(),
-                "setup_notes": notes,
-            },
-            indent=2,
-        )
-        + "\n",
+        json.dumps(run_metadata(case, run_id, configs, setups, notes), indent=2) + "\n",
         encoding="utf-8",
     )
     return target, notes
@@ -679,6 +876,8 @@ def check_config_steps(case: Case, run: Path, config: str) -> dict:
             {
                 "case": case.name,
                 "step": step.id,
+                "case_id": step.case_id,
+                "label": step.label,
                 "config": config,
                 "passed": step_passed,
                 "checks": checks,
@@ -761,6 +960,11 @@ def skills_under_test(case: Case) -> list[str]:
     return names
 
 
+def fixture_key(case: Case) -> str:
+    """The shareable repo state: a named fixture, else the case itself."""
+    return case.fixture or f"case-{case.name}"
+
+
 def _tree_sha(path: Path) -> str:
     """Deterministic content hash of a directory tree (caches ignored).
 
@@ -810,10 +1014,18 @@ def skills_hash(case: Case) -> str:
 
 
 def fixture_hash(case: Case) -> str:
-    """Hash the case fixture itself (case.json + any per-case overlay)."""
+    """Hash the case contract + its named fixture (profile overlay + setup)."""
     if case.path is None:
         return ""
-    return _tree_sha(case.path)
+    digest = hashlib.sha256()
+    digest.update(_tree_sha(case.path).encode("utf-8"))
+    digest.update(b"\0")
+    if case.fixture and case.fixtures_root is not None:
+        fdir = fixture_dir(case.fixtures_root, case.fixture)
+        digest.update(case.fixture.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(_tree_sha(fdir).encode("utf-8"))
+    return digest.hexdigest()
 
 
 def load_baseline(case: Case) -> dict | None:
@@ -990,6 +1202,13 @@ def build_review_workspace(
             metadata = {
                 "eval_id": index,
                 "eval_name": case.name,
+                "case_id": case.case_id,
+                "title": case.title,
+                "category": case.category,
+                "fixture": case.fixture,
+                "given": case.given,
+                "when": case.when,
+                "then": list(case.expectations),
                 "prompt": case.prompt,
                 "config": config,
                 "assertions": list(case.expected_artifacts),
@@ -1064,16 +1283,35 @@ def render_review(
 def review_units(case: Case, config: str, base: Path) -> list[tuple[Case, str, Path]]:
     """Expand a config into review pages: one per step for a scenario.
 
-    A multi-step case becomes one pseudo-case per step (`<case>#<step>`) whose
-    graded dir is the step dir, so `render_review` shows one page per prompt
-    with the configs side by side and keeps the Benchmark aggregation.
+    A multi-step case becomes one pseudo-case per step. The page name is the
+    TEST-PLAN id + title when the step declares them (``B4.1 Compile then
+    stop``), so every catalog scenario stays visible in the viewer instead of
+    disappearing into a merged slug.
     """
     if case.legacy:
+        if case.label != case.name:
+            display = Case(
+                name=case.label,
+                profile=case.profile,
+                prompt=case.prompt,
+                expectations=case.expectations,
+                expected_artifacts=case.expected_artifacts,
+                assertion_labels=case.assertion_labels,
+                layer=case.layer,
+                steps=case.steps,
+                legacy=True,
+                fixture=case.fixture,
+                category=case.category,
+                fixtures_root=case.fixtures_root,
+                case_id=case.case_id,
+                title=case.title,
+            )
+            return [(display, config, base)]
         return [(case, config, base)]
     units: list[tuple[Case, str, Path]] = []
     for index, step in enumerate(case.steps, start=1):
         unit = Case(
-            name=f"{case.name}#{step.id}",
+            name=step.label if step.label != step.id else f"{case.name}#{step.id}",
             profile=case.profile,
             prompt=step.prompt,
             expectations=step.expectations,
@@ -1082,6 +1320,11 @@ def review_units(case: Case, config: str, base: Path) -> list[tuple[Case, str, P
             layer=case.layer,
             steps=[step],
             legacy=True,
+            fixture=case.fixture,
+            category=case.category,
+            fixtures_root=case.fixtures_root,
+            case_id=step.case_id,
+            title=step.title,
         )
         units.append((unit, config, step_dir(base, index, step)))
     return units
@@ -1175,6 +1418,7 @@ def drive_opencode(
     agent: str = "build",
     config: str = ROOT_CONFIG,
     capture_dir: Path | None = None,
+    repo_dir: Path | None = None,
 ) -> int:
     exe = shutil.which("opencode")
     if not exe:
@@ -1190,11 +1434,12 @@ def drive_opencode(
     base = config_path(run, config)
     out = Path(capture_dir) if capture_dir is not None else base
     out.mkdir(parents=True, exist_ok=True)
+    cwd = Path(repo_dir) if repo_dir is not None else base / "repo"
     started = time.time()
     try:
         proc = subprocess.run(
             cmd,
-            cwd=str(base / "repo"),
+            cwd=str(cwd),
             check=False,
             capture_output=True,
             text=True,
@@ -1220,13 +1465,14 @@ def run_config(
     timeout: int,
     model: str | None,
     agent: str = "build",
+    jobs: int = 1,
 ) -> int:
     """Drive every step of `case` for one config; return 0 when all succeed.
 
     Legacy cases are a single implicit step captured at the config root. A
-    multi-step scenario runs each prompt against a freshly reset copy of the
-    shared repo, captures the step's transcript/outputs, and snapshots the repo
-    it left, so each step grades independently.
+    multi-step scenario gives every prompt its own repo copy under
+    ``steps/<n>-<id>/repo`` (seeded from the pristine ``_base_repo`` snapshot),
+    so the prompts are state-independent and can run in parallel.
     """
     if case.legacy:
         return drive_opencode(
@@ -1235,34 +1481,82 @@ def run_config(
     base = config_path(run, config)
     snapshot_base_repo(base)
     total = len(case.steps)
-    rc = 0
-    for index, step in enumerate(case.steps, start=1):
-        reset_working_repo(base)
+
+    def run_one(index: int, step: Step) -> int:
         out = step_dir(base, index, step)
         out.mkdir(parents=True, exist_ok=True)
-        print(f"  step {index}/{total}: {step.id}")
-        if (
-            drive_opencode(
-                run, step.prompt, timeout, model, agent, config, capture_dir=out
+        repo = out / "repo"
+        if repo.exists():
+            shutil.rmtree(repo)
+        shutil.copytree(base / BASE_SNAPSHOT_DIR, repo)
+        print(f"  step {index}/{total}: {step.label}")
+        return drive_opencode(
+            run,
+            step.prompt,
+            timeout,
+            model,
+            agent,
+            config,
+            capture_dir=out,
+            repo_dir=repo,
+        )
+
+    if jobs and jobs > 1:
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=jobs) as pool:
+            results = list(
+                pool.map(
+                    lambda item: run_one(*item),
+                    list(enumerate(case.steps, start=1)),
+                )
             )
-            != 0
-        ):
-            rc = 1
-        snapshot = out / "repo"
-        if snapshot.exists():
-            shutil.rmtree(snapshot)
-        shutil.copytree(base / "repo", snapshot)
-    return rc
+    else:
+        results = [
+            run_one(index, step) for index, step in enumerate(case.steps, start=1)
+        ]
+    return 0 if all(result == 0 for result in results) else 1
 
 
-def cmd_list(fixtures_root: Path, skill: str | None = None) -> int:
+def cmd_list(
+    fixtures_root: Path, skill: str | None = None, verbose: bool = False
+) -> int:
+    """List cases grouped by TEST-PLAN category (fixture + ids + skills)."""
+    groups: dict[str, list[tuple[Case, str]]] = {}
     for name in list_cases(fixtures_root):
         case = Case.load(fixtures_root, name)
         skills = skills_under_test(case)
         if skill and skill not in skills:
             continue
-        print(f"{name}  skills={', '.join(skills) or '-'}")
+        ids = ", ".join(step.case_id for step in case.steps if step.case_id) or "-"
+        line = (
+            f"{case.name}  fixture={case.fixture or '-'}  "
+            f"ids={ids}  skills={', '.join(skills) or '-'}"
+        )
+        groups.setdefault(case.category or "Uncategorized", []).append((case, line))
+    for category in sorted(groups):
+        print(category)
+        for case, line in groups[category]:
+            print("  " + line)
+            if verbose:
+                print_gwt(case, indent="    ")
     return 0
+
+
+def print_gwt(case: Case, indent: str = "") -> None:
+    """Render a case's Given/When/Then for humans."""
+    print(f"{indent}Given: {case.given or '-'}")
+    print(f"{indent}When: {case.when or case.prompt}")
+    if case.legacy:
+        then = case.expectations
+        print(f"{indent}Then:")
+        for item in then:
+            print(f"{indent}  - {item}")
+        return
+    for step in case.steps:
+        print(f"{indent}Then ({step.label}):")
+        for item in step.expectations:
+            print(f"{indent}  - {item}")
 
 
 def cmd_init(args: argparse.Namespace, fixtures_root: Path) -> int:
@@ -1304,7 +1598,18 @@ def cmd_run(args: argparse.Namespace, fixtures_root: Path) -> int:
     rc = 0
     for config in configs:
         print(f"running config: {config}")
-        if run_config(target, case, config, args.timeout, args.model, args.agent) != 0:
+        if (
+            run_config(
+                target,
+                case,
+                config,
+                args.timeout,
+                args.model,
+                args.agent,
+                jobs=getattr(args, "jobs", 1),
+            )
+            != 0
+        ):
             rc = 1
     print(
         f"next: python tools/behavior_eval.py check --case {case.name} "
@@ -1324,6 +1629,8 @@ def cmd_check(args: argparse.Namespace, fixtures_root: Path) -> int:
         print(f"error: run not initialized: {target}", file=sys.stderr)
         return 2
     configs = tuple(c for c in select_configs(args.config) if c in present) or present
+    print(f"case {case.label}")
+    print_gwt(case, indent="  ")
     ok = True
     results: dict[str, dict] = {}
     for config in configs:
@@ -1333,13 +1640,19 @@ def cmd_check(args: argparse.Namespace, fixtures_root: Path) -> int:
         for item in result["checks"]:
             mark = "PASS" if item["passed"] else "FAIL"
             print(f"{mark} {prefix}{item['artifact']} - {item['detail']}")
+        if result.get("steps"):
+            for step_result in result["steps"]:
+                mark = "PASS" if step_result["passed"] else "FAIL"
+                print(
+                    f"{mark} {prefix}{step_result.get('label') or step_result['step']}"
+                )
         # The case's verdict is the with_skill run: the baseline is a
         # comparison, so it is expected to fail the framework assertions.
         if config == ROOT_CONFIG:
             ok = result["passed"]
         elif ROOT_CONFIG not in configs:
             ok = ok and result["passed"]
-    print(f"{'PASS' if ok else 'FAIL'} case {case.name}")
+    print(f"{'PASS' if ok else 'FAIL'} case {case.label}")
     print_baseline_status(case)
     if not args.no_review:
         html = build_review(case, target)
@@ -1347,6 +1660,8 @@ def cmd_check(args: argparse.Namespace, fixtures_root: Path) -> int:
             preview = trusted_preview(f"{case.name}-{target.name}", html)
             print(f"review: {html}")
             print(f"open:   {preview}  (trusted copy - no server needed)")
+            if getattr(args, "open", False):
+                open_review(preview)
             print(
                 "next: open the review, click 'Submit All Reviews', then save the "
                 f"download as {target / 'feedback.json'}"
@@ -1377,9 +1692,14 @@ def cmd_batch(args: argparse.Namespace, fixtures_root: Path) -> int:
 
     configs = select_configs(args.configs)
     cases = [Case.load(fixtures_root, name) for name in names]
-    entries: list[tuple[Case, str, Path]] = []
-    rc = 0
+    cache_root = batch_root / "_fixtures"
+    cache, cache_notes = prepare_fixture_cache(
+        cases, configs, cache_root, args.old_skills_dir
+    )
+
+    runs: dict[str, Path] = {}
     for case in cases:
+        key = fixture_key(case)
         run, _notes = init_run(
             case,
             "run-1",
@@ -1387,16 +1707,43 @@ def cmd_batch(args: argparse.Namespace, fixtures_root: Path) -> int:
             force=True,
             configs=configs,
             old_skills_dir=args.old_skills_dir,
+            prepared=cache[key],
+            prepared_notes=cache_notes[key],
         )
-        for config in configs:
-            print(f"running: {case.name} [{config}]")
-            if run_config(run, case, config, args.timeout, args.model, args.agent) != 0:
-                rc = 1
+        runs[case.name] = run
+
+    units = [(case, config, runs[case.name]) for case in cases for config in configs]
+
+    def run_unit(item: tuple[Case, str, Path]) -> int:
+        case, config, run = item
+        print(f"running: {case.label} [{config}]")
+        return run_config(
+            run, case, config, args.timeout, args.model, args.agent, jobs=1
+        )
+
+    jobs = max(1, int(getattr(args, "jobs", 1) or 1))
+    if jobs > 1:
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=jobs) as pool:
+            results = list(pool.map(run_unit, units))
+    else:
+        results = [run_unit(item) for item in units]
+    rc = 0 if all(result == 0 for result in results) else 1
+
+    entries: list[tuple[Case, str, Path]] = []
+    for case in cases:
+        run = runs[case.name]
         for config in configs:
             result = check_config(case, run, config)
             entries.extend(review_units(case, config, config_path(run, config)))
             mark = "PASS" if result["passed"] else "FAIL"
-            print(f"{mark} {case.name} [{config}]")
+            print(f"{mark} {case.label} [{config}]")
+            for step_result in result.get("steps", []):
+                step_mark = "PASS" if step_result["passed"] else "FAIL"
+                print(
+                    f"  {step_mark} {step_result.get('label') or step_result['step']}"
+                )
         print_baseline_status(case)
 
     skills = sorted({s for case in cases for s in skills_under_test(case)})
@@ -1409,6 +1756,13 @@ def cmd_batch(args: argparse.Namespace, fixtures_root: Path) -> int:
             {
                 "run_id": args.run_id,
                 "cases": [case.name for case in cases],
+                "fixtures": sorted(cache),
+                "case_ids": [
+                    step.case_id
+                    for case in cases
+                    for step in case.steps
+                    if step.case_id
+                ],
                 "configs": list(configs),
                 "skills": skills,
                 "created_at": iso_now(),
@@ -1424,6 +1778,8 @@ def cmd_batch(args: argparse.Namespace, fixtures_root: Path) -> int:
     preview = trusted_preview(f"batch-{args.run_id}", html)
     print(f"review: {html}")
     print(f"open:   {preview}  (trusted copy - no server needed)")
+    if getattr(args, "open", False):
+        open_review(preview)
     print(
         "next: submit reviews, then save the download as "
         f"{batch_root / 'feedback.json'} and run feedback --run-dir {batch_root}"
@@ -1495,6 +1851,22 @@ def cmd_feedback(args: argparse.Namespace, fixtures_root: Path) -> int:
     print(f"digest: {digest}")
     if used == 0:
         print("no written feedback yet - submit reviews in review.html first")
+    batch_meta = target / "batch.json"
+    if batch_meta.is_file():
+        try:
+            cases = json.loads(batch_meta.read_text(encoding="utf-8")).get("cases", [])
+        except (OSError, json.JSONDecodeError):
+            cases = []
+        if cases:
+            print(
+                "retest: python tools/behavior_eval.py batch --run-id <new-id> "
+                "--cases " + ",".join(cases)
+            )
+    else:
+        print(
+            "retest: python tools/behavior_eval.py run "
+            f"--case {label} --run-id <new-id>"
+        )
     return 0
 
 
@@ -1563,6 +1935,99 @@ def cmd_baseline(args: argparse.Namespace, fixtures_root: Path) -> int:
     return 0
 
 
+def open_review(preview: Path) -> None:
+    """Open the trusted review copy in the editor's/default browser (best effort)."""
+    import webbrowser
+
+    try:
+        webbrowser.open(preview.as_uri())
+        print(f"opened: {preview}")
+    except (OSError, webbrowser.Error) as exc:  # pragma: no cover - varies by OS
+        print(f"warning: could not open the review ({exc})", file=sys.stderr)
+
+
+TEST_PLAN = REPO / "tests" / "TEST-PLAN.md"
+PLAN_ID_RE = re.compile(r"^-\s+\*\*(B\d\.\d)\*\*\s+(.*)$")
+PLAN_CATEGORY_RE = re.compile(r"^###\s+(2\.\d+.*)$")
+
+
+def test_plan_catalog(plan_path: Path = TEST_PLAN) -> list[tuple[str, list[dict]]]:
+    """Parse the behavior ids (`B4.1`) grouped by TEST-PLAN category (2.x)."""
+    if not plan_path.is_file():
+        raise SystemExit(f"error: test plan not found: {plan_path}")
+    groups: list[tuple[str, list[dict]]] = []
+    current: list[dict] | None = None
+    category = "Uncategorized"
+    for line in plan_path.read_text(encoding="utf-8").splitlines():
+        cat = PLAN_CATEGORY_RE.match(line.strip())
+        if cat:
+            category = cat.group(1).strip()
+            current = []
+            groups.append((category, current))
+            continue
+        found = PLAN_ID_RE.match(line.strip())
+        if found:
+            if current is None:
+                current = []
+                groups.append((category, current))
+            current.append({"id": found.group(1), "text": found.group(2).strip()})
+    return groups
+
+
+def catalog_coverage(
+    fixtures_root: Path,
+) -> tuple[
+    list[tuple[str, list[dict]]],
+    dict[str, list[tuple[str, Step]]],
+    list[tuple[str, Step]],
+]:
+    """Return (plan catalog, covered id -> [(case, step)], unnumbered steps)."""
+    catalog = test_plan_catalog()
+    covered: dict[str, list[tuple[str, Step]]] = {}
+    extras: list[tuple[str, Step]] = []
+    for name in list_cases(fixtures_root):
+        case = Case.load(fixtures_root, name)
+        for step in case.steps:
+            if step.case_id:
+                covered.setdefault(step.case_id, []).append((case.name, step))
+            else:
+                extras.append((case.name, step))
+    return catalog, covered, extras
+
+
+def cmd_coverage(args: argparse.Namespace, fixtures_root: Path) -> int:
+    """Cross-check every TEST-PLAN behavior id against the case catalog."""
+    catalog, covered, extras = catalog_coverage(fixtures_root)
+    plan_ids = {entry["id"] for _, entries in catalog for entry in entries}
+    missing: list[str] = []
+    for category, entries in catalog:
+        print(category)
+        for entry in entries:
+            hits = covered.get(entry["id"], [])
+            if hits:
+                where = ", ".join(
+                    f"{case_name} / {step.label}" for case_name, step in hits
+                )
+                print(f"  {entry['id']:<5} covered   {where}")
+            else:
+                print(f"  {entry['id']:<5} MISSING   {entry['text']}")
+                missing.append(entry["id"])
+    for case_name, step in extras:
+        print(f"  extra       {case_name} / {step.label}")
+    unknown = sorted(set(covered) - plan_ids)
+    for case_id in unknown:
+        print(f"  unknown     {case_id} (not in tests/TEST-PLAN.md)")
+    print(
+        f"\ncatalog: {len(plan_ids)} ids, "
+        f"{len(plan_ids) - len(missing)} covered, {len(missing)} missing, "
+        f"{len(extras)} extra step(s)"
+    )
+    if missing:
+        print("missing ids: " + ", ".join(missing), file=sys.stderr)
+        return 1 if args.strict else 0
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Behavior/E2E harness for prompt-level framework cases."
@@ -1572,6 +2037,11 @@ def build_parser() -> argparse.ArgumentParser:
     list_p = sub.add_parser("list", help="list behavior cases")
     list_p.add_argument(
         "--skill", default=None, help="only cases exercising this skill"
+    )
+    list_p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print each case's Given/When/Then",
     )
     list_p.set_defaults(handler=cmd_list)
 
@@ -1611,6 +2081,12 @@ def build_parser() -> argparse.ArgumentParser:
                 help="OpenCode agent (default: build; 'plan' ignores the rules)",
             )
             p.add_argument(
+                "--jobs",
+                type=int,
+                default=1,
+                help="run a scenario's independent prompts in parallel (default 1)",
+            )
+            p.add_argument(
                 "--config",
                 choices=[*CONFIGS, "with_skill", "both", "compare"],
                 default=ROOT_CONFIG,
@@ -1627,6 +2103,11 @@ def build_parser() -> argparse.ArgumentParser:
                 "--no-review",
                 action="store_true",
                 help="skip review.html generation",
+            )
+            p.add_argument(
+                "--open",
+                action="store_true",
+                help="open the review in the browser after grading",
             )
         p.set_defaults(handler=handler)
 
@@ -1677,6 +2158,17 @@ def build_parser() -> argparse.ArgumentParser:
     batch_p.add_argument("--timeout", type=int, default=900)
     batch_p.add_argument("--model", default=None)
     batch_p.add_argument("--agent", default="build")
+    batch_p.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        help="run independent case/config units in parallel (default 1)",
+    )
+    batch_p.add_argument(
+        "--open",
+        action="store_true",
+        help="open the review in the browser after grading",
+    )
     batch_p.set_defaults(handler=cmd_batch)
 
     accept_p = sub.add_parser(
@@ -1711,6 +2203,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="fail when any case lacks a baseline (CI)",
     )
     baseline_p.set_defaults(handler=cmd_baseline)
+
+    coverage_p = sub.add_parser(
+        "coverage", help="show TEST-PLAN behavior ids vs the case catalog"
+    )
+    coverage_p.add_argument(
+        "--strict",
+        action="store_true",
+        help="exit 1 when the catalog misses any TEST-PLAN id",
+    )
+    coverage_p.set_defaults(handler=cmd_coverage)
     return parser
 
 
@@ -1718,8 +2220,8 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     fixtures_root = REPO / FIXTURES_REL
     if args.command == "list":
-        return args.handler(fixtures_root, args.skill)
-    if args.command in ("baseline", "accept"):
+        return args.handler(fixtures_root, args.skill, args.verbose)
+    if args.command in ("baseline", "accept", "coverage"):
         return args.handler(args, fixtures_root)
     if args.command == "feedback" and args.run_dir:
         return args.handler(args, fixtures_root)

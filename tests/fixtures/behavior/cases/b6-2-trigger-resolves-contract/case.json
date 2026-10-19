@@ -1,14 +1,18 @@
 {
   "name": "b6-2-trigger-resolves-contract",
   "layer": "behavior",
-  "profile": "bootstrapped-node",
-  "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder,verification-runner"],
   "prompt": "implement specs/001-SPEC-cache.md pre-commit",
-  "expectations": [
-    "the trigger resolves targets, mode, and stop point",
-    "the explicit pre-commit stop point is honored"
-  ],
   "expected_artifacts": [
     "contains:run:transcript.md:pre-commit"
+  ],
+  "fixture": "trigger-spec",
+  "category": "2.6 Run contract & multi-spec",
+  "case_id": "B6.2",
+  "title": "Trigger resolves contract",
+  "given": "Bootstrapped repo plus a spec for trigger/stop-point scenarios.",
+  "when": "implement specs/001-SPEC-cache.md pre-commit",
+  "then": [
+    "the trigger resolves targets, mode, and stop point",
+    "the explicit pre-commit stop point is honored"
   ]
 }

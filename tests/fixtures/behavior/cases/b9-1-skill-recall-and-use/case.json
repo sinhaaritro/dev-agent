@@ -1,15 +1,19 @@
 {
   "name": "b9-1-skill-recall-and-use",
   "layer": "behavior",
-  "profile": "bootstrapped-node",
-  "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder,map-generator", "map"],
   "prompt": "Create the spec for a cache layer.",
-  "expectations": [
-    "the skill is indexed, then recalled for this prompt",
-    "spec-builder's SKILL.md is opened and followed"
-  ],
   "expected_artifacts": [
     "contains:run:transcript.md:spec-builder",
     "contains:run:transcript.md:[STATUS:"
+  ],
+  "fixture": "recall-map",
+  "category": "2.9 Skill recall & use",
+  "case_id": "B9.1",
+  "title": "Skill recall and use",
+  "given": "Bootstrapped repo with a generated MAP.md and spec-builder.",
+  "when": "Create the spec for a cache layer.",
+  "then": [
+    "the skill is indexed, then recalled for this prompt",
+    "spec-builder's SKILL.md is opened and followed"
   ]
 }

@@ -1,0 +1,5 @@
+{
+  "profile": "bootstrapped-node",
+  "setup": ["bootstrap", "skills:auto-router,phase-protocol"],
+  "description": "Plain Node repo plus a demo spec that links out to docs/."
+}

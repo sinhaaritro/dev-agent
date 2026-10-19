@@ -1,0 +1,19 @@
+{
+  "name": "b7-4-specs-disposable",
+  "layer": "behavior",
+  "fixture": "bootstrapped",
+  "category": "2.7 Docs, topics & the specs rule",
+  "case_id": "B7.4",
+  "title": "Specs disposable",
+  "prompt": "Delete the specs/ folder; nothing in docs, code, or skills should break.",
+  "expected_artifacts": [
+    "contains:run:transcript.md:disposable",
+    "missing:repo:specs/"
+  ],
+  "given": "Framework installed: gateway rulebook + auto-router + phase-protocol.",
+  "when": "Delete the specs/ folder; nothing in docs, code, or skills should break.",
+  "then": [
+    "specs/ is disposable",
+    "no docs/code/skill depends on it"
+  ]
+}

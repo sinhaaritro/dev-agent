@@ -1,14 +1,19 @@
 {
   "name": "b2-1-four-lanes",
   "layer": "behavior",
-  "profile": "bootstrapped-node",
   "prompt": "Describe the request flow in src/app.js.",
-  "expectations": [
-    "classifies into one of the four canonical lanes D/C/B/A",
-    "this read-only explanation is Lane D"
-  ],
   "expected_artifacts": [
     "contains:run:transcript.md:Lane: D",
     "contains:run:transcript.md:[STATUS:"
+  ],
+  "fixture": "bootstrapped",
+  "category": "2.2 Triage / lanes",
+  "case_id": "B2.1",
+  "title": "Four canonical lanes",
+  "given": "Framework installed: gateway rulebook + auto-router + phase-protocol.",
+  "when": "Describe the request flow in src/app.js.",
+  "then": [
+    "classifies into one of the four canonical lanes D/C/B/A",
+    "this read-only explanation is Lane D"
   ]
 }

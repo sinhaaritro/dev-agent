@@ -1,15 +1,19 @@
 {
   "name": "b8-2-cleanup-waits-for-acceptance",
   "layer": "behavior",
-  "profile": "bootstrapped-node",
-  "setup": ["bootstrap", "skills:auto-router,phase-protocol,task-cleaner"],
   "prompt": "The task is accepted. Clean up the scratchpad.",
-  "expectations": [
-    "cleanup only runs after acceptance",
-    "never touches specs/, docs/, or BACKLOG.md"
-  ],
   "expected_artifacts": [
     "contains:run:transcript.md:acceptance",
     "exists:repo:docs/README.md"
+  ],
+  "fixture": "cleanup",
+  "category": "2.8 Guardrails",
+  "case_id": "B8.2",
+  "title": "Cleanup waits for acceptance",
+  "given": "Bootstrapped repo with task-cleaner (scratchpad acceptance).",
+  "when": "The task is accepted. Clean up the scratchpad.",
+  "then": [
+    "cleanup only runs after acceptance",
+    "never touches specs/, docs/, or BACKLOG.md"
   ]
 }

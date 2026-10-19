@@ -1,0 +1,21 @@
+{
+  "name": "b6-1-no-trigger-no-run",
+  "layer": "behavior",
+  "fixture": "bootstrapped",
+  "category": "2.6 Run contract & multi-spec",
+  "case_id": "B6.1",
+  "title": "No trigger no run",
+  "prompt": "Nice weather today.",
+  "expected_artifacts": [
+    "missing:repo:specs/"
+  ],
+  "assertion_labels": {
+    "missing:repo:specs/": "the answer created no specs/ (no run started)"
+  },
+  "given": "Framework installed: gateway rulebook + auto-router + phase-protocol.",
+  "when": "Nice weather today.",
+  "then": [
+    "no run trigger means no run starts",
+    "no specs are created by a plain conversational answer"
+  ]
+}

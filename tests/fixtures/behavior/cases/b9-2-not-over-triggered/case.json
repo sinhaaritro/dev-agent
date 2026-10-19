@@ -1,0 +1,23 @@
+{
+  "name": "b9-2-not-over-triggered",
+  "layer": "behavior",
+  "fixture": "recall-all-map",
+  "category": "2.9 Skill recall & use",
+  "case_id": "B9.2",
+  "title": "Not over-triggered",
+  "prompt": "Write a haiku about rain.",
+  "expected_artifacts": [
+    "missing:repo:specs/",
+    "not-contains:run:transcript.md:spec-builder/SKILL.md"
+  ],
+  "assertion_labels": {
+    "missing:repo:specs/": "the haiku creates no specs/",
+    "not-contains:run:transcript.md:spec-builder/SKILL.md": "spec-builder's SKILL.md was never opened"
+  },
+  "given": "Bootstrapped repo with a generated MAP.md and all build skills.",
+  "when": "Write a haiku about rain.",
+  "then": [
+    "no skill over-triggers on an unrelated prompt",
+    "no skill file is opened and no spec is created"
+  ]
+}

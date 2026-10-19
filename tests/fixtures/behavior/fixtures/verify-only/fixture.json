@@ -1,0 +1,8 @@
+{
+  "profile": "bootstrapped-node",
+  "setup": [
+    "bootstrap",
+    "skills:auto-router,phase-protocol,verification-runner"
+  ],
+  "description": "Bootstrapped repo with verification-runner only."
+}

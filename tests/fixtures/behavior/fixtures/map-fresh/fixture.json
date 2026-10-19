@@ -1,0 +1,9 @@
+{
+  "profile": "bootstrapped-node",
+  "setup": [
+    "bootstrap",
+    "skills:auto-router,phase-protocol,map-generator",
+    "map"
+  ],
+  "description": "Installed framework with a freshly generated MAP.md."
+}

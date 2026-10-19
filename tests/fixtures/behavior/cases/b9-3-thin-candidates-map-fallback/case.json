@@ -1,0 +1,18 @@
+{
+  "name": "b9-3-thin-candidates-map-fallback",
+  "layer": "behavior",
+  "fixture": "recall-all-map",
+  "category": "2.9 Skill recall & use",
+  "case_id": "B9.3",
+  "title": "Thin candidates map fallback",
+  "prompt": "Add an integration test for the health endpoint.",
+  "expected_artifacts": [
+    "contains:run:transcript.md:MAP.md"
+  ],
+  "given": "Bootstrapped repo with a generated MAP.md and all build skills.",
+  "when": "Add an integration test for the health endpoint.",
+  "then": [
+    "the literal match is thin",
+    "falls back to the full .agents/MAP.md instead of answering skill-less"
+  ]
+}

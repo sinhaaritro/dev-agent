@@ -1,0 +1,8 @@
+{
+  "profile": "bootstrapped-node",
+  "setup": [
+    "bootstrap",
+    "skills:auto-router,phase-protocol,spec-builder"
+  ],
+  "description": "Bootstrapped repo with spec-builder (planning scenarios)."
+}

@@ -1,0 +1,8 @@
+{
+  "profile": "bootstrapped-node",
+  "setup": [
+    "bootstrap",
+    "skills:auto-router,phase-protocol"
+  ],
+  "description": "Framework installed: gateway rulebook + auto-router + phase-protocol."
+}

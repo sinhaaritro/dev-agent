@@ -1,14 +1,18 @@
 {
   "name": "b5-2-exit-4-approval",
   "layer": "behavior",
-  "profile": "bootstrapped-node",
-  "setup": ["bootstrap", "skills:auto-router,phase-protocol,verification-runner"],
   "prompt": "The verify command exited 4. What do you do next?",
-  "expectations": [
-    "exit 4 means approval is required",
-    "requests approval and does not count it as a failed attempt"
-  ],
   "expected_artifacts": [
     "contains:run:transcript.md:approval"
+  ],
+  "fixture": "verify-only",
+  "category": "2.5 Verification orchestration",
+  "case_id": "B5.2",
+  "title": "Exit 4 approval",
+  "given": "Bootstrapped repo with verification-runner only.",
+  "when": "The verify command exited 4. What do you do next?",
+  "then": [
+    "exit 4 means approval is required",
+    "requests approval and does not count it as a failed attempt"
   ]
 }

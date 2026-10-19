@@ -1,0 +1,18 @@
+{
+  "name": "b7-2-pattern-break-escalates",
+  "layer": "behavior",
+  "fixture": "bootstrapped",
+  "category": "2.7 Docs, topics & the specs rule",
+  "case_id": "B7.2",
+  "title": "Pattern break escalates",
+  "prompt": "Fix the auth check by calling the internal parser directly instead of the adapter.",
+  "expected_artifacts": [
+    "contains:run:transcript.md:Lane: B"
+  ],
+  "given": "Framework installed: gateway rulebook + auto-router + phase-protocol.",
+  "when": "Fix the auth check by calling the internal parser directly instead of the adapter.",
+  "then": [
+    "the fix breaks an established pattern",
+    "Lane C/D cannot record a decision, so it escalates to Lane B"
+  ]
+}

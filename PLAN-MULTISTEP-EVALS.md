@@ -1,6 +1,6 @@
 # Behavior Evals - Multi-Step Scenarios (one repo, many prompts) Plan
 
-> **Status:** In progress
+> **Status:** Complete (pass 3: named fixtures, parallel prompts, coverage)
 > **Scope:** `tools/behavior_eval.py` + `tests/fixtures/behavior/` +
 > `tests/test_behavior_harness.py`. Additive and backward-compatible.
 
@@ -179,5 +179,39 @@ legacy-layout fixture.
 down from 39 dirs. Within the four mergeable groups, dirs fell 21 -> 8, so
 `batch --config compare` over them drops from 42 installs to 16. Gates green
 (286 tests; `ruff`/`compileall` clean; `suite_report` no drift).
+
+## 9. Pass 3 — fixtures, parallel prompts, catalog coverage
+
+Merging by input state hid the original TEST-PLAN ids (B4.1 became a step slug)
+and still installed a repo per case dir. Pass 3 makes the state first-class:
+
+- **Named fixtures** (`tests/fixtures/behavior/fixtures/<name>/fixture.json` +
+  optional `repo/`) own the profile, `setup`, and overlay. Cases reference
+  `"fixture"` and keep only `category` + a prompt. 18 fixtures cover the 39 case
+  dirs; `bootstrapped` is shared by 17 cases. The catalog is one directory per
+  TEST-PLAN id (`b4-1-compile-then-stop`, `b4-2-...`, `b4-3-...`), so no id is
+  hidden inside another case's `steps`.
+- **Case ids stay visible.** Every case carries `case_id` (`B4.1`) + `title`;
+  `list`, `check`, `batch`, the review units, and the feedback digest show
+  `B4.1 Compile then stop`, not just a slug. Each case also carries a human
+  `given` / `when` / `then` (`list --verbose`); `tests/TEST-PLAN.md` is now the
+  id/category checklist, not a second copy of the descriptions. (`steps` remains supported for a
+  genuine multi-prompt scenario.)
+- **One fixture -> N prompts in parallel.** `prepare_fixture_cache` prepares each
+  fixture once per config; every case copies that tree. A scenario's prompts run
+  against independent repo copies, so `run --jobs N` parallelizes them;
+  `batch --jobs N` parallelizes independent case/config units.
+- **Coverage.** `python tools/behavior_eval.py coverage [--strict]` parses the
+  TEST-PLAN behavior ids (`B1.1`...`B9.3`) and reports covered/missing/extra;
+  the catalog now reports 38/38 covered (1 extra, deliberately unnumbered).
+- **Human GWT.** Every case carries `given` / `when` / `then` (the `then` list
+  is the observable outcomes; artifacts are the actual checks). `list
+  --verbose` and `check` print it. `tests/TEST-PLAN.md` uses the same
+  Given/When/Then shape for Groups 1, 2, and 3; its Group 2 mirrors the case
+  JSON while keeping the id checklist for `coverage`.
+- **Review loop.** `--open` opens the trusted `.behavior-review/` copy;
+  `feedback` ends with the exact `retest:` command for the reviewed cases.
+- Tests: `FixtureCatalogTest` + `PreparedFixtureTest`; 318 tests, `ruff` /
+  `compileall` clean, `suite_report` no drift.
 
 

@@ -1,0 +1,18 @@
+{
+  "name": "b2-2-surface-outranks-count",
+  "layer": "behavior",
+  "fixture": "bootstrapped",
+  "category": "2.2 Triage / lanes",
+  "case_id": "B2.2",
+  "title": "Surface outranks count",
+  "prompt": "In src/auth.js, treat a token expiring within 5 minutes as still valid (clock skew). It is literally one line.",
+  "expected_artifacts": [
+    "contains:run:transcript.md:Lane: A"
+  ],
+  "given": "Framework installed: gateway rulebook + auto-router + phase-protocol.",
+  "when": "In src/auth.js, treat a token expiring within 5 minutes as still valid (clock skew). It is literally one line.",
+  "then": [
+    "surface outranks diff size: auth change is Lane A even though it is one line",
+    "does not downgrade because the edit is small"
+  ]
+}

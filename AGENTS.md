@@ -59,8 +59,7 @@ The vendored `skill-creator` workflow runs on OpenCode. Do not run its Claude-sp
 
 This repo does **not** load the Dev Agent framework. The gateway rulebook, the
 coder contract, the dogfood mirror, and the in-repo runtime were removed on
-purpose (see `PLAN-DOGFOOD-REMOVAL.md`). Work like a maintainer editing a
-library:
+purpose. Work like a maintainer editing a library:
 
 1. **Source of truth is `skills/`.** Edit skills there; never invent a derived copy.
 2. **Verify with the repo's own tooling, not the framework's gates:** `python -m
@@ -72,7 +71,7 @@ library:
    runs the vendored skill-creator cases.
 4. **Do not use the `specs/` phase lifecycle or the framework skills to develop
    the framework.** `specs/` is retained as resolved history; new framework work
-   goes through a plain plan (`PLAN.md`, `PLAN-DOGFOOD-REMOVAL.md`).
+   goes through a plain plan (`PLAN.md`), not `specs/`.
 
 ## Project instructions
 

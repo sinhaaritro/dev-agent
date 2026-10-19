@@ -1,14 +1,18 @@
 {
   "name": "b6-4-batch-continues",
   "layer": "behavior",
-  "profile": "bootstrapped-node",
-  "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder,verification-runner"],
   "prompt": "Implement both specs; if one escalates, keep going with the other.",
-  "expectations": [
-    "an escalated spec stops only its own branch",
-    "the batch continues with the remaining spec"
-  ],
   "expected_artifacts": [
     "contains:run:transcript.md:continues"
+  ],
+  "fixture": "two-specs",
+  "category": "2.6 Run contract & multi-spec",
+  "case_id": "B6.4",
+  "title": "Batch continues",
+  "given": "Bootstrapped repo plus two specs for batch scenarios.",
+  "when": "Implement both specs; if one escalates, keep going with the other.",
+  "then": [
+    "an escalated spec stops only its own branch",
+    "the batch continues with the remaining spec"
   ]
 }

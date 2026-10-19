@@ -1,0 +1,8 @@
+{
+  "profile": "bootstrapped-node",
+  "setup": [
+    "bootstrap",
+    "skills:auto-router,phase-protocol,map-generator"
+  ],
+  "description": "Installed framework with the map generator present but no index built yet."
+}

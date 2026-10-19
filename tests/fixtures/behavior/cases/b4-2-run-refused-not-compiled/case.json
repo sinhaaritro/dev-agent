@@ -1,14 +1,18 @@
 {
   "name": "b4-2-run-refused-not-compiled",
   "layer": "behavior",
-  "profile": "bootstrapped-node",
-  "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder"],
   "prompt": "Implement the cache spec now.",
-  "expectations": [
-    "a run is refused on a spec that is not COMPILED",
-    "the refusal names the required status"
-  ],
   "expected_artifacts": [
     "contains:run:transcript.md:COMPILED"
+  ],
+  "fixture": "draft-spec",
+  "category": "2.4 Lifecycle & plan -> build split",
+  "case_id": "B4.2",
+  "title": "Run refused on non-COMPILED spec",
+  "given": "Bootstrapped repo plus a DRAFTED spec (not runnable).",
+  "when": "Implement the cache spec now.",
+  "then": [
+    "a run is refused on a spec that is not COMPILED",
+    "the refusal names the required status"
   ]
 }

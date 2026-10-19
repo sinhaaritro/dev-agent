@@ -1,14 +1,18 @@
 {
   "name": "b5-1-verify-through-engine",
   "layer": "behavior",
-  "profile": "bootstrapped-node",
-  "setup": ["bootstrap", "skills:auto-router,phase-protocol,spec-builder,verification-runner"],
   "prompt": "Verify Task 1 of the cache spec using the engine, then tell me whether it is MET.",
-  "expectations": [
-    "runs verification through the runtime, never the bare command",
-    "re-measures the evidence at review"
-  ],
   "expected_artifacts": [
     "contains:run:transcript.md:main.py verify"
+  ],
+  "fixture": "compiled-spec",
+  "category": "2.5 Verification orchestration",
+  "case_id": "B5.1",
+  "title": "Verify through the engine",
+  "given": "Bootstrapped repo plus a COMPILED spec and its task file.",
+  "when": "Verify Task 1 of the cache spec using the engine, then tell me whether it is MET.",
+  "then": [
+    "runs verification through the runtime, never the bare command",
+    "re-measures the evidence at review"
   ]
 }

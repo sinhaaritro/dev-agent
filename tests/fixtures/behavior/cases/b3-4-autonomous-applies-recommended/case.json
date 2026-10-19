@@ -1,0 +1,25 @@
+{
+  "name": "b3-4-autonomous-applies-recommended",
+  "layer": "behavior",
+  "fixture": "spec-builder",
+  "category": "2.3 Gates & autonomy",
+  "case_id": "B3.4",
+  "title": "Autonomous applies recommended",
+  "prompt": "Set up caching end to end without asking me; record any decision you take.",
+  "expected_artifacts": [
+    "contains:run:transcript.md:Recommended",
+    "contains:repo:specs/*-SPEC-*.md:Choice made",
+    "missing:repo:specs/temp/gate-log.md"
+  ],
+  "assertion_labels": {
+    "contains:run:transcript.md:Recommended": "the answer applies the Recommended option",
+    "contains:repo:specs/*-SPEC-*.md:Choice made": "the autonomous decision is recorded in the spec's `## 6. Gates` section",
+    "missing:repo:specs/temp/gate-log.md": "no legacy scratchpad gate log is created"
+  },
+  "given": "Bootstrapped repo with spec-builder (planning scenarios).",
+  "when": "Set up caching end to end without asking me; record any decision you take.",
+  "then": [
+    "unattended autonomous applies the Recommended option",
+    "the decision is recorded in the spec's section 6 Gates log"
+  ]
+}

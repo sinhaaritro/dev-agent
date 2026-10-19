@@ -1,0 +1,22 @@
+{
+  "name": "b3-6-non-blocking-proceeds",
+  "layer": "behavior",
+  "fixture": "bootstrapped",
+  "category": "2.3 Gates & autonomy",
+  "case_id": "B3.6",
+  "title": "Non-blocking proceeds",
+  "prompt": "Add a debug log line to src/app.js.",
+  "given": "Framework installed in a small Node repo; src/app.js has no logging helper yet.",
+  "when": "The user asks to add a debug log line to src/app.js.",
+  "then": [
+    "The agent states the default for the non-blocking choice.",
+    "It proceeds without halting.",
+    "The debug log line is added to src/app.js."
+  ],
+  "expected_artifacts": [
+    "contains:run:transcript.md:non-blocking",
+    "matches:run:transcript.md:[Dd]efault",
+    "not-contains:run:transcript.md:halt",
+    "matches:repo:src/app.js:console\\.(log|debug)|logger\\."
+  ]
+}

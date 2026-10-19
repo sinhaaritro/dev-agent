@@ -1,0 +1,19 @@
+{
+  "name": "b3-7-gate-type-visible-at-creation",
+  "layer": "behavior",
+  "fixture": "spec-builder",
+  "category": "2.3 Gates & autonomy",
+  "case_id": "B3.7",
+  "title": "Gate type visible at creation",
+  "prompt": "Plan a cache layer. List each decision with its options and label it blocking or non-blocking before I choose.",
+  "expected_artifacts": [
+    "contains:repo:specs/temp/draft-plan.md:blocking",
+    "contains:repo:specs/temp/draft-plan.md:options"
+  ],
+  "given": "Bootstrapped repo with spec-builder (planning scenarios).",
+  "when": "Plan a cache layer. List each decision with its options and label it blocking or non-blocking before I choose.",
+  "then": [
+    "the plan's section 6 lists each decision with its options",
+    "each decision carries a blocking / non-blocking label so the human chooses"
+  ]
+}

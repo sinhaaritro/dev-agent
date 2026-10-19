@@ -1,0 +1,19 @@
+{
+  "name": "b3-2-interactive-blocking-halts",
+  "layer": "behavior",
+  "fixture": "bootstrapped",
+  "category": "2.3 Gates & autonomy",
+  "case_id": "B3.2",
+  "title": "Interactive blocking halts",
+  "prompt": "Set up caching. Choose between Redis and an in-memory map, and stop for my answer.",
+  "expected_artifacts": [
+    "contains:run:transcript.md:Session: Interactive",
+    "contains:run:transcript.md:halt"
+  ],
+  "given": "Framework installed: gateway rulebook + auto-router + phase-protocol.",
+  "when": "Set up caching. Choose between Redis and an in-memory map, and stop for my answer.",
+  "then": [
+    "session is Interactive",
+    "the blocking gate halts and waits for the human"
+  ]
+}

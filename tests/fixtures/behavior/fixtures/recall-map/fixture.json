@@ -1,0 +1,9 @@
+{
+  "profile": "bootstrapped-node",
+  "setup": [
+    "bootstrap",
+    "skills:auto-router,phase-protocol,spec-builder,map-generator",
+    "map"
+  ],
+  "description": "Bootstrapped repo with a generated MAP.md and spec-builder."
+}

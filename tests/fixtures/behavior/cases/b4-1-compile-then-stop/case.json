@@ -1,0 +1,19 @@
+{
+  "name": "b4-1-compile-then-stop",
+  "layer": "behavior",
+  "fixture": "spec-builder",
+  "category": "2.4 Lifecycle & plan -> build split",
+  "case_id": "B4.1",
+  "title": "Compile then stop",
+  "prompt": "Plan and compile a cache layer spec. Stop after compile.",
+  "expected_artifacts": [
+    "exists:repo:specs/*-SPEC-*.md",
+    "missing:repo:src/cache.js"
+  ],
+  "given": "Bootstrapped repo with spec-builder (planning scenarios).",
+  "when": "Plan and compile a cache layer spec. Stop after compile.",
+  "then": [
+    "promotes the draft and compiles task files",
+    "the spec-producing session stops; no build happens"
+  ]
+}

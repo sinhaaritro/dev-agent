@@ -1,0 +1,18 @@
+{
+  "name": "b2-3-ambiguity-defaults-upward",
+  "layer": "behavior",
+  "fixture": "bootstrapped",
+  "category": "2.2 Triage / lanes",
+  "case_id": "B2.3",
+  "title": "Ambiguity defaults upward",
+  "prompt": "Clean up the utils.",
+  "expected_artifacts": [
+    "contains:run:transcript.md:Lane: C"
+  ],
+  "given": "Framework installed: gateway rulebook + auto-router + phase-protocol.",
+  "when": "Clean up the utils.",
+  "then": [
+    "the scope is ambiguous",
+    "ambiguity defaults upward to Lane C, not Lane D"
+  ]
+}

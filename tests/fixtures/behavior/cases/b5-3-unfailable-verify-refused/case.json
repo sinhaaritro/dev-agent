@@ -1,0 +1,18 @@
+{
+  "name": "b5-3-unfailable-verify-refused",
+  "layer": "behavior",
+  "fixture": "spec-builder",
+  "category": "2.5 Verification orchestration",
+  "case_id": "B5.3",
+  "title": "Unfailable verify refused",
+  "prompt": "This plan's only Verify command is `true`. Can you promote it?",
+  "expected_artifacts": [
+    "contains:run:transcript.md:no-op"
+  ],
+  "given": "Bootstrapped repo with spec-builder (planning scenarios).",
+  "when": "This plan's only Verify command is `true`. Can you promote it?",
+  "then": [
+    "an oracle that cannot fail is a no-op",
+    "promotion is refused"
+  ]
+}
