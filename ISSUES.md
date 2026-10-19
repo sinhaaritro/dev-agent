@@ -19,21 +19,21 @@
 | H2 | High | ✅ **Fixed 2026-10-19** — the documented convention is `NNN-SPEC-<slug>.md` everywhere; the fresh README scaffold and the dead tag-index block are corrected |
 | H3 | High | ✅ **Fixed 2026-10-19** — `--spec`/`--task` accept an id, file name, relative path, or absolute path; unresolved references are named errors, not stray files |
 | H4 | High | ✅ **Fixed 2026-10-19** — `report` emits one `R#` outcome observation per declared outcome and fails review (exit 1, no advance) on a missing one |
-| H5 | High | Approvals are documented as gitignored but are committed, and embed machine-absolute CWDs |
-| H6 | High | `specs-lint` is unusable in this repo, scans gitignored eval output, and crashes on Windows/cp1252 |
+| H5 | High | ✅ **Fixed 2026-10-19** — approvals stay committed with the group; fingerprints are repo-relative (recorded as `.`) |
+| H6 | High | ✅ **Fixed 2026-10-19** — `specs-lint` skips gitignored output, survives cp1252, and exempts the framework repo |
 | H7 | High | ✅ **Fixed 2026-10-19** — `doctor` precondition 9 resolves the default branch and accepts `main` or `master` |
 | M1 | Medium | ✅ **Fixed 2026-10-19** — MAP freshness now hashes `.agents/agents/*.md` too (`indexed_sources`) |
 | M2 | Medium | ✅ **Fixed 2026-10-19** — every engine resolves the repo root from the CWD first; README documents global installs |
 | M3 | Medium | ✅ **Fixed 2026-10-19** — one rule per pair: Lane C 3 attempts→`ESCALATED`; subtasks are a checklist (task-level `Verify` gates); autonomous = `COMPILED` + `Gates` mark; review finalizes |
 | M4 | Medium | ✅ **Fixed 2026-10-19** — doc drift corrected (`compile --lane`, fail-closed location, Personas table, `_topics.md`) |
-| m1 | Minor | Duplicated `AGENTS.md` check in two engines |
-| m2 | Minor | `.gitattributes` references a nonexistent `PLAN.md` |
-| m3 | Minor | `BACKLOG.md` has a stale (already fixed) entry and empty template entries |
-| m4 | Minor | `specs/002-SPEC` is `DRAFTED` while 15 task files exist (13 without evidence) |
-| m5 | Minor | Task slug truncation leaves trailing hyphens |
-| m6 | Minor | Tag contract claims every `specs/` doc carries tags; task files do not |
-| m7 | Minor | Stale TOC/status/report for spec 003; task files reference deleted paths |
-| m8 | Minor | `docs/` one-way rule is contradicted by the docs themselves |
+| m1 | Minor | ✅ **Fixed 2026-10-19** — single `AGENTS.md` check (and message) in `match_skills.py` + `resolve_gate.py` |
+| m2 | Minor | ✅ **Fixed 2026-10-19** — dropped the `PLAN.md` pointer |
+| m3 | Minor | ✅ **Fixed 2026-10-19** — closed the stale oracle-lint entry; removed the empty template stubs |
+| m4 | Minor | ✅ **Fixed 2026-10-19** — `002-SPEC` transitioned to `COMPILED` via the engine |
+| m5 | Minor | ✅ **Fixed 2026-10-19** — `_slug_from_title_or_name` truncates at a word boundary |
+| m6 | Minor | ✅ **Fixed 2026-10-19** — tags contract scoped to spec + topic docs |
+| m7 | Minor | ✅ **Fixed 2026-10-19** — regenerated `specs/README.md`; 003 files left as a historical snapshot |
+| m8 | Minor | ✅ **Fixed 2026-10-19** — reworded as a dependency rule + framework-repo exemption |
 
 ---
 
