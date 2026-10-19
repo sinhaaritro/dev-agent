@@ -117,6 +117,12 @@ recorded observation by review (reconciliation).
 
 **Task shape (one per task):**
 
+- `Target Files:` — required. The files this task owns, each tagged `[NEW]`,
+  `[MODIFY]`, `[DELETE]`, or `[RENAME]` (e.g. `- Target Files: [MODIFY] src/a.ts,
+  [NEW] src/b.ts`; a later path may omit the tag to inherit the previous one). One
+  file has exactly one owning task across the plan. The compile step copies this
+  list into the task file's `## Owns`, and `check` rejects a task with no target
+  files or two tasks claiming the same path.
 - `Depends On:` — required. `None`, or a `Task N` reference (or list). It forms the
   DAG; a task starts only when every task it depends on is `MET`.
 - `Outcomes:` — the `R#` IDs this task delivers (see the Outcomes table).

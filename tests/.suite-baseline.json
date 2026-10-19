@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T02:36:02Z",
+  "generated": "2026-10-19T02:44:32Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_doctor_precondition_7_accepts_compile_preapproval": "pass",
@@ -124,6 +124,10 @@
     "test_promote_spec.TestNewTemplateCheck.test_no_tasks_rejected": "pass",
     "test_promote_spec.TestNewTemplateCheck.test_noop_verify_rejected": "pass",
     "test_promote_spec.TestNewTemplateCheck.test_whole_command_expect_rejected": "pass",
+    "test_promote_spec.TestTargetFilesPerTask.test_check_rejects_missing_target_files": "pass",
+    "test_promote_spec.TestTargetFilesPerTask.test_check_rejects_overlapping_target_files": "pass",
+    "test_promote_spec.TestTargetFilesPerTask.test_compile_refuses_missing_target_files": "pass",
+    "test_promote_spec.TestTargetFilesPerTask.test_compiled_owns_are_per_task": "pass",
     "test_promote_spec_docs_root.TestBTocRepoRoot.test_toc_repo_root_writes_index_readmes": "pass",
     "test_resolve_gate.AutonomousResolveTest.test_active_spec_wins_over_a_stale_draft": "pass",
     "test_resolve_gate.AutonomousResolveTest.test_appends_a_second_entry_without_losing_the_first": "pass",

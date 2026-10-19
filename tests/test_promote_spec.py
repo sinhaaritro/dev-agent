@@ -462,5 +462,60 @@ class TestCompilePurgeSyncAccept(unittest.TestCase):
         self.assertRegex(text, r"(?m)^Done: \d{4}-\d{2}-\d{2}\s*$")
 
 
+class TestTargetFilesPerTask(unittest.TestCase):
+    """C2: Target Files drive per-task Owns and are validated."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory(prefix="c2-targets-")
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        self.spec = make_group_sandbox(self.root)
+
+    @staticmethod
+    def _owns(text: str) -> list[str]:
+        body = text.split("## Owns", 1)[1].split("\n## ", 1)[0]
+        return [ln.strip() for ln in body.splitlines() if ln.strip().startswith("-")]
+
+    def test_check_rejects_missing_target_files(self):
+        text = lane_a_draft().replace("- Target Files: [MODIFY] src/sandbox.py\n", "", 1)
+        draft = write_draft(text)
+        self.addCleanup(draft.unlink, missing_ok=True)
+        passed, _, violations = promote_spec.check_draft(draft, "A")
+        self.assertFalse(passed)
+        self.assertTrue(any("Target Files" in v for v in violations), violations)
+
+    def test_check_rejects_overlapping_target_files(self):
+        text = lane_a_draft().replace(
+            "- Target Files: [MODIFY] src/app.py",
+            "- Target Files: [MODIFY] src/sandbox.py",
+            1,
+        )
+        draft = write_draft(text)
+        self.addCleanup(draft.unlink, missing_ok=True)
+        passed, _, violations = promote_spec.check_draft(draft, "A")
+        self.assertFalse(passed)
+        self.assertTrue(any("already owned" in v for v in violations), violations)
+
+    def test_compiled_owns_are_per_task(self):
+        promote_spec.compile_spec(self.spec, self.root)
+        specs = self.root / "specs"
+        t1 = next(specs.glob("009-TASK-01-*")).read_text(encoding="utf-8")
+        t2 = next(specs.glob("009-TASK-02-*")).read_text(encoding="utf-8")
+        self.assertEqual(self._owns(t1), ["- [MODIFY] src/sandbox.py"])
+        self.assertEqual(self._owns(t2), ["- [NEW] src/app.py"])
+
+    def test_compile_refuses_missing_target_files(self):
+        self.spec.write_text(
+            "## 5. Tasks & Outcomes\n\n"
+            "### Task 1: x\n"
+            "- Depends On: None\n"
+            '- Verify: `python -m unittest tests.test_sandbox -v`\n'
+            '- Expect: "OK"\n',
+            encoding="utf-8",
+        )
+        with self.assertRaises(SystemExit):
+            promote_spec.compile_spec(self.spec, self.root)
+
+
 if __name__ == "__main__":
     unittest.main()

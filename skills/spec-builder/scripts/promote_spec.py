@@ -294,13 +294,40 @@ def _unfailable_expect(verify: str, expect: str) -> str:
     return ""
 
 
+def _parse_target_files(value: str) -> list[dict]:
+    """Parse a '- Target Files:' value into [{'op': ..., 'path': ...}].
+
+    Segments are comma-separated; each may carry its own '[OP]' tag or inherit
+    the previous segment's tag (so '[MODIFY] a, b' gives both a MODIFY op). The
+    recognized ops are NEW/MODIFY/DELETE/RENAME; surrounding backticks and
+    whitespace are stripped from each path. An entry with an empty op is left
+    for the validator to reject.
+    """
+    entries: list[dict] = []
+    op = ""
+    for raw in value.split(","):
+        segment = raw.strip()
+        if not segment:
+            continue
+        match = re.match(r"^\[(NEW|MODIFY|DELETE|RENAME)\]\s*(.*)$", segment)
+        if match:
+            op = match.group(1)
+            segment = match.group(2).strip()
+        segment = segment.strip("`").strip()
+        if not segment:
+            continue
+        entries.append({"op": op, "path": segment})
+    return entries
+
+
 def _parse_tasks(body: str) -> list[dict]:
     """Parse '### Task N:' blocks of a section-5 body into structured task dicts.
 
     New template (spec 002, section 2.2/section 2.7): each task block carries a
-    Depends On: line (may be 'None') and a Verify:/Expect: pair. Field lines
-    are '- <Label>: <value>' inside the block; any other '###' heading (e.g.
-    an outcomes sub-heading) terminates the block.
+    Target Files: line, a Depends On: line (may be 'None'), and a
+    Verify:/Expect: pair. Field lines are '- <Label>: <value>' inside the
+    block; any other '###' heading (e.g. an outcomes sub-heading) terminates
+    the block.
     """
     tasks: list[dict] = []
     current: dict | None = None
@@ -316,6 +343,7 @@ def _parse_tasks(body: str) -> list[dict]:
                 "depends_on": "",
                 "verify": "",
                 "expect": "",
+                "target_files": [],
             }
             tasks.append(current)
             continue
@@ -324,10 +352,50 @@ def _parse_tasks(body: str) -> list[dict]:
         if stripped.startswith("###"):
             current = None
             continue
-        field_m = re.match(r"^-\s*(Depends On|Verify|Expect)\s*:\s*(.*)$", stripped)
+        field_m = re.match(
+            r"^-\s*(Depends On|Verify|Expect|Target Files)\s*:\s*(.*)$", stripped
+        )
         if field_m:
-            current[field_m.group(1).lower().replace(" ", "_")] = field_m.group(2).strip()
+            label = field_m.group(1)
+            value = field_m.group(2).strip()
+            if label == "Target Files":
+                current["target_files"] = _parse_target_files(value)
+            else:
+                current[label.lower().replace(" ", "_")] = value
     return tasks
+
+
+def _validate_target_files(tasks: list[dict]) -> list[str]:
+    """Section-5 'Target Files' lint: every task declares files, none collide.
+
+    Enforces the one-file / one-task / one-writer invariant:
+    a task with no target files cannot be dispatched, and two tasks claiming the
+    same path would race. Paths are compared verbatim (backticks stripped by the
+    parser).
+    """
+    violations: list[str] = []
+    owners: dict[str, str] = {}
+    for task in tasks:
+        tlabel = f"Task {task['num']}"
+        entries = task.get("target_files") or []
+        if not entries:
+            violations.append(tlabel + ": missing/empty 'Target Files:'")
+            continue
+        for entry in entries:
+            path = entry["path"]
+            if not entry["op"]:
+                violations.append(
+                    tlabel
+                    + f": target file '{path}' has no [NEW|MODIFY|DELETE|RENAME] tag"
+                )
+            existing = owners.get(path)
+            if existing is not None and existing != tlabel:
+                violations.append(
+                    tlabel + f": target file '{path}' is already owned by {existing}"
+                )
+            else:
+                owners[path] = tlabel
+    return violations
 
 
 def _validate_tasks(tasks: list[dict], lane: str) -> list[str]:
@@ -363,6 +431,7 @@ def _validate_tasks(tasks: list[dict], lane: str) -> list[str]:
                 msg = _unfailable_expect(verify, expect)
                 if msg:
                     violations.append(tlabel + ": " + msg)
+    violations += _validate_target_files(tasks)
     return violations
 
 
@@ -553,21 +622,14 @@ def _render_task_file(num: int, task: dict, spec_name: str, spec_text: str,
     title = task["title"] or f"Task {task['num']}"
     # Project overview: the spec's section 1 body (trimmed), or a fallback.
     overview = _section_body(spec_text, 1).strip() or "_(project overview)_"
-    # Owns: the spec's section 4 'Affected Files' entries (read-only contract source).
-    # Matches both '### [MODIFY] path' headings and '- [MODIFY] path' list lines.
-    owns_body = _section_body(spec_text, 4)
-    owns_lines = []
-    for ln in owns_body.splitlines():
-        s = ln.strip()
-        m = re.match(r"^###\s+\[(NEW|MODIFY|DELETE|RENAME)\]\s*(.+)$", s)
-        if m:
-            owns_lines.append(f"- [{m.group(1)}] {m.group(2)}")
-            continue
-        m = re.match(r"^-\s*\[(NEW|MODIFY|DELETE|RENAME)\]\s*(.+)$", s)
-        if m:
-            owns_lines.append(f"- [{m.group(1)}] {m.group(2)}")
+    # Owns: this task's own section-5 'Target Files' (one file = one task = one
+    # writer; the spec-level section 4 inventory is not copied into task files).
+    owns_lines = [
+        f"- [{entry['op']}] {entry['path']}"
+        for entry in (task.get("target_files") or [])
+    ]
     if not owns_lines:
-        owns_lines = ["_(owned files are listed in the spec section 4 Affected Files & Contracts)_"]
+        owns_lines = ["_(this task declares no Target Files)_"]
     deps = task["depends_on"] or "None"
     verify = task["verify"].strip("`").strip() or "_(verify command)_"
     expect = task["expect"].strip('"').strip() or "_(expect marker)_"
@@ -622,6 +684,13 @@ def compile_spec(spec: Path, root: Path | None = None) -> list[Path]:
     tasks = _parse_tasks(_section_body(text, 5))
     if not tasks:
         raise SystemExit(f"error: no '### Task N:' blocks in section 5 of {spec.name}")
+    target_violations = _validate_target_files(tasks)
+    if target_violations:
+        for v in target_violations:
+            print(f"task-file error: {v}")
+        raise SystemExit(
+            "error: section 5 'Target Files' failed validation; no task files written"
+        )
     specs_dir = spec.parent
     written: list[Path] = []
     for task in tasks:
