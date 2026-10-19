@@ -48,7 +48,7 @@ from pathlib import Path
 
 from common.root import find_root
 from common.scratchpad import ensure_scratchpad_guard
-from common.specparse import status_token_file
+from common.specparse import append_section_entry, status_token_file
 from common.text import split_options
 
 
@@ -125,33 +125,8 @@ def append_gate_entry(target: Path, entry: str) -> None:
     the spec and is no longer scratchpad content.
     """
     text = target.read_text(encoding="utf-8-sig") if target.is_file() else ""
-    lines = text.splitlines()
-    start = None
-    for index, line in enumerate(lines):
-        if re.match(r"^##\s+6\.", line.strip()):
-            start = index
-            break
-
-    block = entry.splitlines()
-    if start is None:
-        new_text = text.rstrip("\n")
-        new_text += "\n\n## 6. Gates\n\n" + entry + "\n"
-    else:
-        end = len(lines)
-        for index in range(start + 1, len(lines)):
-            if re.match(r"^##\s", lines[index].strip()):
-                end = index
-                break
-        before = lines[:end]
-        after = lines[end:]
-        while before and not before[-1].strip():
-            before.pop()
-        merged = before + [""] + block + [""]
-        if after:
-            merged += after
-        new_text = "\n".join(merged).rstrip("\n") + "\n"
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(new_text, encoding="utf-8")
+    target.write_text(append_section_entry(text, 6, "Gates", entry), encoding="utf-8")
 
 
 ACTIVE_STATUSES = (

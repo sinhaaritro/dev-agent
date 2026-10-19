@@ -128,6 +128,10 @@ Location: `tests/*.py` · Runner: `python -m unittest discover -s tests -v`
   - **Given** the shared runtime helpers
   - **When** approval fingerprints and section-5 parsing are exercised
   - **Then** compile/run hashes and task fields agree from one implementation
+- **U1.18** `test_vetting.py`
+  - **Given** a draft with `vetting: on|off`
+  - **When** `spec vetting` records pass/block/accept
+  - **Then** the section-6 receipt, status, and 3-block cap are enforced; the 3rd block stays `PLAN_REVISION_REQUIRED`
 
 ## Group 2 - Behavior / E2E tests
 

@@ -106,7 +106,7 @@ Exit codes: 0 = ok; 1 = check failed, exists, or violation/error.
 import argparse
 import re
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from common.hashing import APPROVAL_CWD, approval_fingerprint
@@ -114,6 +114,7 @@ from common.root import find_root
 from common.specparse import (
     CANONICAL_STATUSES,
     SPEC_KIND,
+    append_section_entry,
     is_noop_verify,
     parse_sections,
     parse_tasks,
@@ -1805,6 +1806,68 @@ def cmd_promote(args: argparse.Namespace) -> int:
     return 0
 
 
+def _flow_flag(text: str, name: str) -> str:
+    """The value of a frontmatter flow flag (``vetting: on``), default off."""
+    match = re.search(rf"(?m)^{re.escape(name)}:\s*(\S+)", text)
+    return match.group(1).strip().lower() if match else "off"
+
+
+def _vetting_blocks(text: str) -> int:
+    """How many prior Vetting block receipts are in section 6."""
+    return len(re.findall(r"(?mi)^-\s*Verdict:\s*block\b", section_body(text, 6)))
+
+
+def _vetting_entry(verdict: str, note: str, accepted: bool = False) -> str:
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    lines = [f"### Vetting {now} - {verdict}", f"- Verdict: {verdict}"]
+    if accepted:
+        lines.append("- Accepted: human override (accept-as-is)")
+    if note:
+        lines.append(f"- Note: {note}")
+    return "\n".join(lines)
+
+
+def cmd_vetting(args: argparse.Namespace) -> int:
+    """Record a Vetting critic verdict on a draft and enforce the 3-block cap."""
+    draft = args.draft
+    try:
+        text = read_text(draft)
+    except (OSError, UnicodeDecodeError):
+        print(f"vetting: cannot read draft {draft}")
+        return 1
+
+    if _flow_flag(text, "vetting") != "on":
+        print(f"vetting: off - no gate recorded for {draft.name}")
+        return 0
+    if not args.accept and args.verdict is None:
+        print("vetting: pass --verdict pass|block, or --accept for a human override")
+        return 2
+
+    verdict = "pass" if args.accept else args.verdict
+    accepted = bool(args.accept)
+    text = append_section_entry(
+        text, 6, "Gates", _vetting_entry(verdict, args.note or "", accepted)
+    )
+    if verdict == "block":
+        text = replace_status(text, "PLAN_REVISION_REQUIRED")
+    elif accepted and status_token(text) == "PLAN_REVISION_REQUIRED":
+        text = replace_status(text, "DRAFTED")
+    draft.write_text(text, encoding="utf-8")
+
+    print(f"vetting: {verdict} recorded in {draft.name}")
+    if verdict == "block":
+        blocks = _vetting_blocks(text)
+        print(f"status: PLAN_REVISION_REQUIRED (block {blocks}/3)")
+        if blocks >= 3:
+            print(
+                "cap: 3 blocks reached - hand back to the human; "
+                "status stays PLAN_REVISION_REQUIRED"
+            )
+    elif accepted:
+        print("status: accepted as-is")
+    return 0
+
+
 def cmd_compile(args: argparse.Namespace) -> int:
     try:
         written = compile_spec(args.spec, args.root)
@@ -2010,6 +2073,20 @@ def main() -> int:
     )
     specs_lint_p.add_argument("--root", type=Path, default=None)
     specs_lint_p.set_defaults(func=cmd_specs_lint)
+
+    vetting_p = sub.add_parser(
+        "vetting",
+        help="record a Vetting gate pass/block on a draft (optional)",
+    )
+    vetting_p.add_argument("draft", type=Path, help="the draft/plan file")
+    vetting_p.add_argument("--verdict", choices=["pass", "block"], default=None)
+    vetting_p.add_argument(
+        "--accept",
+        action="store_true",
+        help="human accepts a critic block as-is (records a pass)",
+    )
+    vetting_p.add_argument("--note", default="", help="critic note / issues")
+    vetting_p.set_defaults(func=cmd_vetting)
 
     compile_p = sub.add_parser(
         "compile",

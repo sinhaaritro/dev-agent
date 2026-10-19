@@ -98,6 +98,36 @@ def section_body_by_name(text: str, name: str) -> str:
     return "\n".join(lines[start:end])
 
 
+def append_section_entry(text: str, number: int, title: str, entry: str) -> str:
+    """Append ``entry`` inside the ``## <number>. <title>`` section.
+
+    Creates the section when absent and never touches text outside it. Used by
+    the gate audit log and the Vetting receipt so both write the same shape.
+    """
+    lines = text.splitlines()
+    start = None
+    for index, line in enumerate(lines):
+        if re.match(r"^##\s+" + str(number) + r"\.", line.strip()):
+            start = index
+            break
+    block = entry.splitlines()
+    if start is None:
+        return text.rstrip("\n") + f"\n\n## {number}. {title}\n\n" + entry + "\n"
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        if re.match(r"^##\s", lines[index].strip()):
+            end = index
+            break
+    before = lines[:end]
+    after = lines[end:]
+    while before and not before[-1].strip():
+        before.pop()
+    merged = before + [""] + block + [""]
+    if after:
+        merged += after
+    return "\n".join(merged).rstrip("\n") + "\n"
+
+
 def parse_target_files(value: str) -> list[dict]:
     """Parse a '- Target Files:' value into [{'op': ..., 'path': ...}]."""
     entries: list[dict] = []

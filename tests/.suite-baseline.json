@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T12:59:11Z",
+  "generated": "2026-10-19T13:07:01Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_portable_repo_relative_cwd": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
@@ -334,6 +334,14 @@
     "test_verify.StatusCommandTest.test_status_on_task_file_prints_derived": "pass",
     "test_verify.StatusCommandTest.test_status_without_evidence": "pass",
     "test_verify.StatusRootTest.test_status_uses_the_supplied_root_not_find_root": "pass",
-    "test_verify.SuggestTest.test_suggest_prints_canonical_commands_without_running": "pass"
+    "test_verify.SuggestTest.test_suggest_prints_canonical_commands_without_running": "pass",
+    "test_vetting.VettingTest.test_accept_returns_a_blocked_draft_to_drafted": "pass",
+    "test_vetting.VettingTest.test_block_sets_plan_revision_required": "pass",
+    "test_vetting.VettingTest.test_creates_the_gates_section_when_missing": "pass",
+    "test_vetting.VettingTest.test_missing_draft_is_a_named_error": "pass",
+    "test_vetting.VettingTest.test_off_is_a_noop": "pass",
+    "test_vetting.VettingTest.test_pass_records_without_changing_status": "pass",
+    "test_vetting.VettingTest.test_requires_a_verdict_or_accept": "pass",
+    "test_vetting.VettingTest.test_third_block_reaches_the_cap_and_stays_plan_revision": "pass"
   }
 }
