@@ -101,6 +101,22 @@ class FreshnessTest(MapBase):
         _, out = self.run_main()
         self.assertIn("regenerated", out)
 
+    def test_mutating_a_persona_invalidates_the_index(self):
+        # M1: personas are rendered into MAP.md, so they must feed the snapshot.
+        self.add_skill("alpha")
+        agents = self.root / ".agents" / "agents"
+        agents.mkdir(parents=True, exist_ok=True)
+        persona = agents / "coder.md"
+        persona.write_text(
+            "---\nname: coder\ndescription: d\n---\n# Coder\n", encoding="utf-8"
+        )
+        self.run_main()
+        persona.write_text(
+            "---\nname: coder\ndescription: d2\n---\n# Coder\n", encoding="utf-8"
+        )
+        _, out = self.run_main()
+        self.assertIn("regenerated", out)
+
     def test_unknown_snapshot_line_is_not_fresh(self):
         self.add_skill("alpha")
         map_file = self.root / ".agents" / "MAP.md"

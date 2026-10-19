@@ -42,6 +42,8 @@ npx skills add git@github.com:sinhaaritro/dev-agent.git -s '*'
 
 Useful flags: `-g` (install globally to `~/.config/opencode/skills/`), `-a <agent>` (target a specific agent), `-y` (skip prompts), `--copy` (copy files instead of symlinks).
 
+**Global installs.** With `-g` the scripts live under `~/.config/opencode/skills/`, not the project. Every engine resolves its project root by walking up from the **current working directory** for `AGENTS.md` first (falling back to the skill's own script location), so running an engine from the project root — as the agent harness does — finds the right repo. The `.agents/skills/...` command paths in these docs describe the in-project install; a global install runs the identical scripts from `~/.config/opencode/skills/`.
+
 ```bash
 # Non-interactive, global, opencode-only
 npx skills add github/sinhaaritro/dev-agent --skill phase-protocol -g -a opencode -y

@@ -112,7 +112,7 @@ Incoming requirement
         │  a block drops the spec to PLAN_REVISION_REQUIRED (re-plan)
         ▼
  [ "approve draft" gate — human acceptance or compliant autonomous resolution ]
-        │  promote_spec.py compile <spec> --lane <B|A>
+        │  promote_spec.py compile <spec>
         ├──► specs/NNN-SPEC-<slug>.md          (committed, Status: COMPILED)
         ├──► specs/NNN-TASK-<NN>-<slug>.md     (one per section 5 task, the coder's briefing)
         ├──► specs/NNN-APPROVALS-<slug>.json   (pre-approved verify fingerprints)

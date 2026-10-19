@@ -6,7 +6,7 @@ tags: [docs, guide, onboarding, index]
 
 This folder is the committed, human + AI shared knowledge of the Dev Agent framework. If you are new to this repository, **read this page top to bottom**; it tells you what the project is, the order to read the deeper docs in, and the vocabulary you need for the rest.
 
-> Every doc here except this landing page is a **topic doc** — one per subsystem, each with a `## Current State` you can read alone and a `## Decision Log` recording why it is the way it is. `_topics.md` is generated; don't edit it by hand.
+> Every doc here except this landing page and the generated `_topics.md` is a **topic doc** — one per subsystem, each with a `## Current State` you can read alone and a `## Decision Log` recording why it is the way it is. `_topics.md` is generated; don't edit it by hand.
 
 ## What this repository is
 

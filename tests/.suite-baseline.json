@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-19T05:16:12Z",
+  "generated": "2026-10-19T05:40:43Z",
   "tests": {
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_portable_repo_relative_cwd": "pass",
     "test_approval_integration.CompileRunApprovalTest.test_compile_writes_verify_compatible_fingerprint": "pass",
@@ -84,6 +84,7 @@
     "test_generate_map.FreshnessTest.test_first_run_regenerates_then_reports_fresh": "pass",
     "test_generate_map.FreshnessTest.test_force_regenerates_even_when_fresh": "pass",
     "test_generate_map.FreshnessTest.test_missing_map_is_not_fresh": "pass",
+    "test_generate_map.FreshnessTest.test_mutating_a_persona_invalidates_the_index": "pass",
     "test_generate_map.FreshnessTest.test_mutating_a_skill_invalidates_the_index": "pass",
     "test_generate_map.FreshnessTest.test_unknown_snapshot_line_is_not_fresh": "pass",
     "test_generate_map.MapContentTest.test_output_is_ascii_only": "pass",

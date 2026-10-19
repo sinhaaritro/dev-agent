@@ -7,8 +7,9 @@ the spec's `Gates:` section, and approvals are a per-spec file committed with th
 the default purge preserves only `.gitignore` (gate-log.md / verify-state.json
 / approvals.json are retired as scratch concepts).
 
-Each test uses a self-contained git sandbox (its own AGENTS.md) so
-clean.find_root() resolves to the sandbox, not the engine's own repo.
+Each test uses a self-contained git sandbox (its own AGENTS.md); the CLI
+subprocess runs with cwd inside the sandbox so clean.find_root()
+(CWD-first, M2) resolves to the sandbox, not the engine's own repo.
 """
 
 import importlib.util
@@ -155,6 +156,7 @@ class ScratchpadGuardTest(unittest.TestCase):
              "clean", "--temp-dir", str(sandbox)],
             capture_output=True,
             text=True,
+            cwd=sandbox,
             check=False,
         )
         self.assertNotEqual(proc.returncode, 0)

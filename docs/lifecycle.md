@@ -82,7 +82,7 @@ Exit code is the contract:
 | :--- | :--- | :--- |
 | **0** | Proceed / resolved | Non-blocking: default stated, continue. Autonomous blocking: Recommended Option applied, the decision recorded verbatim in the spec's `Gates:` section (question, options, choice, timestamp) |
 | **1** | Halt for human answer | Interactive blocking gate — await the human's reply |
-| **2** | Fail-closed | `supervised` non-interactive blocking gate, or any Lane-A surface gate — the pending question and options are recorded in the spec's `Gates:` section, no changes made, clean exit |
+| **2** | Fail-closed | `supervised` non-interactive blocking gate, or any Lane-A surface gate — the pending question and options are recorded in `specs/temp/escalation.md` (no gate entry), no changes made, clean exit |
 
 The **Lane-A exception is encoded in the engine, never advisory:** gates touching database schema, authentication, or public APIs (pass `--lane-a-surface`) always fail closed, even under `autonomous` policy. Autonomy can shortcut minor architectural defaults; it can never shortcut irreversible or security-relevant choices.
 

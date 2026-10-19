@@ -6,7 +6,7 @@ Load when a session involves a harness or model-tier choice (deployment, CI setu
 | :--- | :--- | :--- | :--- |
 | **Planning (`DRAFTED`)** | SOTA Reasoning Models | Claude Code, Gemini CLI, Cursor, Windsurf | Requirements analysis, functional spec creation, draft plan generation in `specs/temp/`. |
 | **Building (`BUILDING`)** | Local or SOTA Models | Ollama, DeepSeek Local, Roo Code, Aider, OpenCode, Pi.dev, Kilo Code | Fast-path edits, procedural code execution, test execution, micro-refactoring. |
-| **Review (`REVIEWED`)** | SOTA / Specialized Models | Claude Code, Gemini CLI, Cursor | Code quality audit, security analysis, spec promotion to `specs/`, topic decision recording. |
+| **Review (`REVIEWED`)** | SOTA / Specialized Models | Claude Code, Gemini CLI, Cursor | Code quality audit, security analysis, spec finalization, topic decision recording. |
 
 ## Routing rules
 

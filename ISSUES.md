@@ -22,10 +22,10 @@
 | H5 | High | Approvals are documented as gitignored but are committed, and embed machine-absolute CWDs |
 | H6 | High | `specs-lint` is unusable in this repo, scans gitignored eval output, and crashes on Windows/cp1252 |
 | H7 | High | ✅ **Fixed 2026-10-19** — `doctor` precondition 9 resolves the default branch and accepts `main` or `master` |
-| M1 | Medium | MAP freshness ignores persona files (`.agents/agents/*.md`) |
-| M2 | Medium | Global `npx skills -g` installs break four engines' root resolution and every documented command path |
+| M1 | Medium | ✅ **Fixed 2026-10-19** — MAP freshness now hashes `.agents/agents/*.md` too (`indexed_sources`) |
+| M2 | Medium | ✅ **Fixed 2026-10-19** — every engine resolves the repo root from the CWD first; README documents global installs |
 | M3 | Medium | Contradictory statements: Lane C escalation, subtask gating, autonomous status, review promotion |
-| M4 | Medium | Doc drift: `compile --lane`, fail-closed gate location, Personas table claim |
+| M4 | Medium | ✅ **Fixed 2026-10-19** — doc drift corrected (`compile --lane`, fail-closed location, Personas table, `_topics.md`) |
 | m1 | Minor | Duplicated `AGENTS.md` check in two engines |
 | m2 | Minor | `.gitattributes` references a nonexistent `PLAN.md` |
 | m3 | Minor | `BACKLOG.md` has a stale (already fixed) entry and empty template entries |
@@ -370,11 +370,15 @@ Resolve the default branch (`git symbolic-ref refs/remotes/origin/HEAD`, `init.d
 
 `generate_map.py:146-180` hashes only `SKILL.md` files (`snapshot_of(scan_skills(root))`), but `build_map()` renders `.agents/agents/*.md` as `## Personas & Roles` (`:339-356`). Editing `coder.md` does not regenerate MAP; only `--force` does. (This is why MAP had no Personas row until it was regenerated during the audit.)
 
+**Status: ✅ Fixed (2026-10-19).** `generate_map.py` now hashes `indexed_sources(root)` = skills + `.agents/agents/*.md` for both the freshness check and the stored snapshot (the mtime fallback scans both dirs). Regression test: `tests/test_generate_map.py::FreshnessTest::test_mutating_a_persona_invalidates_the_index`.
+
 **Fix:** include `.agents/agents/*.md` in the snapshot, or drop personas from the generated index.
 
 ### M2 — Global installs break the boot chain
 
 `generate_map.py:46-58`, `match_skills.py:157-169`, `clean.py:45-57`, and `bootstrap.py:51-60` resolve the repo root by walking up from the **script location**; `verify.py` and `promote_spec.py` walk up from the **CWD** first. README recommends `npx skills add … -g` (global to `~/.config/opencode/skills/`), but every documented command uses the project-relative `.agents/skills/...` path. A global install therefore cannot find the target repo or the documented script path.
+
+**Status: ✅ Fixed (2026-10-19).** `generate_map.py`, `match_skills.py`, `clean.py`, and `resolve_gate.py` now resolve the repo root by walking up from the CWD first (matching `verify.py`/`promote_spec.py`), falling back to the script location. `bootstrap.py` is unaffected — it takes an explicit `--target` and finds its own `reference/` seeds relative to itself. `README.md` documents global installs. Test updated: `tests/test_clean.py::ScratchpadGuardTest` now runs the CLI with `cwd=<sandbox>`.
 
 **Fix:** resolve root from CWD first in every engine (matching `verify.py`), and document how the harness locates the skill scripts.
 
@@ -388,6 +392,8 @@ Resolve the default branch (`git symbolic-ref refs/remotes/origin/HEAD`, `init.d
 **Fix:** pick one rule per pair, align the docs and the engine, and add drift tests.
 
 ### M4 — Doc drift
+
+**Status: ✅ Fixed (2026-10-19).** All four drift sites corrected — `docs/decision-records.md` (dropped the nonexistent `compile --lane`), `docs/lifecycle.md` (fail-closed writes `specs/temp/escalation.md`, not a `Gates:` entry), `docs/skill-discovery.md` (the Personas table is emitted here), and `docs/README.md` (`_topics.md` is generated, not a hand-written topic doc).
 
 - `docs/decision-records.md:115` documents `promote_spec.py compile <spec> --lane <B|A>`; `compile` has no `--lane` (`promote_spec.py:1786-1791`).
 - `docs/lifecycle.md:83` says a fail-closed gate records the question/options in the spec's `Gates:` section; the engine writes `specs/temp/escalation.md` (`resolve_gate.py:313-324`).

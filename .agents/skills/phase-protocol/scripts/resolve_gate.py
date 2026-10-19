@@ -48,18 +48,27 @@ from pathlib import Path
 
 
 def find_root() -> Path:
-    """Walk up from the script location until AGENTS.md is found (repo root marker)."""
-    current = Path(__file__).resolve().parent
-    while True:
-        if (current / "AGENTS.md").is_file():
-            return current
-        parent = current.parent
-        if parent == current:
-            sys.exit(
-                "error: AGENTS.md not found above "
-                + str(Path(__file__).resolve())
-            )
-        current = parent
+    """The repository root: the nearest AGENTS.md marker.
+
+    Walks up from the CWD first so a globally-installed skill (whose script
+    lives outside the project) still resolves the project it runs in. Falls
+    back to walking up from the script location when the CWD has no marker.
+    """
+    for start in (Path.cwd(), Path(__file__).resolve().parent):
+        current = start
+        while True:
+            if (current / "AGENTS.md").is_file():
+                return current
+            parent = current.parent
+            if parent == current:
+                break
+            current = parent
+    sys.exit(
+        "error: AGENTS.md not found above "
+        + str(Path.cwd())
+        + " or above "
+        + str(Path(__file__).resolve().parent)
+    )
 
 
 def read_autonomy(root: Path) -> str:

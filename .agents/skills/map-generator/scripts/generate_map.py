@@ -44,18 +44,27 @@ def sanitize_ascii(text: str) -> str:
 
 
 def find_root() -> Path:
-    """Walk up from the script location until AGENTS.md is found (repo root marker)."""
-    current = Path(__file__).resolve().parent
-    while True:
-        if (current / "AGENTS.md").is_file():
-            return current
-        parent = current.parent
-        if parent == current:
-            sys.exit(
-                "error: AGENTS.md not found above "
-                + str(Path(__file__).resolve())
-            )
-        current = parent
+    """The repository root: the nearest AGENTS.md marker.
+
+    Walks up from the CWD first so a globally-installed skill (whose script
+    lives outside the project) still resolves the project it runs in. Falls
+    back to walking up from the script location when the CWD has no marker.
+    """
+    for start in (Path.cwd(), Path(__file__).resolve().parent):
+        current = start
+        while True:
+            if (current / "AGENTS.md").is_file():
+                return current
+            parent = current.parent
+            if parent == current:
+                break
+            current = parent
+    sys.exit(
+        "error: AGENTS.md not found above "
+        + str(Path.cwd())
+        + " or above "
+        + str(Path(__file__).resolve().parent)
+    )
 
 
 def parse_front_matter(text: str) -> dict:
@@ -128,14 +137,31 @@ def scan_skills(root: Path) -> list[Path]:
     return sorted(skills_dir.glob("*/SKILL.md"))
 
 
+def scan_personas(root: Path) -> list[Path]:
+    """Every persona file under .agents/agents/ (rendered as Personas & Roles)."""
+    agents_dir = root / ".agents" / "agents"
+    if not agents_dir.is_dir():
+        return []
+    return sorted(agents_dir.glob("*.md"))
+
+
+def indexed_sources(root: Path) -> list[Path]:
+    """Every file whose content the generated index covers.
+
+    Skills (``SKILL.md``) and personas (``.agents/agents/*.md``) are both
+    rendered into MAP.md, so both must feed the freshness snapshot (M1).
+    """
+    return scan_skills(root) + scan_personas(root)
+
+
 def all_mtime_sources(root: Path) -> list[Path]:
-    """Every file under .agents/skills/ that can invalidate the index (mtime check)."""
+    """Every indexed file (skills + personas) that can invalidate the index."""
     sources: list[Path] = []
-    skills_dir = root / ".agents" / "skills"
-    if skills_dir.is_dir():
-        for p in sorted(skills_dir.rglob("*")):
-            if p.is_file():
-                sources.append(p)
+    for base in (root / ".agents" / "skills", root / ".agents" / "agents"):
+        if base.is_dir():
+            for p in sorted(base.rglob("*")):
+                if p.is_file():
+                    sources.append(p)
     return sources
 
 
@@ -386,12 +412,13 @@ def main() -> int:
     force = "--force" in sys.argv[1:]
     map_file = map_path(root)
     skills = scan_skills(root)
+    sources = indexed_sources(root)
 
-    if not force and is_fresh(root, map_file, skills):
+    if not force and is_fresh(root, map_file, sources):
         print(FRESH_MSG)
         return 0
 
-    snapshot = snapshot_of(skills)
+    snapshot = snapshot_of(sources)
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     content = build_map(root, skills, snapshot, generated)
     map_file.parent.mkdir(parents=True, exist_ok=True)

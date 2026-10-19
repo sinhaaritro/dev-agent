@@ -33,7 +33,7 @@ Format (engine output, ASCII-only by design):
 
 - One row per `SKILL.md` under `.agents/skills/`, sorted by name.
 - `Active Condition` derives from frontmatter: `scope: always` → `*Always active*`; otherwise `*Use when: <tags>*` from the `tags` field.
-- A `## Personas & Roles` table is emitted only if `.agents/agents/` exists (per-project extensibility; not present in this repo).
+- A `## Personas & Roles` table is emitted only if `.agents/agents/` exists (per-project extensibility; listed when present).
 - Output is sanitized to ASCII (em/en dashes, smart quotes, ellipsis, arrows mapped; emoji dropped) so the index renders cleanly in Windows-1252 viewers.
 
 ### Freshness: snapshot hash, not timestamps
