@@ -57,7 +57,10 @@ def parse_front_matter(text: str) -> dict:
                 fields[key] = sub
             elif items:
                 fields[key] = items
-            i = j - 1
+            # Resume at the first line *after* the block. Using ``j - 1``
+            # re-read the last nested line as a top-level key, so a nested
+            # ``metadata.tags: a, b`` also landed at top level as a string.
+            i = j
             continue
         if value.startswith("[") and value.endswith("]"):
             items = [v.strip().strip("\"'") for v in value[1:-1].split(",")]

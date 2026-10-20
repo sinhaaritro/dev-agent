@@ -32,9 +32,23 @@ Format (engine output, ASCII-only by design):
 ```
 
 - One row per `SKILL.md` under `.agents/skills/`, sorted by name.
-- `Active Condition` derives from frontmatter: `scope: always` → `*Always active*`; otherwise `*Use when: <tags>*` from the `tags` field.
+- `Active Condition` derives from normalized frontmatter: `scope: always` → `*Always active*`; otherwise `*Use when: <tags>*` from the first tag field (see below). A skill that declares no tag field stays `*On-demand*` — the engine never invents tags.
 - A `## Personas & Roles` table is emitted only if `.agents/agents/` exists (per-project extensibility; listed when present).
 - Output is sanitized to ASCII (em/en dashes, smart quotes, ellipsis, arrows mapped; emoji dropped) so the index renders cleanly in Windows-1252 viewers.
+
+### Skill metadata: one extensible normalizer
+
+Third-party skills ship in whatever shape their author chose, so every engine funnels frontmatter through `common/skillmeta.py` instead of chasing formats at each call site:
+
+- `TAG_FIELDS` (priority order): `tags`, `trigger_tags`, `triggers`, `keywords`, `topics`.
+- `NESTED_CONTAINERS` (checked after the top level): `metadata`, `meta`, `frontmatter`.
+- `SCOPE_FIELDS`: `scope`, `activation`, `activation_scope`.
+
+`normalize_tags` takes the first matching field and accepts a list, an inline `[a, b]`, `a, b`, or `a b`; it lowercases, trims, drops empties, and de-dupes with order preserved. `normalize_scope` returns the first scope value or `on-demand`. Extend the field lists when a new format appears — never add per-skill special cases.
+
+The framework's **own** shipped skills stay canonical: every `skills/*/SKILL.md` uses a top-level `tags:` list, and a test asserts each one normalizes. The normalizer exists for third-party/edge formats.
+
+This also fixed a parser leak: `parse_front_matter` used to re-read the last line of a nested block at top level, so `metadata.tags: astro, islands` also landed as a top-level string and MAP.md rendered one tag per character. The parser now resumes after the block (`i = j`).
 
 ### Freshness: snapshot hash, not timestamps
 
@@ -94,4 +108,6 @@ To change a skill's indexed metadata, edit its `SKILL.md` frontmatter and let th
 
 ## Decision Log
 
-No subsystem-specific decisions are recorded in this doc; it describes the current indexing and recall mechanics. See `overview.md` for the framework overview and `routing.md` for how recall feeds lane triage.
+### SKILL-DISCOVERY-D01 - Normalize skill metadata in one place
+- **Date:** 2026-10-20
+- **Why:** Third-party skills are not under our control, so their frontmatter arrives as lists, inline lists, comma strings, `trigger_tags`/`keywords` aliases, or nested under `metadata`. Handling each shape inside `skill_entry` / `_topic_tags` duplicated format knowledge and still produced bugs (the nested-block parser leak turned a comma string into one tag per character). A single documented normalizer plus canonical top-level `tags:` for our own skills keeps recall predictable and makes a new format a one-line change.

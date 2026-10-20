@@ -125,10 +125,10 @@ Incoming requirement
  group (verified via Status: COMPILED), runs
  verify doctor (PRECONDITIONS OK), creates one branch per spec off main,
  dispatches unblocked tasks to coders (each ticks its own task file, Verify +
- Expect with content-hash evidence), runs verify report at review,
- commits on the branch at the run's stop point (commit → COMPLETED,
- pre-commit → stop at REVIEWED), then task-cleaner purges the scratchpad on
- acceptance. A failure parks the spec ESCALATED (NNN-ESCALATION-<slug>.md)
+ Expect with content-hash evidence), runs the mandatory verify report at review
+ (green report → REVIEWED; spec accept requires it and stamps COMPLETED + Done),
+ commits on the branch at the run's stop point, then task-cleaner purges the
+ scratchpad on acceptance. A failure parks the spec ESCALATED (NNN-ESCALATION-<slug>.md)
  and the batch continues to the next spec.
 ```
 
@@ -157,7 +157,7 @@ In `.agents/skills/spec-builder/references/`:
 
 `python .agents/scripts/devagent/main.py spec toc [--root <root>]` regenerates the `specs/README.md` `## Index` marker block, sorted by NNN/sub-ID, showing name + status + version-pin + backlinks. It is hooked into `compile` / `topic` / `accept` so the TOC never drifts, is idempotent (rewrites only the marker block, never surrounding prose), and `--dry-run` prints without writing. **Never hand-edit a marker block** — prose outside the markers is safe from regeneration.
 
-The topic index is a separate, lighter rebuild: `python .agents/scripts/devagent/main.py map sync-docs` scans `docs/`, copies each topic's `tags:` frontmatter into a `covers:` line, derives `sections` (file topics) / `files` (folder topics) from headings, and writes `docs/_topics.md`. The agent runs it after editing a topic doc; a human runs it after hand edits. Every `docs/` file and folder is a topic, and the only thing skipped is the generated `_topics.md` itself (it would otherwise index itself).
+The topic index is a separate, lighter rebuild: `python .agents/scripts/devagent/main.py map sync-docs` scans `docs/`, copies each topic's `tags:` frontmatter into a `covers:` line, derives `sections` (file topics; `Current State`/`Decision Log` omitted, H3 fallback never lists decision IDs) / `files` (folder topics, each with full path + covers + sections), and writes `docs/_topics.md` in the block format. `spec topic`, `spec accept`, and a green `verify report` refresh it automatically; after any other `docs/` edit the agent runs it. `map sync-docs --check` exits 1 when the file is stale (doctor precondition 10). Reserved names are the generated `_topics.md`, the human landing `README.md`, and every underscore-prefixed name; everything else under `docs/` is a topic (DECISION-RECORDS-D06).
 
 ### Scratchpad lifecycle & garbage collection
 
@@ -186,9 +186,9 @@ python .agents/scripts/devagent/main.py clean clean
 - **Date:** 2026-09-23
 - **Why:** Flatten the knowledge layout: specs live at repo-root specs/ (with specs/temp/ scratchpad), the 001-007 reference series lives directly under docs/ (no reference/ subfolder), and docs/ holds only the reference series + topic docs + README + _topics.md. Simpler, fewer nested dirs; the engine scans the repo root for specs/ and docs/.
 
-### DECISION-RECORDS-D03 - sync-docs indexes all docs/ topics; only _topics.md is skipped
+### DECISION-RECORDS-D03 - sync-docs indexes all docs/ topics; only _topics.md is skipped (superseded)
 - **Date:** 2026-09-23
-- **Why:** sync-docs indexes every docs/ file and folder as a topic - the reference series, the landing README, and all topic docs - and skips ONLY the generated _topics.md itself. The earlier reservation of the numbered series / README / underscore files was over-broad; the reference docs are legitimate routing topics.
+- **Why:** sync-docs indexed every docs/ file and folder as a topic - the reference series, the landing README, and all topic docs - and skipped ONLY the generated _topics.md itself. This was later narrowed again: README.md and underscore-prefixed files are reserved (DECISION-RECORDS-D06).
 
 ### DECISION-RECORDS-D04 - The engine (promote_spec.py) should not know about docs/README.md at all
 - **Date:** 2026-09-27
@@ -200,3 +200,9 @@ python .agents/scripts/devagent/main.py clean clean
 - **Why:** The `NNN-` reference series and the topic docs explained the same subsystems in two places, so a reader had to jump between a "what is" doc and a "why we chose" doc to understand one thing. Consolidating everything into flat, prefix-free topic docs (each `## Current State` + `## Decision Log`) with `docs/README.md` as a guided reading path gives a newcomer one place to start and removes the engine's special-cased "reference" series.
 - **Supersedes:** the numbered reference series and the `NNN-` docs naming convention (the reference-series half of DECISION-RECORDS-D02)
 - **Affects:** overview.md, skill-discovery.md, routing.md
+
+### DECISION-RECORDS-D06 - `_topics.md` keeps the block format; README and underscore names are reserved
+- **Date:** 2026-10-20
+- **Why:** The index was a table that buried sections and nested docs, and it listed the human landing `README.md` (which has no routing value) as if it were a topic. The block format renders `path` / `covers` / `sections` (or nested `files` with full paths) directly, so an agent can route by subsystem section, and omitting `Current State` / `Decision Log` / decision IDs keeps the contract sections out of the topic list. Reserving `README.md` and underscore-prefixed names (including the generated `_topics.md`) makes the generator's scope explicit and lets the same reserved-name rule govern `spec topic`. A test pins each shipped engine behavior, and `--check` + doctor precondition 10 fail closed on a stale index.
+- **Supersedes:** DECISION-RECORDS-D03
+- **Affects:** overview.md, task-files.md, skill-discovery.md

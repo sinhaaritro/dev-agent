@@ -244,5 +244,56 @@ class EncodingGuardTest(SpecsLintBase):
         self.assertNotIn("Traceback", proc.stderr)
 
 
+class Section5OptionalFieldsTest(unittest.TestCase):
+    """New §5 fields (Area, Skills, Contract Changes, Callers, Compatibility)."""
+
+    def parse(self, body: str):
+        from common.specparse import parse_tasks
+
+        return parse_tasks(body)
+
+    def test_optional_fields_parse_into_structured_values(self):
+        tasks = self.parse(
+            "### Task 1: add the chart\n"
+            "- Target Files: [MODIFY] src/chart.py\n"
+            "- Area: astro-site\n"
+            "- Skills: astro-framework, `shadcn`\n"
+            "- Contract Changes: src/api/chart.py\n"
+            "- Callers: src/pages/index.astro, src/pages/map.astro\n"
+            "- Compatibility: breaking\n"
+            "- Depends On: None\n"
+            "- Verify: `python -m unittest`\n"
+            '- Expect: "OK"\n'
+        )
+        self.assertEqual(len(tasks), 1)
+        task = tasks[0]
+        self.assertEqual(task["area"], "astro-site")
+        self.assertEqual(task["skills"], ["astro-framework", "shadcn"])
+        self.assertEqual(task["contract_changes"], "src/api/chart.py")
+        self.assertEqual(
+            task["callers"], ["src/pages/index.astro", "src/pages/map.astro"]
+        )
+        self.assertEqual(task["compatibility"], "breaking")
+        # the legacy fields still parse unchanged
+        self.assertEqual(task["depends_on"], "None")
+        self.assertEqual(task["verify"], "`python -m unittest`")
+        self.assertEqual(task["expect"], '"OK"')
+
+    def test_missing_optional_fields_default_to_empty(self):
+        tasks = self.parse(
+            "### Task 1: plain\n"
+            "- Target Files: [NEW] src/a.py\n"
+            "- Depends On: None\n"
+            "- Verify: `true`\n"
+            '- Expect: "ok"\n'
+        )
+        task = tasks[0]
+        self.assertEqual(task["area"], "")
+        self.assertEqual(task["skills"], [])
+        self.assertEqual(task["contract_changes"], "")
+        self.assertEqual(task["callers"], [])
+        self.assertEqual(task["compatibility"], "")
+
+
 if __name__ == "__main__":
     unittest.main()

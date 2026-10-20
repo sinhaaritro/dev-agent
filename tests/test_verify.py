@@ -451,6 +451,90 @@ class OutcomeObservationTest(SandboxCase):
         self.assertIn("Review: PASS", report_text)
 
 
+class ReportIndexSyncTest(SandboxCase):
+    """cmd_report keeps the generated specs index and docs topic index fresh."""
+
+    def test_report_refreshes_specs_and_docs_indexes(self):
+        _spec_file(self.tmp)
+        task_file = _task_file(self.tmp)
+        verify._write_evidence(task_file, _evidence_for(self.tmp, task_file))
+        docs = self.tmp / "docs"
+        docs.mkdir()
+        (docs / "overview.md").write_text(
+            "---\ntags: [framework]\n---\n\n# Overview\n", encoding="utf-8"
+        )
+        buf = StringIO()
+        with redirect_stdout(buf):
+            rc = verify.cmd_report(_ns(spec="007"))
+        self.assertEqual(rc, 0, buf.getvalue())
+        specs_readme = (self.tmp / "specs" / "README.md").read_text(encoding="utf-8")
+        self.assertIn("007-SPEC-do-things.md", specs_readme)
+        topics = docs / "_topics.md"
+        self.assertTrue(topics.is_file())
+        self.assertIn("## overview.md", topics.read_text(encoding="utf-8"))
+        # the written index is fresh, so doctor precondition 10 holds
+        self.assertTrue(verify._docs_index_fresh(self.tmp)[0])
+
+
+class DetectTest(SandboxCase):
+    def test_detect_reports_every_framework(self):
+        (self.tmp / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+        (self.tmp / "package.json").write_text("{}\n", encoding="utf-8")
+        buf = StringIO()
+        with redirect_stdout(buf):
+            rc = verify.cmd_detect(_ns(root=self.tmp))
+        self.assertEqual(rc, 0)
+        out = buf.getvalue()
+        self.assertIn("framework: python", out)
+        self.assertIn("framework: node-npm", out)
+
+    def test_detect_none(self):
+        buf = StringIO()
+        with redirect_stdout(buf):
+            rc = verify.cmd_detect(_ns(root=self.tmp))
+        self.assertEqual(rc, 0)
+        self.assertIn("framework: none", buf.getvalue())
+
+
+class SkillsUnreadTest(SandboxCase):
+    def test_task_without_read_item_is_unread(self):
+        task_file = _task_file(self.tmp)
+        self.assertTrue(verify.skills_unread(task_file))
+        buf = StringIO()
+        with redirect_stdout(buf):
+            verify.cmd_status(_ns(task_id=str(task_file), state_dir=self.tmp))
+        self.assertIn("skills-unread", buf.getvalue())
+
+    def test_ticked_read_item_is_clean(self):
+        task_file = _task_file(self.tmp)
+        text = task_file.read_text(encoding="utf-8").replace(
+            "### Progress\n- [ ] do it",
+            '### Progress\n- [x] read every skill under "Skills to use"\n- [ ] do it',
+        )
+        task_file.write_text(text, encoding="utf-8")
+        self.assertFalse(verify.skills_unread(task_file))
+        buf = StringIO()
+        with redirect_stdout(buf):
+            verify.cmd_status(_ns(task_id=str(task_file), state_dir=self.tmp))
+        self.assertNotIn("skills-unread", buf.getvalue())
+
+    def test_unticked_read_item_is_unread(self):
+        task_file = _task_file(self.tmp)
+        text = task_file.read_text(encoding="utf-8").replace(
+            "### Progress\n- [ ] do it",
+            '### Progress\n- [ ] read every skill under "Skills to use"\n- [ ] do it',
+        )
+        task_file.write_text(text, encoding="utf-8")
+        self.assertTrue(verify.skills_unread(task_file))
+
+    def test_report_marks_skills_unread(self):
+        spec = _spec_file(self.tmp)
+        task_file = _task_file(self.tmp)
+        verify._write_evidence(task_file, _evidence_for(self.tmp, task_file))
+        path = verify.report(spec)
+        self.assertIn("[skills-unread]", path.read_text(encoding="utf-8"))
+
+
 class ShellCommandTest(SandboxCase):
     """verify.py must shell-execute a command that uses shell syntax (pipes,
     boolean operators, command substitution) instead of a plain argv — a

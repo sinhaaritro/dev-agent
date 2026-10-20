@@ -19,6 +19,7 @@ from pathlib import Path
 
 from common.frontmatter import parse_front_matter
 from common.root import find_root
+from common.skillmeta import normalize_scope, normalize_tags
 from common.text import sanitize_ascii
 
 ENGINE_RELPATH = ".agents/scripts/devagent/main.py"
@@ -117,11 +118,8 @@ def skill_entry(path: Path) -> tuple[str, str, str, str]:
     fields = parse_front_matter(path.read_text(encoding="utf-8"))
     name = sanitize_ascii(fields.get("name") or path.parent.name)
     desc = sanitize_ascii(fields.get("description", ""))
-    tags = [
-        sanitize_ascii(t)
-        for t in (fields.get("tags") or fields.get("trigger_tags") or [])
-    ]
-    scope = fields.get("scope", "on-demand")
+    tags = [sanitize_ascii(t) for t in normalize_tags(fields)]
+    scope = normalize_scope(fields)
     rel = path.relative_to(find_root()).as_posix()
     display = f"{path.parent.name}/SKILL.md"
     return name, desc, active_condition(scope, tags), f"[{display}]({rel})"
@@ -140,38 +138,64 @@ def persona_entry(path: Path) -> tuple[str, str, str, str]:
     return name, desc, ", ".join(f"`{s}`" for s in skills), f"[{path.stem}.md]({rel})"
 
 
+RESERVED_TOPIC_HEADINGS = ("Current State", "Decision Log")
+DECISION_HEADING_RE = re.compile(r"^[A-Z0-9-]+-D\d{2}\b")
+
+
 def _topic_headings(path: Path) -> list[str]:
-    """H2/H3 headings of one topic file (skipping the front-matter block)."""
+    """H2 headings of one topic file, with the H3 decision-log fallback.
+
+    ``Current State`` and ``Decision Log`` are the contract sections, not
+    routing topics, so they are skipped. When a file carries no other ``##``
+    heading the deeper ``###`` headings are used instead - but the decision-log
+    entries themselves (``AUTH-D01`` style IDs) are never sections.
+    """
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return []
     in_fm = 0
-    out = []
+    h2: list[str] = []
+    h3: list[str] = []
     for line in text.splitlines():
         if line.strip() == "---":
             in_fm = 1 - in_fm
             continue
         if in_fm:
             continue
-        if re.match(r"^##\s+\S", line):
-            out.append(line.lstrip("#").strip())
-    return out
+        if re.match(r"^##\s+\S", line) and not re.match(r"^###", line):
+            heading = line.lstrip("#").strip()
+            if heading not in RESERVED_TOPIC_HEADINGS:
+                h2.append(heading)
+        elif re.match(r"^###\s+\S", line):
+            h3.append(line.lstrip("#").strip())
+    if h2:
+        return h2
+    return [h for h in h3 if not DECISION_HEADING_RE.match(h)]
 
 
 def _topic_tags(path: Path) -> list[str]:
     fields = parse_front_matter(path.read_text(encoding="utf-8"))
-    return [sanitize_ascii(t) for t in (fields.get("tags") or [])]
+    return [sanitize_ascii(t) for t in normalize_tags(fields)]
 
 
 def _reserved_name(name: str) -> bool:
     """Names under docs/ that are not topic docs.
 
-    Only the generated index itself is skipped - every other docs/ file and
-    folder (including the landing README) is a legitimate topic and is
-    indexed.
+    The generated index, the human landing README, and every underscore-
+    prefixed name are reserved (matches the spec-builder reserved-name
+    contract); everything else is a legitimate topic.
     """
-    return name == "_topics.md"
+    return name == "_topics.md" or name == "README.md" or name.startswith("_")
+
+
+def _topic_file_entry(root: Path, path: Path) -> dict:
+    """One nested topic file: full path, covers, sections."""
+    return {
+        "path": path.relative_to(root).as_posix(),
+        "covers": _topic_tags(path),
+        "sections": _topic_headings(path),
+    }
 
 
 def build_topics_index(root: Path) -> str:
@@ -203,11 +227,11 @@ def build_topics_index(root: Path) -> str:
                 tags: list[str] = []
                 files = []
                 for f in sub:
-                    ftags = _topic_tags(f)
-                    for t in ftags:
+                    detail = _topic_file_entry(root, f)
+                    for t in detail["covers"]:
                         if t not in tags:
                             tags.append(t)
-                    files.append({"name": f.name, "covers": ftags})
+                    files.append(detail)
                 if tags or files:
                     rel = entry.relative_to(root).as_posix() + "/"
                     entries.append(
@@ -239,8 +263,13 @@ def build_topics_index(root: Path) -> str:
         if "files" in data:
             lines.append("  files:")
             for f in data["files"]:
+                lines.append(f"    - {f['path']}")
                 fc = ", ".join(f["covers"]) if f["covers"] else "(none)"
-                lines.append(f"    - {f['name']}: {fc}")
+                lines.append(f"      covers: {fc}")
+                if f["sections"]:
+                    lines.append("      sections:")
+                    for s in f["sections"]:
+                        lines.append(f"        - {s}")
         elif data.get("sections"):
             lines.append("  sections:")
             for s in data["sections"]:
@@ -256,6 +285,18 @@ def sync_docs(root: Path) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(content, encoding="utf-8", newline="\n")
     return out
+
+
+def topics_index_is_fresh(root: Path) -> tuple[bool, Path]:
+    """Compare the on-disk docs/_topics.md with a fresh in-memory rebuild."""
+    out = root / "docs" / "_topics.md"
+    if not out.is_file():
+        return False, out
+    try:
+        current = out.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False, out
+    return current == build_topics_index(root), out
 
 
 def build_map(root: Path, skills: list[Path], snapshot: str, generated: str) -> str:
@@ -316,6 +357,16 @@ def _root_from_args(args: list[str]) -> Path | None:
 def main() -> int:
     if "sync-docs" in sys.argv[1:]:
         root = _root_from_args(sys.argv[1:]) or find_root()
+        if "--check" in sys.argv[1:]:
+            fresh, _out = topics_index_is_fresh(root)
+            if fresh:
+                print("docs/_topics.md is fresh")
+                return 0
+            print(
+                "docs/_topics.md is stale - run "
+                "`python .agents/scripts/devagent/main.py map sync-docs`"
+            )
+            return 1
         out = sync_docs(root)
         print(f"synced {out}")
         return 0

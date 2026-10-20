@@ -110,6 +110,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from common.hashing import APPROVAL_CWD, approval_fingerprint
+from common.project import area_skills, declared_areas
 from common.root import find_root
 from common.specparse import (
     CANONICAL_STATUSES,
@@ -137,17 +138,33 @@ TAG_LINE = re.compile(r"(?m)^tags:\s*\[([^\]]*)\]\s*$")
 TAG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 FM_BLOCK = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
 
-# Canonical task-file headings, in the order the engine requires
-# (references/task-file-format.md). validate_task_file enforces them.
-TASK_FILE_HEADINGS = (
+# Canonical task-file headings (references/task-file-format.md).
+# Six are required; ``Skills to use`` and ``Contract changes`` are optional and
+# allowed only between ``Reads / Context (read-only)`` and ``Verification``
+# (Skills first). validate_task_file enforces the order.
+TASK_FILE_REQUIRED_HEADINGS = (
     "Role & rules",
     "Project overview",
     "Task",
     "Owns",
     "Reads / Context (read-only)",
-    "Skills to use",
-    "Upstream interfaces",
     "Verification",
+)
+TASK_FILE_OPTIONAL_HEADINGS = ("Skills to use", "Contract changes")
+TASK_FILE_HEADINGS = TASK_FILE_REQUIRED_HEADINGS + TASK_FILE_OPTIONAL_HEADINGS
+
+# Framework-process skills never belong in a task's "Skills to use": they are
+# the agents doing the work, not the domain knowledge a coder needs.
+FRAMEWORK_PROCESS_SKILLS = frozenset(
+    (
+        "auto-router",
+        "phase-protocol",
+        "spec-builder",
+        "verification-runner",
+        "task-cleaner",
+        "map-generator",
+        "dev-agent",
+    )
 )
 
 
@@ -288,7 +305,107 @@ def _validate_target_files(tasks: list[dict]) -> list[str]:
     return violations
 
 
-def _validate_tasks(tasks: list[dict], lane: str) -> list[str]:
+def _agents_text(root: Path | None) -> str:
+    """The project's AGENTS.md text ('' when absent)."""
+    if root is None:
+        return ""
+    path = root / "AGENTS.md"
+    if not path.is_file():
+        return ""
+    try:
+        return read_text(path)
+    except (OSError, UnicodeDecodeError):
+        return ""
+
+
+def _task_skills(task: dict, agents: str) -> list[str]:
+    """A task's declared skills plus its area's, de-duplicated in order."""
+    names: list[str] = []
+    for name in task.get("skills") or []:
+        if name not in names:
+            names.append(name)
+    area = task.get("area") or ""
+    if area:
+        for name in area_skills(agents, area):
+            if name not in names:
+                names.append(name)
+    return names
+
+
+def _skill_path(root: Path, name: str) -> Path:
+    """The canonical install path a task file names for a skill."""
+    return root / ".agents" / "skills" / name / "SKILL.md"
+
+
+def _validate_task_areas(tasks: list[dict], agents: str) -> list[str]:
+    """Area lint: a multi-area project requires a declared, known Area per task."""
+    areas = declared_areas(agents)
+    if len(areas) <= 1:
+        return []
+    violations: list[str] = []
+    for task in tasks:
+        tlabel = f"Task {task['num']}"
+        area = task.get("area") or ""
+        if not area:
+            violations.append(
+                tlabel + ": missing 'Area:' (AGENTS.md declares more than one area)"
+            )
+        elif area not in areas:
+            violations.append(
+                tlabel + f": unknown 'Area:' '{area}' (declared: {', '.join(areas)})"
+            )
+    return violations
+
+
+def _validate_contract_closure(tasks: list[dict]) -> list[str]:
+    """A contract change owns every caller unless it declares a shim."""
+    violations: list[str] = []
+    for task in tasks:
+        tlabel = f"Task {task['num']}"
+        if not task.get("contract_changes"):
+            continue
+        compatibility = (task.get("compatibility") or "breaking").strip().lower()
+        if compatibility == "shim":
+            continue
+        callers = task.get("callers") or []
+        owned = {entry["path"] for entry in (task.get("target_files") or [])}
+        if not callers:
+            violations.append(
+                tlabel + ": 'Contract Changes:' requires non-empty 'Callers:' "
+                "(or 'Compatibility: shim')"
+            )
+            continue
+        for caller in callers:
+            if caller not in owned:
+                violations.append(
+                    tlabel + f": caller '{caller}' is not in this task's Target Files "
+                    "(never split a signature change from its callers)"
+                )
+    return violations
+
+
+def _validate_skills_resolve(
+    tasks: list[dict], agents: str, root: Path | None
+) -> list[str]:
+    """Every declared/inherited skill must resolve to an existing SKILL.md."""
+    if root is None:
+        return []
+    violations: list[str] = []
+    for task in tasks:
+        tlabel = f"Task {task['num']}"
+        for name in _task_skills(task, agents):
+            if not _skill_path(root, name).is_file():
+                violations.append(
+                    tlabel
+                    + f": skill '{name}' does not resolve to "
+                    + f".agents/skills/{name}/SKILL.md"
+                )
+    return violations
+
+
+def _validate_tasks(
+    tasks: list[dict], lane: str, root: Path | None = None
+) -> list[str]:
     """Structural + static-oracle violations for the section-5 task list."""
     if not tasks:
         return ["section 5: no '### Task N:' blocks found (zero-gate plan rejected)"]
@@ -320,7 +437,77 @@ def _validate_tasks(tasks: list[dict], lane: str) -> list[str]:
                 if msg:
                     violations.append(tlabel + ": " + msg)
     violations += _validate_target_files(tasks)
+    agents = _agents_text(root)
+    violations += _validate_task_areas(tasks, agents)
+    violations += _validate_contract_closure(tasks)
+    violations += _validate_skills_resolve(tasks, agents, root)
     return violations
+
+
+def _advisory_notes(
+    tasks: list[dict], root: Path | None, spec_text: str = ""
+) -> list[str]:
+    """Non-fatal authoring hints (never part of the gate)."""
+    notes: list[str] = []
+    for task in tasks:
+        tlabel = f"Task {task['num']}"
+        entries = task.get("target_files") or []
+        if len(entries) > 5:
+            notes.append(
+                f"{tlabel}: owns {len(entries)} files (>5) - consider splitting by seam"
+            )
+    ops = {
+        entry["op"]
+        for task in tasks
+        for entry in (task.get("target_files") or [])
+        if entry["op"]
+    }
+    if ops and ops == {"NEW"} and len(tasks) > 1:
+        notes.append(
+            "plan only creates [NEW] files - add an integration task that wires them in"
+        )
+    if root is not None:
+        agents = _agents_text(root)
+        tags = _extract_tags(spec_text) or []
+        for task in tasks:
+            if _task_skills(task, agents):
+                continue
+            suggested = _skill_suggestion(task, root, tags)
+            if suggested:
+                notes.append(
+                    f"Task {task['num']}: no skills declared; recall suggests "
+                    + ", ".join(suggested)
+                )
+    return notes
+
+
+def _skill_suggestion(task: dict, root: Path, spec_tags: list[str]) -> list[str]:
+    """Top-scoring domain skills for a task (advisory; never auto-inserted)."""
+    map_file = root / ".agents" / "MAP.md"
+    if not map_file.is_file():
+        return []
+    try:
+        text = read_text(map_file)
+    except (OSError, UnicodeDecodeError):
+        return []
+    from routing import parse_map_rows, score_row, tokenize
+
+    prompt = " ".join(
+        [task.get("title") or ""]
+        + [entry["path"] for entry in (task.get("target_files") or [])]
+        + list(spec_tags)
+    )
+    tokens = tokenize(prompt)
+    scored = []
+    for row in parse_map_rows(text):
+        if row["name"] in FRAMEWORK_PROCESS_SKILLS:
+            continue
+        hits = score_row(row, tokens)
+        total = len(hits["tag_hits"]) + len(hits["desc_hits"])
+        if total:
+            scored.append((total, row["name"]))
+    scored.sort(key=lambda item: (-item[0], item[1].lower()))
+    return [name for _, name in scored[:3]]
 
 
 def _validate_gate_labels(body: str) -> list[str]:
@@ -345,13 +532,16 @@ def _validate_gate_labels(body: str) -> list[str]:
     return violations
 
 
-def check_draft(draft: Path, lane: str) -> tuple[bool, list[int], list[str]]:
+def check_draft(
+    draft: Path, lane: str, root: Path | None = None
+) -> tuple[bool, list[int], list[str]]:
     """Return (passed, missing_sections, violations) for the lane's contract.
 
     'missing' is the lane's required '## N.' sections absent from the draft;
     'violations' are section-5 Task DAG structure problems, static-oracle
-    lint findings, and (Lane A) unlabeled section-6 decisions. Both fail the
-    gate.
+    lint findings, area/skill/contract-closure lint, and (Lane A) unlabeled
+    section-6 decisions. Both fail the gate. ``root`` enables the project-aware
+    lints (AGENTS.md areas, skill resolution).
     """
     try:
         text = read_text(draft)
@@ -364,7 +554,7 @@ def check_draft(draft: Path, lane: str) -> tuple[bool, list[int], list[str]]:
     if token and token not in CANONICAL_STATUSES:
         violations.append("Status: " + repr(token) + " is not a canonical receipt")
     if 5 in found:
-        violations += _validate_tasks(parse_tasks(section_body(text, 5)), lane)
+        violations += _validate_tasks(parse_tasks(section_body(text, 5)), lane, root)
     if lane == "A" and 6 in found:
         violations += _validate_gate_labels(section_body(text, 6))
     passed = not missing and not violations
@@ -374,10 +564,12 @@ def check_draft(draft: Path, lane: str) -> tuple[bool, list[int], list[str]]:
 def validate_task_file(text: str) -> list[str]:
     """Structural violations for a canonical task file.
 
-    Enforces the required ``##`` headings in order (references/
-    task-file-format.md), the ``### Progress`` sub-heading under ``## Task``,
-    and the ``## Verification`` fence + ``**Expect:**`` line. Returns [] when
-    the file is well-formed; ``compile`` refuses to write a failing file.
+    Enforces the six required ``##`` headings in order (references/
+    task-file-format.md), the optional ``Skills to use`` / ``Contract changes``
+    headings (only between ``Reads / Context`` and ``Verification``, Skills
+    first), the ``### Progress`` sub-heading under ``## Task``, and the
+    ``## Verification`` fence + ``**Expect:**`` line. Returns [] when the file
+    is well-formed; ``compile`` refuses to write a failing file.
     """
     violations: list[str] = []
     lines = text.splitlines()
@@ -396,15 +588,40 @@ def validate_task_file(text: str) -> list[str]:
         match = re.match(r"^##\s+(?!#)(.+?)\s*$", line.strip())
         if match:
             seen.append(match.group(1).strip())
-    for heading in TASK_FILE_HEADINGS:
+    for heading in TASK_FILE_REQUIRED_HEADINGS:
         if heading not in seen:
             violations.append(f"missing heading '## {heading}'")
-    ordered = [h for h in seen if h in TASK_FILE_HEADINGS]
-    if ordered != [h for h in TASK_FILE_HEADINGS if h in ordered]:
+    ordered = [h for h in seen if h in TASK_FILE_REQUIRED_HEADINGS]
+    if ordered != [h for h in TASK_FILE_REQUIRED_HEADINGS if h in ordered]:
         violations.append(f"headings out of order (got {' -> '.join(ordered)})")
     for heading in TASK_FILE_HEADINGS:
         if seen.count(heading) > 1:
             violations.append(f"duplicate heading '## {heading}'")
+
+    optional_present = [h for h in seen if h in TASK_FILE_OPTIONAL_HEADINGS]
+    if optional_present:
+        if "Reads / Context (read-only)" not in seen or "Verification" not in seen:
+            violations.append(
+                "optional headings require 'Reads / Context (read-only)' and 'Verification'"
+            )
+        else:
+            reads_at = seen.index("Reads / Context (read-only)")
+            verify_at = seen.index("Verification")
+            for heading in optional_present:
+                at = seen.index(heading)
+                if not (reads_at < at < verify_at):
+                    violations.append(
+                        f"'## {heading}' must sit between 'Reads / Context (read-only)' "
+                        "and 'Verification'"
+                    )
+            if (
+                "Skills to use" in seen
+                and "Contract changes" in seen
+                and seen.index("Skills to use") > seen.index("Contract changes")
+            ):
+                violations.append(
+                    "'## Skills to use' must come before '## Contract changes'"
+                )
 
     if "Task" in seen:
         task_body = section_body_by_name(text, "Task")
@@ -476,35 +693,59 @@ def _render_task_file(
     ]
     if not owns_lines:
         owns_lines = ["_(this task declares no Target Files)_"]
+    area = task.get("area") or ""
     deps = task["depends_on"] or "None"
     verify = normalize_marker(task["verify"]) or "_(verify command)_"
     expect = normalize_marker(task["expect"]) or "_(expect marker)_"
-    return (
-        f"# TASK {num:03d}-{task['num']:02d} — {title}\n\n"
-        "## Role & rules\n"
-        "Implement ONLY this task. Obey the given signatures. Do not plan, do not touch files you\n"
-        "don't Own, do not commit.\n\n"
+    skills = _task_skills(task, _agents_text(root))
+    progress = []
+    if skills:
+        progress.append('- [ ] read every skill under "Skills to use"')
+    progress += [
+        "- [ ] implement the task",
+        "- [ ] run the Verification command and match Expect",
+    ]
+    parts = [
+        f"# TASK {num:03d}-{task['num']:02d} — {title}\n\n",
+        (
+            "## Role & rules\n"
+            "Implement ONLY this task. Obey the given signatures. Do not plan, do not touch files you\n"
+            'don\'t Own, do not commit. Read every skill under "Skills to use" before implementing;\n'
+            "a coder that skips them is out of contract.\n\n"
+        ),
         "## Project overview\n" + overview + "\n"
-        "(the global task list lives in the spec section 5 — not copied here)\n\n"
+        "(the global task list lives in the spec section 5 — not copied here)\n\n",
         "## Task\n"
-        f"{title}. Depends On: {deps}.\n\n"
-        "### Progress\n"
-        "- [ ] implement the task\n"
-        "- [ ] run the Verification command and match Expect\n\n"
-        "## Owns\n" + "\n".join(owns_lines) + "\n\n"
-        "## Reads / Context (read-only)\n"
-        "- the spec: " + spec_name + "\n\n"
-        "## Skills to use\n"
-        "- spec-builder\n\n"
-        "## Upstream interfaces\n"
-        "```python\n"
-        "def find_root() -> Path\n"
-        "```\n\n"
+        + f"{title}. "
+        + (f"Area: {area}. " if area else "")
+        + f"Depends On: {deps}.\n\n"
+        + "### Progress\n"
+        + "\n".join(progress)
+        + "\n\n",
+        "## Owns\n" + "\n".join(owns_lines) + "\n\n",
+        "## Reads / Context (read-only)\n- the spec: " + spec_name + "\n\n",
+    ]
+    if skills:
+        parts.append(
+            "## Skills to use\n"
+            + "\n".join(f"- {name} (.agents/skills/{name}/SKILL.md)" for name in skills)
+            + "\n\n"
+        )
+    if task.get("contract_changes"):
+        compatibility = (task.get("compatibility") or "breaking").strip().lower()
+        contract_lines = [f"- Interfaces: {task['contract_changes']} ({compatibility})"]
+        if task.get("callers"):
+            contract_lines.append("- Callers (owned): " + ", ".join(task["callers"]))
+        parts.append("## Contract changes\n" + "\n".join(contract_lines) + "\n\n")
+    parts.append(
         "## Verification\n"
-        "```bash\n" + verify + "\n"
-        "```\n"
-        f"**Expect:** `{expect}`\n"
+        + (f"Area: {area}\n" if area else "")
+        + "```bash\n"
+        + verify
+        + "\n```\n"
+        + f"**Expect:** `{expect}`\n"
     )
+    return "".join(parts)
 
 
 def compile_spec(spec: Path, root: Path | None = None) -> list[Path]:
@@ -535,7 +776,7 @@ def compile_spec(spec: Path, root: Path | None = None) -> list[Path]:
             "error: section 5 'Target Files' failed validation; no task files written"
         )
     lane = "A" if LANE_SECTIONS["A"] <= parse_sections(text) else "B"
-    passed, missing, violations = check_draft(spec, lane)
+    passed, missing, violations = check_draft(spec, lane, root)
     if not passed:
         if missing:
             print(
@@ -545,6 +786,8 @@ def compile_spec(spec: Path, root: Path | None = None) -> list[Path]:
         for v in violations:
             print("compile error - structure: " + v)
         raise SystemExit("error: spec failed the check gate; no task files written")
+    for note in _advisory_notes(tasks, root, text):
+        print("note: " + note)
     specs_dir = spec.parent
     rendered: list[tuple[Path, str]] = []
     for task in tasks:
@@ -636,19 +879,49 @@ def _refresh_specs_readme(root: Path) -> None:
 
 
 def accept_spec(spec: Path, root: Path | None = None) -> None:
-    """Stamp 'Status: COMPLETED' + 'Done: <date>' (no git)."""
+    """Stamp 'Status: COMPLETED' + 'Done: <date>' (no git).
+
+    Acceptance is the review path's end, not a shortcut: the spec must already
+    be ``REVIEWED`` and carry a green ``NNN-REPORT`` (``Review: PASS``).
+    """
     root = root or find_root()
     text = read_text(spec)
-    if not status_value(text):
+    current = status_token(text)
+    if not current:
         raise SystemExit(f"error: {spec.name} has no 'Status:' line")
+    if current != "REVIEWED":
+        raise SystemExit(
+            f"error: {spec.name} is {current}, not REVIEWED - "
+            "run `verify report --spec <ref>` and clear the review first"
+        )
+    ident = spec_identity(spec.name)
+    if ident is None:
+        raise SystemExit(f"error: '{spec.name}' is not an NNN-SPEC-<slug>.md file")
+    num, slug = ident
+    report = spec.parent / f"{num:03d}-REPORT-{slug}.md"
+    if not report.is_file() or "Review: PASS" not in read_text(report):
+        raise SystemExit(
+            "error: no green NNN-REPORT (run `verify report --spec <ref>`)"
+        )
+    transition_spec(spec, "COMPLETED", root)  # edge-checked + refreshes README
+    text = read_text(spec)
     today = date.today().isoformat()
-    text = re.sub(r"(?m)^(Status:\s*).*$", r"\g<1>COMPLETED", text, count=1)
     if not re.search(r"(?m)^Done:\s*\d{4}-\d{2}-\d{2}\s*$", text):
         text = re.sub(
             r"(?m)^(Status:\s*COMPLETED.*)$", r"\g<1>\nDone: " + today, text, count=1
         )
     spec.write_text(text, encoding="utf-8")
     _refresh_specs_readme(root)
+    _sync_topics_index(root)
+
+
+def _sync_topics_index(root: Path) -> None:
+    """Regenerate docs/_topics.md when docs/ exists (the engine-owned index)."""
+    if not (root / "docs").is_dir():
+        return
+    from mapgen import sync_docs
+
+    sync_docs(root)
 
 
 def parse_sub_id(name: str) -> tuple[int, str] | None:
@@ -856,6 +1129,32 @@ def _folder_sort_key(folder: str, name: str) -> tuple:
     return (0, name)
 
 
+# The specs/README index is the agent-facing map of spec groups, not a file
+# listing: SPEC, REPORT, and ESCALATION are indexed (in that order within one
+# NNN); TASK, APPROVALS, and unrelated files are omitted because the task files
+# are predictable and already listed in the spec's section 5.
+TOC_SPEC_KINDS = ("SPEC", "REPORT", "ESCALATION")
+_TOC_KIND_RANK = {kind: index for index, kind in enumerate(TOC_SPEC_KINDS)}
+_TOC_NAME_RE = re.compile(r"^(\d{3})-(SPEC|REPORT|ESCALATION)-")
+_TOC_SUBID_RE = re.compile(r"^(\d{3})-([A-Z]\d{2})(?:-([A-Z]\d{2}))?\.md$")
+
+
+def _toc_entry(name: str) -> tuple | None:
+    """Sort key for an indexed specs/ file; ``None`` when it is not indexed.
+
+    Sub-ID specs keep the sub-ID scheme (listed before their parent NNN). A
+    named companion sorts by SPEC -> REPORT -> ESCALATION within the same NNN.
+    """
+    sub = _TOC_SUBID_RE.match(name)
+    if sub:
+        key = sub.group(2) + ("-" + sub.group(3) if sub.group(3) else "")
+        return (int(sub.group(1)), -1, key, name)
+    match = _TOC_NAME_RE.match(name)
+    if not match:
+        return None
+    return (int(match.group(1)), _TOC_KIND_RANK[match.group(2)], "", name)
+
+
 def _doc_title(text: str) -> str:
     """First '#' heading outside code fences, minus its leading number token."""
     for line in strip_fenced_code(text).splitlines():
@@ -964,6 +1263,9 @@ def _specs_readme_stub() -> str:
         "share the `NNN` so a worktree can claim the subtree.\n\n"
         "Every spec carries `tags: [lowercase-kebab, ...]`; the promotion gate runs\n"
         "`tag-lint` on them.\n\n"
+        "The index below lists spec **groups** (spec, review report, escalation), not\n"
+        "individual task files - those are predictable and listed in each spec's\n"
+        "section 5.\n\n"
     )
     return body + f"{TOC_START}\n" + f"{TOC_END}\n"
 
@@ -1244,9 +1546,14 @@ def _toc_entry_line(e: dict, rel: str) -> str:
 
 
 def _build_toc_lines(docs: dict) -> str:
-    """Render the '## Index' block of specs/README.md (specs only)."""
+    """Render the '## Index' block of specs/README.md (spec groups only)."""
     lines = ["## Index"]
+    entries = []
     for e in docs.get("specs", []):
+        key = _toc_entry(e["name"])
+        if key is not None:
+            entries.append((key, e))
+    for _key, e in sorted(entries, key=lambda item: item[0]):
         lines.append(_toc_entry_line(e, f"./{e['name']}"))
     lines.append("")
     return "\n".join(lines).rstrip() + "\n"
@@ -1574,6 +1881,7 @@ def cmd_topic(args: argparse.Namespace) -> int:
             args.reciprocal_state,
         )
         print(f"reciprocal: {rtarget} ({rid})")
+    _sync_topics_index(docs.parent)
     return 0
 
 
@@ -1741,10 +2049,17 @@ def cmd_specs_lint(args: argparse.Namespace) -> int:
 
 
 def cmd_check(args: argparse.Namespace) -> int:
-    passed, missing, struct_violations = check_draft(args.draft, args.lane)
+    passed, missing, struct_violations = check_draft(args.draft, args.lane, args.root)
     tag_violations = _tag_lint(_scan_docs(args.root))
     tag_violations += _draft_tag_violations(args.draft)
     if passed and not tag_violations:
+        try:
+            draft_text = read_text(args.draft)
+            tasks = parse_tasks(section_body(draft_text, 5))
+            for note in _advisory_notes(tasks, args.root, draft_text):
+                print("note: " + note)
+        except (OSError, UnicodeDecodeError):
+            pass
         print("structure: ok")
         return 0
     if missing:
@@ -1757,7 +2072,7 @@ def cmd_check(args: argparse.Namespace) -> int:
 
 
 def cmd_promote(args: argparse.Namespace) -> int:
-    passed, missing, struct_violations = check_draft(args.draft, args.lane)
+    passed, missing, struct_violations = check_draft(args.draft, args.lane, args.root)
     tag_violations = _tag_lint(_scan_docs(args.root), verbose=True)
     tag_violations += _draft_tag_violations(args.draft)
     if not passed or tag_violations:

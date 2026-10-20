@@ -147,12 +147,20 @@ def parse_target_files(value: str) -> list[dict]:
     return entries
 
 
+def _split_list(value: str) -> list[str]:
+    """A comma-separated section-5 field value -> a clean list."""
+    return [
+        part.strip().strip("`").strip() for part in value.split(",") if part.strip()
+    ]
+
+
 def parse_tasks(body: str) -> list[dict]:
     """Parse '### Task N:' blocks into structured task dicts.
 
     The union of every field either engine reads: title, Target Files,
-    Depends On, Verify/Expect, and Outcomes. Extra keys are harmless to a
-    consumer that ignores them.
+    Depends On, Verify/Expect, Outcomes, and the optional authoring fields
+    Area, Skills, Contract Changes, Callers, and Compatibility. Extra keys are
+    harmless to a consumer that ignores them.
     """
     tasks: list[dict] = []
     current: dict | None = None
@@ -170,6 +178,11 @@ def parse_tasks(body: str) -> list[dict]:
                 "expect": "",
                 "outcomes": "",
                 "target_files": [],
+                "area": "",
+                "skills": [],
+                "contract_changes": "",
+                "callers": [],
+                "compatibility": "",
             }
             tasks.append(current)
             continue
@@ -179,7 +192,8 @@ def parse_tasks(body: str) -> list[dict]:
             current = None
             continue
         field_m = re.match(
-            r"^-\s*(Depends On|Verify|Expect|Target Files|Outcomes)\s*:\s*(.*)$",
+            r"^-\s*(Depends On|Verify|Expect|Target Files|Outcomes|Area|Skills|"
+            r"Contract Changes|Callers|Compatibility)\s*:\s*(.*)$",
             stripped,
         )
         if field_m:
@@ -187,6 +201,16 @@ def parse_tasks(body: str) -> list[dict]:
             value = field_m.group(2).strip()
             if label == "Target Files":
                 current["target_files"] = parse_target_files(value)
+            elif label == "Skills":
+                current["skills"] = _split_list(value)
+            elif label == "Callers":
+                current["callers"] = _split_list(value)
+            elif label == "Contract Changes":
+                current["contract_changes"] = value
+            elif label == "Area":
+                current["area"] = value.strip().strip("`").strip()
+            elif label == "Compatibility":
+                current["compatibility"] = value.strip().strip("`").strip().lower()
             else:
                 current[label.lower().replace(" ", "_")] = value
     return tasks

@@ -9,91 +9,122 @@
   path: docs/branching.md
   covers: branching, branch-per-spec, worktree, commit-terminal, never-merge, main, parallel
   sections:
-    - Current State
-    - Decision Log
+    - Specs live on the default branch; a run creates one branch per spec
+    - Commit is terminal
+    - Hard guardrail: never merge or push to the default/release branch
+    - Failure parks `ESCALATED`; the batch continues
+    - The problem
+    - Current tier: branch-per-spec + the sole-writer lease
+    - Intent tier: physical worktrees (NOT implemented)
 
 ## decision-records.md
 
   path: docs/decision-records.md
   covers: decision-records, docs, spec, lifecycle, topic-adr, scratchpad, framework
   sections:
-    - Current State
-    - Decision Log
+    - How it works
+    - Why this shape
+    - The `docs/` layout
+    - Topic doc format contract
+    - ID conventions
+    - Tags contract
+    - The spec-first lifecycle (two steps)
+    - Templates (format truth)
+    - Deterministic TOC rollup + topic index
+    - Scratchpad lifecycle & garbage collection
 
 ## flow.md
 
   path: docs/flow.md
   covers: flow, state-machine, mermaid, build-run, review, multi-spec, escalation
   sections:
-    - Current State
-    - Decision Log
+    - 1. Master per-spec state machine
+    - 2. Build run flow (`COMPILED → BUILT | ESCALATED`)
+    - 3. Review & acceptance (`BUILT → REVIEWED → commit → COMPLETED`)
+    - 4. Multi-spec + escalation
+    - 5. Build loop (orchestrator / coders / verify)
 
 ## lifecycle.md
 
   path: docs/lifecycle.md
   covers: lifecycle, status, gates, autonomy, socratic, protocol, compile
   sections:
-    - Current State
-    - Decision Log
+    - The status flow
+    - The `Status:` receipt set
+    - Status table
+    - Key invariants
+    - The Socratic gate
+    - Session detection & autonomy policy
+    - The 4-block response schema (5-tag header)
+    - Tool posture per status
 
 ## overview.md
 
   path: docs/overview.md
   covers: framework, overview, architecture, orchestration
   sections:
-    - Current State
-    - Decision Log
-
-## README.md
-
-  path: docs/README.md
-  covers: docs, guide, onboarding, index
-  sections:
-    - What this repository is
-    - Read in this order
-    - The 60-second mental model
-    - The vocabulary
-    - Where things live
-    - How to make a change in this repo
-    - Conventions for these docs
+    - What it is
+    - Directory map
+    - Memory architecture
+    - The six core skills (+ the installer)
+    - Boot chain (what happens on every request)
+    - Guardrails (non-negotiable, regardless of loaded skills)
+    - Where to go next
 
 ## routing.md
 
   path: docs/routing.md
   covers: triage, lanes, escalation, routing, session
   sections:
-    - Current State
-    - Decision Log
+    - The four lanes
+    - Session detection
+    - Escalation rules
+    - Worked examples
+    - The routing verdict
+    - Recall stage 2 (judgment)
 
 ## run-contract.md
 
   path: docs/run-contract.md
   covers: run-contract, trigger, mode, unattended, supervised, stop-point, opt-in
   sections:
-    - Current State
-    - Decision Log
+    - A run never self-starts
+    - The mode default (Option A)
+    - Unattended behavior
+    - Dispatch is rolling
 
 ## skill-discovery.md
 
   path: docs/skill-discovery.md
   covers: discovery, indexing, map, skills, recall
   sections:
-    - Current State
     - Skills & Instructions
-    - Decision Log
 
 ## task-files.md
 
   path: docs/task-files.md
   covers: task-files, subagent, coder, owns, dag, dispatch, evidence
   sections:
-    - Current State
-    - Decision Log
+    - Shape
+    - Skills are rendered, not hardcoded
+    - Contract changes and the hazard checklist
+    - Ownership: one task file = one coder = one writer
+    - Subtasks vs the task's verify
+    - Why the spec → task-file split
 
 ## verification.md
 
   path: docs/verification.md
   covers: verification, verify, evidence, fingerprint, doctor, report, circuit-breaker
   sections:
-    - Current State
-    - Decision Log
+    - Command source (resolution order)
+    - Run from the repo root
+    - Running through the engine (never bare)
+    - Command approval (separate from plan approval)
+    - Per-task evidence (content-hash based)
+    - Derived status
+    - The per-task retry ledger (engine-owned counter)
+    - The doctor (pre-flight)
+    - Fixing like a doctor, not a gambler
+    - Escalation & the report
+    - Guardrails context

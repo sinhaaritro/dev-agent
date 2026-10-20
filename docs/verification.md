@@ -15,8 +15,10 @@ Verification runs through the shared dev-agent runtime — `python .agents/scrip
 ### Command source (resolution order)
 
 1. The task's **`Verify`** command (the spec's section 5 Tasks & Outcomes) is primary, with its `Expect` marker.
-2. If absent, the plan's **section 7 Verification Commands**, then `AGENTS.md`'s **Commands block** (the canonical Build/Test/Lint).
-3. If all absent, the runtime's `verify detect` subcommand identifies the framework family and the agent reads `references/frameworks/<stack>.md` (currently `python.md`, `node-npm.md`) for canonical commands, then confirms Socratically before the first run (Lane C's only approval gate).
+2. If absent, the plan's **section 7 Verification Commands** for the task's `Area:`, then that area's commands in `AGENTS.md` (the canonical Build/Test/Lint). In a single-stack repo this is one implicit `default` area.
+3. If all absent, the runtime's `verify detect` subcommand identifies the framework family (printing **every** matching manifest in a mixed repo) and the agent reads `references/frameworks/<stack>.md` (currently `python.md`, `node-npm.md`) for canonical commands, then confirms Socratically before the first run (Lane C's only approval gate).
+
+Never run another area's commands: `verify run --suggest` prints the canonical commands grouped by `### <area>` heading, and each task file's `## Verification` names its area (when set).
 
 When a project uses a non-default environment activator (venv, conda, `nvm use`), the project declares a `Run Prefix` line in `AGENTS.md`; detected canonical commands are prefixed with it. No prefix declared and no obvious global toolchain → ask.
 
@@ -84,7 +86,7 @@ The per-task attempt counter is engine state — **never hand-tracked, never han
 
 ### The doctor (pre-flight)
 
-`python .agents/scripts/devagent/main.py verify doctor --spec <ref>` runs nine ordered preconditions, in order: (1) repo root resolved; (2) engine scripts parseable; (3) state files parseable; (4) the spec is `Status: COMPILED` or `BUILDING`; (5) a task file exists for every task in section 5; (6) `Depends On` forms a valid DAG; (7) every task's verify command is pre-approved; (8) the canonical AGENTS.md commands resolve; (9) a branch can be created off `main`/`master`. Output: `PRECONDITIONS OK` on success, else a **named list of gaps** + non-zero exit (VERIFY-D04). These preconditions are enforced for **unattended** runs; an interactive run asks the human at the moment instead of halting. `<ref>` is a spec id (`003`), a file name, a relative path, or an absolute path — the same forms `report --spec <ref>` accepts.
+`python .agents/scripts/devagent/main.py verify doctor --spec <ref>` runs ten ordered preconditions, in order: (1) repo root resolved; (2) engine scripts parseable; (3) state files parseable; (4) the spec is `Status: COMPILED` or `BUILDING`; (5) a task file exists for every task in section 5; (6) `Depends On` forms a valid DAG; (7) every task's verify command is pre-approved; (8) the canonical AGENTS.md commands resolve (every declared area has at least one Build/Test/Lint command); (9) a branch can be created off `main`/`master`; (10) when `docs/` exists, the generated `docs/_topics.md` is fresh (`map sync-docs --check`). Output: `PRECONDITIONS OK` on success, else a **named list of gaps** + non-zero exit (VERIFY-D04). These preconditions are enforced for **unattended** runs; an interactive run asks the human at the moment instead of halting. `<ref>` is a spec id (`003`), a file name, a relative path, or an absolute path — the same forms `report --spec <ref>` accepts.
 
 ### Fixing like a doctor, not a gambler
 
@@ -104,7 +106,7 @@ When a task exhausts its 3 attempts and no unblocked task remains:
 2. Finalize with `python .agents/scripts/devagent/main.py verify escalate --task <id> --hypothesis "<text>"`: it merges the stored attempt logs with the agent's hypothesis and guided remediation options into the report.
 3. The spec is parked **`ESCALATED`** (not `ABORTED`) and that spec's branch stops; the batch **continues** to the next spec. Report the hand-back in response blocks 3/4: the escalation record, the attempts' verbatim logs, the hypothesis, and the options; block 4 states the halt — no further modifications without a human.
 
-`python .agents/scripts/devagent/main.py verify report --spec <ref>` writes the per-spec `NNN-REPORT-<slug>.md` (the same spec-reference forms as `doctor`): the per-task derived status + evidence, the `R#` outcome observations (one line each — a missing observation **fails** review), and the review summary. An `R#` is observed only when every task whose `Outcomes:` line names it is `MET` (an outcome delivered by no task is never observed). Reports are **per spec only**; there is no combined batch file (VERIFY-D05). A green report (every task `MET` **and** every declared `R#` observed) advances the spec `BUILDING`/`BUILT` → `REVIEWED` and exits **0**; a task that is not `MET` or an unobserved `R#` leaves the status unchanged and exits **1** (an unresolvable `<ref>` exits **2**); a Sign-off block parks it `REVIEW_REVISION_REQUIRED`.
+`python .agents/scripts/devagent/main.py verify report --spec <ref>` writes the per-spec `NNN-REPORT-<slug>.md` (the same spec-reference forms as `doctor`): the per-task derived status + evidence, the `R#` outcome observations (one line each — a missing observation **fails** review), and the review summary. An `R#` is observed only when every task whose `Outcomes:` line names it is `MET` (an outcome delivered by no task is never observed). Reports are **per spec only**; there is no combined batch file (VERIFY-D05). The report is **mandatory at review**, not optional: `spec accept` refuses a `REVIEWED` spec without a green report (VERIFY-D09). A task that lists skills but left `read every skill` unticked is marked `[skills-unread]` on its report line (and `verify status` prints the same warning) — visible, never a hard gate. A green report (every task `MET` **and** every declared `R#` observed) refreshes `specs/README.md` + `docs/_topics.md`, advances the spec `BUILDING`/`BUILT` → `REVIEWED`, and exits **0**; a task that is not `MET` or an unobserved `R#` leaves the status unchanged and exits **1** (an unresolvable `<ref>` exits **2**); a Sign-off block parks it `REVIEW_REVISION_REQUIRED`.
 
 ### Guardrails context
 
@@ -139,3 +141,11 @@ Verification never overrides the global guardrails (see `overview.md`): running 
 ### VERIFY-D07 - Spec and task references resolve from their segments
 - **Date:** 2026-10-19
 - **Why:** The documented `--spec <NNN>` / `--task <id>` forms only worked with a concrete path, so a caller had to know the file's directory. `resolve_spec`/`resolve_task` now accept a spec/task number, a bare file name, a relative path, or an absolute path, matching the file name or the leading `NNN` against the `specs/` group. An ambiguous bare id is rejected with the candidate list (never guessed), and `status --spec` disambiguates across specs; a genuine miss is a named error, not a stray file.
+
+### VERIFY-D08 - Commands are area-scoped, and detect reports every framework
+- **Date:** 2026-10-20
+- **Why:** A mixed-stack repo (an Astro site plus Python scripts) has no single canonical Build/Test/Lint. Treating the first manifest or the first flat `AGENTS.md` list as canonical runs the wrong stack's command and mislabels a mixed repo. One parser (`common/project.py`) now reads `## Commands` into `### <area>` buckets (a flat list stays one implicit `default` area), `doctor` requires every declared area to have at least one command, `--suggest` prints the commands grouped by area, and `detect` prints every matching framework. One parser is shared with `spec check` so compile-time area lint and run-time command resolution cannot disagree.
+
+### VERIFY-D09 - The review report is mandatory and refreshes the generated indexes
+- **Date:** 2026-10-20
+- **Why:** `building.md` claimed the commit stamped `COMPLETED`, while `reviewed.md` required review, and the report was phrased as "on demand". That let a spec be accepted with no derived evidence on disk. `verify report` is now the mandatory review step: a green report advances to `REVIEWED`, and `spec accept` refuses anything else or a missing/`FAIL` report. The same command refreshes `specs/README.md` and `docs/_topics.md` so the indexes cannot lag the status a human is about to accept, and doctor precondition 10 fails closed on a stale docs index.

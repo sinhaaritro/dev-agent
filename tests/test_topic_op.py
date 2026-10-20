@@ -283,6 +283,46 @@ class TopicOpTests(unittest.TestCase):
             self.assertIn("### API-D02 - Cross-topic: AUTH-D03", api)
             self.assertIn("- **Ref:** auth.md#auth-d03", api)
 
+    def test_topic_refreshes_generated_index(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_sandbox(Path(tmp))
+            docs = root / "docs"
+            result = run(
+                [
+                    "topic",
+                    "auth",
+                    "--why",
+                    "Sessions are cookie-backed",
+                    "--docs-dir",
+                    str(docs),
+                ],
+                root,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+            index = docs / "_topics.md"
+            self.assertTrue(index.is_file(), "spec topic must write docs/_topics.md")
+            text = index.read_text(encoding="utf-8")
+            self.assertIn("## auth.md", text)
+            self.assertIn("  path: docs/auth.md", text)
+            check = subprocess.run(
+                [
+                    sys.executable,
+                    str(ENGINE),
+                    "map",
+                    "sync-docs",
+                    "--check",
+                    "--root",
+                    str(root),
+                ],
+                cwd=str(root),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+            self.assertIn("is fresh", check.stdout)
+
     def test_topic_full_lifecycle_leaves_root_clean(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = make_sandbox(Path(tmp))

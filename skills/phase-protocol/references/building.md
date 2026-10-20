@@ -8,7 +8,7 @@ Load when the compiled spec + task files exist (Step 1 complete; drafted.md sect
 
 1. Work strictly from the compiled spec at `specs/<NNN>-SPEC-<slug>.md` and its task files — never add scope silently. (The spec replaced the draft at compile.)
 2. Stamp the spec `Status: BUILDING` in its header when work starts.
-3. The execution unit is the **task**, dispatched to a coder subagent that owns exactly one task file. Read build order from `Depends On`: start a task only when every task in its `Depends On` is `MET`. Within a task, the coder works its `### Progress` checklist one subtask at a time.
+3. The execution unit is the **task**, dispatched to a coder subagent that owns exactly one task file. Read build order from `Depends On`: start a task only when every task in its `Depends On` is `MET`. Within a task, the coder works its `### Progress` checklist one subtask at a time. Before implementing, the coder reads **every** skill listed under `## Skills to use` (each line names its `SKILL.md` path) and follows it; a coder that skips them is out of contract and shows up as `skills-unread` in the audit.
 4. Update subtask state in real time (inside the task file): `- [ ]` pending -> `- [/]` in progress -> `- [x]` done. Subtasks are the coder's **own checklist**, not a second verification gate: the task-level `Verify` (spec section 5) is the single gate that records evidence (section 2) and decides pass/fail, and the orchestrator re-runs it to confirm — never trust the coder's own summary.
 5. Before marking a subtask `[x]`, run the four passes: (1) implement complete, no placeholders; (2) expert re-read — replace the cheap version of each part; (3) hunt defects (correctness, integration, portability, performance); (4) polish — repeat until a full pass finds nothing.
 6. An impossible or out-of-scope subtask is never deleted: add `ABANDON: <non-empty reason>` under it. Its task never closes; the spec ends in a visible hand-back (escalation.md + block 4), never silent completion.
@@ -24,7 +24,7 @@ Load when the compiled spec + task files exist (Step 1 complete; drafted.md sect
 ## 3. Branch-per-spec & commit model
 
 - **Branch per spec.** Specs are authored on the default branch (`main`/`master`); a run creates **one branch per spec off it (+ worktree)** and does all coding there. It **never edits the default branch** — planning artifacts live there, code changes live on the spec's branch.
-- **Commit is terminal.** At spec end (final verification green), the run **commits on its branch and stamps `Status: COMPLETED` immediately; there are no post-commit checks.**
+- **Commit is terminal for the run, not for the spec lifecycle.** At spec end (final verification green) the run commits on its branch; acceptance is still a separate step. `Status: COMPLETED` is stamped only at human acceptance (`spec accept`), and only after `verify report` has produced a green `NNN-REPORT-<slug>.md` (see reviewed.md). There are no post-commit checks; there is also no commit-time skip of the review report.
 - **Failure parks as `ESCALATED`, not `ABORTED`.** When a spec cannot complete (a task exhausts its 3 attempts and no unblocked task remains), it is marked `ESCALATED` (a visible, resumable halt) and the batch **continues to the next spec** — a bad spec cannot cascade. `ABORTED` is reserved for an explicit human cancel, not a run failure.
 
 ## 4. Exit criteria
@@ -33,6 +33,7 @@ Load when the compiled spec + task files exist (Step 1 complete; drafted.md sect
 - [ ] No scope creep — or reclassified lane announced
 - [ ] No unresolved blocking gate; fail-closed respected in non-interactive `supervised` sessions
 - [ ] Any NEW architectural decision surfaced during build recorded as a topic log entry only when the human asks; otherwise update the topic's Current State without a log entry (spec-builder instruction 5)
+- [ ] Any `docs/` edit was followed by `map sync-docs` (the generated `docs/_topics.md` must be fresh; `verify doctor` refuses a stale index)
 - [ ] If any task is `FAILED` or unmet, the response halts for hand-back — never reports "done"
 
 Proceed to `references/reviewed.md`.

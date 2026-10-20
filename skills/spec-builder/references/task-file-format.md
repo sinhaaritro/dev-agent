@@ -29,10 +29,20 @@ Standard Markdown with these `##` headings, **in this exact order**:
    - `### Progress` — an `###` under Task (the coder's own checklist, `- [ ]` items)
 4. `## Owns`
 5. `## Reads / Context (read-only)`
-6. `## Skills to use`
-7. `## Upstream interfaces`
-8. `## Verification`
+6. `## Verification`
    - **MUST** contain one fenced code block (the command) and a `**Expect:**` line
+
+Two **optional** headings sit between `Reads / Context (read-only)` and `Verification`,
+`Skills to use` first:
+
+- `## Skills to use` — one line per skill: `- <name> (.agents/skills/<name>/SKILL.md)`.
+  Rendered only when the task declares `Skills:` or inherits them from its `Area:`.
+  When present, `### Progress` **must** open with
+  `- [ ] read every skill under "Skills to use"`; that item is the audit signal
+  (`verify status` / `verify report` flag `skills-unread` when it is unticked).
+- `## Contract changes` — rendered only when section 5 declares `Contract Changes:`;
+  names the changed interface, its `Compatibility` (`breaking` or `shim`), and the
+  owned callers.
 
 An optional `doctor:` field (a scoped pre-check a task may name) does **not** gate the
 task — `Verification` still decides pass/fail.
@@ -46,7 +56,8 @@ The title is `# TASK <NNN>-<NN> — <title>`. Every generated file matches this 
 
 ## Role & rules
 Implement ONLY this task. Obey the given signatures. Do not plan, do not touch files you
-don't Own, do not commit.
+don't Own, do not commit. Read every skill under "Skills to use" before implementing;
+a coder that skips them is out of contract.
 
 ## Project overview
 Dev-agent: a meta-framework that drives coding tasks through a status protocol.
@@ -54,33 +65,33 @@ Dev-agent: a meta-framework that drives coding tasks through a status protocol.
 
 ## Task
 Add a `doctor` subcommand to the verify engine that checks the unattended preconditions and fails
-fast with a named list of gaps.
+fast with a named list of gaps. Area: python-engine. Depends On: None.
 
 ### Progress
-- [ ] add `doctor` subparser to the argparse setup
-- [ ] implement the pre-flight checks
-- [ ] write the "named list of gaps" failure output
+- [ ] read every skill under "Skills to use"
+- [ ] implement the task
+- [ ] run the Verification command and match Expect
 
 ## Owns
-- `.agents/scripts/devagent/main.py`
+- [MODIFY] .agents/scripts/devagent/verify.py
 
 ## Reads / Context (read-only)
-- `.agents/scripts/devagent/main.py`   (reuse find_root + spec parse)
+- the spec: 003-SPEC-doctor-preflight.md
 
 ## Skills to use
-- verification-runner
-
-## Upstream interfaces
-```python
-def find_root() -> Path
-```
+- verification-runner (.agents/skills/verification-runner/SKILL.md)
 
 ## Verification
+Area: python-engine
 ```bash
-python .agents/scripts/devagent/main.py verify doctor
+python .agents/scripts/devagent/main.py verify doctor --spec 003
 ```
 **Expect:** `PRECONDITIONS OK`
 ````
+
+When the task's `Area:` is set, `## Verification` starts with an `Area:` line naming the
+AGENTS.md area whose commands apply; a mixed-stack repo never runs another area's
+commands. Tasks with no area omit the line.
 
 ## Validation rules (`validate_task_file`)
 
@@ -88,12 +99,15 @@ python .agents/scripts/devagent/main.py verify doctor
 when the file is well-formed). It checks, in order:
 
 1. **Title** — a `# TASK <NNN>-<NN> — ` first heading is present.
-2. **Headings in order** — the eight `##` headings above appear, each exactly once, in
-   this order. A missing heading, a duplicate, or a misordered heading is a violation.
-3. **Progress** — `### Progress` appears under `## Task`.
-4. **Verification fence** — the `## Verification` section contains at least one fenced
+2. **Headings in order** — the six required `##` headings above appear, each exactly once,
+   in this order. A missing required heading, a duplicate, or a misordered heading is a
+   violation.
+3. **Optional headings** — `Skills to use` / `Contract changes`, when present, must sit
+   between `Reads / Context (read-only)` and `Verification`, with `Skills to use` first.
+4. **Progress** — `### Progress` appears under `## Task`.
+5. **Verification fence** — the `## Verification` section contains at least one fenced
    code block (the command).
-5. **Verification Expect** — the `## Verification` section contains a `**Expect:**` line.
+6. **Verification Expect** — the `## Verification` section contains a `**Expect:**` line.
 
 The engine never writes a task file that fails this check; `compile` refuses to write and
 reports the violations.

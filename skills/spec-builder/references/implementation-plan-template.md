@@ -126,6 +126,16 @@ recorded observation by review (reconciliation).
 - `Depends On:` — required. `None`, or a `Task N` reference (or list). It forms the
   DAG; a task starts only when every task it depends on is `MET`.
 - `Outcomes:` — the `R#` IDs this task delivers (see the Outcomes table).
+- `Area:` — optional in a single-stack repo, **required** when `AGENTS.md` declares
+  more than one `### <area>` under `## Commands`. Names the area whose commands and
+  skills apply to this task.
+- `Skills:` — optional, comma-separated. The task file renders exactly these skills
+  (plus its area's `Skills:`) by name + `SKILL.md` path. Never hardcoded: omit it when
+  the area already names the right skills. An unresolvable name fails `compile`.
+- `Contract Changes:` — optional. Names the exported signature/behavior this task
+  changes. When present, `Callers:` must list every call site, and each caller must be
+  in this task's `Target Files` (a signature change is never split from its callers)
+  unless `Compatibility: shim` is declared. `Compatibility: breaking` is the default.
 - `Verify:` / `Expect:` — the **task-level** verification. `Verify` is the exact
   command (run from the repo root); `Expect` is the marker the combined output
   must contain. On PASS the engine records evidence (command, exit, matched marker,
@@ -138,6 +148,37 @@ selects zero tests — pin the expected count in Expect. A marker the command em
 from real state (`grep -o MARKER`, a runner's `OK` line) is fine — it appears in the
 command and in the output. This is checked by the engine
 (`check`); the judgment "could this fail in the wild?" is yours at authoring time.
+
+### Task-authoring hazard checklist
+
+For every task ask: *does this task leave a green tree at task end, or does it need
+atomicity, a shim, or an ordering edge?*
+
+1. **Shared signature / caller closure** — changing an exported symbol's signature or
+   behavior: own every call site in the same task, or shim. Never split a signature
+   change from its callers.
+2. **Shared mutable state / global config** — a singleton, module-level cache, env var,
+   or config key touched by two tasks: one owner, plus a serializing `Depends On`.
+3. **Schema / data migrations** — migration + model + callers are one atomic task, or
+   explicit expand/contract phases.
+4. **Generated artifacts** — lockfiles, route/icon registries, codegen, snapshots: a
+   task that regenerates must own the generator *and* its output.
+5. **Cross-file renames / moves** — rename a file or symbol ⇒ every importer/re-export
+   is in the same task (same class as #1 for paths).
+6. **New dependency** — `package.json`/lockfile is a must-own file on the task that
+   introduces it; a sibling must not update the same lockfile.
+7. **Ordering / build-tree collisions** — a task whose verify writes `dist/`, caches, or
+   `node_modules` cannot run concurrently with another that does: serialize, or use
+   scoped checks plus one integration build.
+8. **Source-of-truth duplication** — copy/i18n/brand strings or a token defined twice:
+   pick the single owner; the other side is generated or owned by the same task.
+9. **Test fixtures / snapshots** — a change that invalidates a shared fixture owns the
+   fixture update.
+10. **Config that other code reads by name** — routing tables, icon maps, search
+    indexes: the producer task owns the registry it feeds.
+
+**Sizing:** a task is 10–30 min ≈ 3–5 file edits; split by dependency seam, not by file;
+a contract-change task is a serial barrier.
 
 **Subtasks are NOT here.** A task's internal step checklist (`### Progress`) lives in
 its own task file, written by the compile step — it is the coder's own progress

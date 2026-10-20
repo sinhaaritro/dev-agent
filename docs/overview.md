@@ -106,3 +106,7 @@ Design decisions local to a subsystem live in that subsystem's topic doc; the on
 ### OVERVIEW-D03 - Runtime discovery is scope-independent
 - **Date:** 2026-10-19
 - **Why:** A globally installed skill runs from its own folder but must operate on the project it is invoked in, so the runtime walks up from the current working directory for `.agents/.devagent.json` instead of resolving relative to the skill. Discovery never falls back to the script's own location, which is why `setup` is the only skill-relative command.
+
+### OVERVIEW-D04 - One tolerant frontmatter parser feeds both indexes
+- **Date:** 2026-10-20
+- **Why:** `MAP.md` and `docs/_topics.md` both read hand/third-party-authored frontmatter, and a parser bug that re-read the last line of a nested block turned `metadata.tags: astro, islands` into a top-level string, so the map rendered one tag per character. The parser now resumes after the block, and a shared `skillmeta` normalizer accepts the tag/scope shapes third-party skills actually ship while our own skills stay on canonical top-level `tags:`. The docs index uses the same parsed tags, omits `README.md` / underscore-prefixed names, and renders `_topics.md` in the block format (`path` / `covers` / `sections` or nested `files`) that agents route from.

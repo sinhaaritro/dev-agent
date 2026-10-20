@@ -81,16 +81,18 @@ Modes:
               Exit 0 (or 2 when --spec cannot be resolved).
 
     doctor   devagent verify doctor --spec <ref> [--root <dir>]
-              Run the 9 ordered per-spec preconditions:
+              Run the 10 ordered per-spec preconditions:
               repo root resolved; engine scripts importable; state files
               parseable; the spec is Status: COMPILED/BUILDING (canonical);
               a task file
               exists for every task in section 5; Depends On forms a valid DAG;
               every verify command is pre-approved (fingerprint =
               command | expect | cwd, with cwd the root as '.'); the
-              canonical AGENTS.md commands resolve; a branch can be created
+              canonical AGENTS.md commands resolve (every declared area has a
+              command); a branch can be created
               off the default branch
-              (main/master). <ref> is a spec number ('003' / '3'), a file name,
+              (main/master); when docs/ exists, the generated docs/_topics.md
+              is fresh (`map sync-docs --check`). <ref> is a spec number ('003' / '3'), a file name,
               a relative path, or an absolute path. Prints PRECONDITIONS
               OK on success, else a named list of gaps + exit 1.
 
@@ -101,7 +103,9 @@ Modes:
               outcome observations (one line each; a missing observation fails
               review), and the Review re-run result. A green report (every task
               MET and every R# observed) advances BUILDING/BUILT to REVIEWED
-              (review owner). Exit 0; exit 1 when review fails (a task is not
+              (review owner) and refreshes specs/README.md + docs/_topics.md;
+              a task whose skills were not read is marked [skills-unread].
+              Exit 0; exit 1 when review fails (a task is not
               MET, or a declared R# has no observation); exit 2 when <ref>
               cannot be resolved.
 
@@ -148,6 +152,7 @@ from common.hashing import (
     sha256_file,
     sha256_text,
 )
+from common.project import parse_command_areas
 from common.root import find_root
 from common.scratchpad import ensure_scratchpad_guard
 from common.specparse import (
@@ -663,6 +668,25 @@ def read_evidence(task_file: Path) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
+def skills_unread(task_file: Path) -> bool:
+    """True when a task lists skills but its mandatory read item is unticked.
+
+    Visible warning, never a hard gate: a coder that skipped the skills shows up
+    in the audit instead of passing silently.
+    """
+    try:
+        text = task_file.read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeDecodeError):
+        return False
+    if not section_body_by_name(text, "Skills to use").strip():
+        return False
+    task_body = section_body_by_name(text, "Task")
+    match = re.search(r"(?mi)^\s*-\s*\[([ xX/])\]\s*read every skill", task_body)
+    if not match:
+        return True
+    return match.group(1).strip().lower() in ("", "/")
+
+
 def status(task: Path, root: Path | None = None) -> str:
     """Derive a task file's completion from its evidence block.
 
@@ -864,20 +888,23 @@ def _verify_preapproved(root: Path, num: int, text: str) -> tuple[bool, str]:
     return True, ""
 
 
-def _canonical_command_list(root: Path) -> list[tuple[str, str]]:
-    """(label, command) pairs from AGENTS.md Commands; placeholders skipped."""
+def _canonical_command_areas(root: Path) -> dict[str, dict]:
+    """Area-scoped commands from AGENTS.md (one implicit ``default`` area)."""
     agents = root / "AGENTS.md"
     if not agents.is_file():
-        return []
+        return {}
     try:
         text = agents.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeDecodeError):
-        return []
+        return {}
+    return parse_command_areas(text)
+
+
+def _canonical_command_list(root: Path) -> list[tuple[str, str]]:
+    """Flat (label, command) view across every area (legacy callers/tests)."""
     commands: list[tuple[str, str]] = []
-    for line in text.splitlines():
-        m = re.match(r"^\s*-\s*(Build|Test|Lint)\s*:\s*(.+)$", line.strip())
-        if m and m.group(2).strip() != "<command>":
-            commands.append((m.group(1), m.group(2).strip()))
+    for area in _canonical_command_areas(root).values():
+        commands.extend(area["commands"])
     return commands
 
 
@@ -885,8 +912,15 @@ def _canonical_commands(root: Path) -> tuple[bool, str]:
     agents = root / "AGENTS.md"
     if not agents.is_file():
         return False, "AGENTS.md missing"
-    if not _canonical_command_list(root):
+    areas = _canonical_command_areas(root)
+    if not areas:
         return False, "AGENTS.md Build/Test/Lint commands are placeholders"
+    empty = [name for name, data in areas.items() if not data["commands"]]
+    if empty:
+        return (
+            False,
+            "area(s) declare no Build/Test/Lint command: " + ", ".join(empty),
+        )
     return True, ""
 
 
@@ -939,7 +973,7 @@ def _branch_possible(root: Path) -> tuple[bool, str]:
 
 
 def doctor(spec: Path) -> list[str]:
-    """The 9 ordered per-spec preconditions.
+    """The 10 ordered per-spec preconditions.
 
     Returns the named list of gaps (empty when all preconditions hold);
     ``PRECONDITIONS OK`` is the caller's success output.
@@ -985,7 +1019,25 @@ def doctor(spec: Path) -> list[str]:
     ok, detail = _branch_possible(root)
     if not ok:
         gaps.append("9: " + detail)
+    ok, detail = _docs_index_fresh(root)
+    if not ok:
+        gaps.append("10: " + detail)
     return gaps
+
+
+def _docs_index_fresh(root: Path) -> tuple[bool, str]:
+    """Precondition 10: docs/_topics.md matches a fresh rebuild (when docs/ exists)."""
+    if not (root / "docs").is_dir():
+        return True, ""
+    from mapgen import topics_index_is_fresh
+
+    fresh, path = topics_index_is_fresh(root)
+    if fresh:
+        return True, ""
+    return (
+        False,
+        f"{path} is stale - run `devagent map sync-docs --root .`",
+    )
 
 
 def _rerun_verify(root: Path, num: int, text: str) -> list[str]:
@@ -1071,7 +1123,10 @@ def report(spec: Path) -> Path:
             not_met.append(f"Task {task['num']}")
             continue
         derived = status(tf, root)
-        lines.append(f"- Task {task['num']}: {derived} ({tf.name})")
+        line = f"- Task {task['num']}: {derived} ({tf.name})"
+        if skills_unread(tf):
+            line += " [skills-unread]"
+        lines.append(line)
         if derived != "MET":
             not_met.append(f"Task {task['num']}")
     observations = _outcome_observations(root, num, text, tasks)
@@ -1102,11 +1157,13 @@ def cmd_run(args: argparse.Namespace) -> int:
     if not args.command:
         if args.suggest:
             print("suggest (no command run):")
-            commands = _canonical_command_list(find_root())
-            if not commands:
+            areas = _canonical_command_areas(find_root())
+            if not areas:
                 print("  (no canonical Build/Test/Lint commands in AGENTS.md)")
-            for label, cmd in commands:
-                print(f"  {label}: {cmd}")
+            for area, data in areas.items():
+                print(f"  [{area}]")
+                for label, cmd in data["commands"]:
+                    print(f"    {label}: {cmd}")
             return 0
         print(
             "error: no command - provide --command, or --suggest for canonical commands"
@@ -1286,6 +1343,11 @@ def cmd_status(args: argparse.Namespace) -> int:
     if task_file is not None:
         print("task: " + task_file.name)
         print("state: " + status(task_file, root))
+        if skills_unread(task_file):
+            print(
+                'warning: skills-unread - the "read every skill" Progress item is '
+                "unticked (out of contract)"
+            )
         return 0
     state = read_state(args.state_dir)
     task = state["tasks"].get(
@@ -1371,6 +1433,27 @@ def cmd_report(args: argparse.Namespace) -> int:
         token = _status_token(spec)
         if token in ("BUILDING", "BUILT"):
             _set_spec_status(spec, "REVIEWED")
+    # Keep the generated indexes in step with the state this report records:
+    # the specs README shows the current status, docs/_topics.md reflects docs/.
+    from mapgen import sync_docs
+
+    from specs import sync_specs_readme
+
+    sync_specs_readme(root)
+    if (root / "docs").is_dir():
+        sync_docs(root)
+    unread = [
+        t["num"]
+        for t in tasks
+        if (tf := task_file_for(root, num, f"Task {t['num']}")) is not None
+        and skills_unread(tf)
+    ]
+    if unread:
+        print(
+            "warning: skills-unread in Task "
+            + ", Task ".join(str(n) for n in unread)
+            + ' - the "read every skill" Progress item is unticked (out of contract)'
+        )
     path = report(spec)
     print("report: " + str(path))
     if missing:
@@ -1384,11 +1467,17 @@ def cmd_report(args: argparse.Namespace) -> int:
 
 def cmd_detect(args: argparse.Namespace) -> int:
     root = args.root
+    found: list[str] = []
     for manifest, framework in FRAMEWORK_MANIFESTS:
         if (root / manifest).is_file():
+            found.append(framework)
+    if found:
+        # Print every detected framework so a mixed-stack repo is not
+        # mislabeled by whichever manifest happened to sort first.
+        for framework in found:
             print("framework: " + framework)
             print("reference: references/frameworks/" + framework + ".md")
-            return 0
+        return 0
     print("framework: none")
     print("reference: (no framework page - ask Socratically or use AGENTS.md Commands)")
     return 0
@@ -1469,7 +1558,9 @@ def main() -> int:
     detect_p.add_argument("--root", type=Path, default=Path.cwd())
     detect_p.set_defaults(func=cmd_detect)
 
-    doctor_p = sub.add_parser("doctor", help="run the 9 ordered per-spec preconditions")
+    doctor_p = sub.add_parser(
+        "doctor", help="run the 10 ordered per-spec preconditions"
+    )
     doctor_p.add_argument(
         "--spec",
         required=True,

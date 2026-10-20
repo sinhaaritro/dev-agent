@@ -85,7 +85,7 @@ class TestBTocRepoRoot(SandboxTestCase):
             encoding="utf-8",
         )
         (self.root / "specs").mkdir()
-        (self.root / "specs" / "001-sandbox-feature.md").write_text(
+        (self.root / "specs" / "001-SPEC-sandbox-feature.md").write_text(
             "---\ntags: [sandbox]\n---\n\n# 001: Sandbox Feature\n\nStatus: APPROVED\n",
             encoding="utf-8",
         )
@@ -95,7 +95,7 @@ class TestBTocRepoRoot(SandboxTestCase):
         self.assert_indexes_written()
         specs_readme = (self.root / "specs" / "README.md").read_text(encoding="utf-8")
         self.assertIn(
-            "001-sandbox-feature.md",
+            "001-SPEC-sandbox-feature.md",
             specs_readme,
             "specs index was not written to specs/README.md",
         )

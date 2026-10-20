@@ -24,11 +24,21 @@ The critic never edits anything. It returns exactly one verdict.
    missing caller, schema, or config.
 3. **Tasks.** Each task has Target Files, `Depends On`, `Verify`/`Expect`;
    the DAG is acyclic and ordered; oracles can actually fail.
-4. **Outcomes.** Every `R#` is delivered by at least one task and is observable.
-5. **Risks.** Section 3 names the real risks/open questions, not boilerplate.
-6. **Rollback.** Section 8 is executable for this change.
-7. **Guardrails.** No protected file (`.env*`, lockfiles, `specs/*`) is edited
-   without explicit human confirmation; no topic reversal is silent.
+4. **Area & skills.** In a multi-area project every task names a declared `Area:`;
+   every declared/inherited skill resolves to an installed `SKILL.md` and is the
+   right domain skill (never a framework-process skill as build guidance).
+5. **Hazards.** Walk the task-authoring hazard checklist: caller closure on a
+   signature change (every caller owned, or `Compatibility: shim` with a visible
+   follow-up), shared mutable state, schema/migration atomicity, generated artifacts,
+   cross-file renames, new lockfile ownership, build-tree collisions, duplicated
+   sources of truth, shared fixtures, and name-keyed registries. Each hazard either
+   stays inside one task or gets an explicit `Depends On` edge.
+6. **Outcomes.** Every `R#` is delivered by at least one task and is observable.
+7. **Risks.** Section 3 names the real risks/open questions, not boilerplate.
+8. **Rollback.** Section 8 is executable for this change.
+9. **Guardrails.** No protected file (`.env*`, lockfiles, `specs/*`) is edited
+   without explicit human confirmation; no topic reversal is silent; a
+   `shim` compatibility has a named removal task.
 
 ## Verdict
 

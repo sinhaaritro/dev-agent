@@ -13,6 +13,8 @@ import re
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -468,10 +470,45 @@ class TestCompilePurgeSyncAccept(unittest.TestCase):
             "---\ntags: [sandbox]\n---\n\n# 009: Sandbox Group\n\nStatus: REVIEWED\n",
             encoding="utf-8",
         )
+        report = self.root / "specs" / "009-REPORT-sandbox-group.md"
+        report.write_text("# REPORT - 009\n\nReview: PASS\n", encoding="utf-8")
         promote_spec.accept_spec(self.spec, self.root)
         text = self.spec.read_text(encoding="utf-8")
         self.assertRegex(text, r"(?m)^Status:\s*COMPLETED")
         self.assertRegex(text, r"(?m)^Done: \d{4}-\d{2}-\d{2}\s*$")
+
+    def test_accept_requires_reviewed(self):
+        self.spec.write_text(
+            "---\ntags: [sandbox]\n---\n\n# 009: Sandbox Group\n\nStatus: BUILT\n",
+            encoding="utf-8",
+        )
+        report = self.root / "specs" / "009-REPORT-sandbox-group.md"
+        report.write_text("# REPORT - 009\n\nReview: PASS\n", encoding="utf-8")
+        with self.assertRaises(SystemExit) as ctx:
+            promote_spec.accept_spec(self.spec, self.root)
+        self.assertIn("REVIEWED", str(ctx.exception))
+
+    def test_accept_requires_green_report(self):
+        self.spec.write_text(
+            "---\ntags: [sandbox]\n---\n\n# 009: Sandbox Group\n\nStatus: REVIEWED\n",
+            encoding="utf-8",
+        )
+        with self.assertRaises(SystemExit) as ctx:
+            promote_spec.accept_spec(self.spec, self.root)
+        self.assertIn("NNN-REPORT", str(ctx.exception))
+
+    def test_accept_rejects_failed_report(self):
+        self.spec.write_text(
+            "---\ntags: [sandbox]\n---\n\n# 009: Sandbox Group\n\nStatus: REVIEWED\n",
+            encoding="utf-8",
+        )
+        report = self.root / "specs" / "009-REPORT-sandbox-group.md"
+        report.write_text(
+            "# REPORT - 009\n\nReview: FAIL (not MET)\n", encoding="utf-8"
+        )
+        with self.assertRaises(SystemExit) as ctx:
+            promote_spec.accept_spec(self.spec, self.root)
+        self.assertIn("green NNN-REPORT", str(ctx.exception))
 
 
 class TestTargetFilesPerTask(unittest.TestCase):
@@ -740,6 +777,228 @@ class TagScopeTest(unittest.TestCase):
             text = topic.read_text(encoding="utf-8")
             self.assertIn("sessions", text)
             self.assertNotIn("cookies", text)
+
+
+class TaskContractRenderTest(unittest.TestCase):
+    """C2/D10: rendered task files carry the real skills and the read item."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory(prefix="contract-render-")
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        self.spec = make_group_sandbox(self.root)
+
+    def add_skill(self, name: str) -> None:
+        d = self.root / ".agents" / "skills" / name
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "SKILL.md").write_text(
+            f"---\nname: {name}\ndescription: d\ntags:\n  - x\n---\n", encoding="utf-8"
+        )
+
+    def task_text(self, num: int) -> str:
+        files = sorted((self.root / "specs").glob(f"009-TASK-{num:02d}-*"))
+        self.assertEqual(len(files), 1)
+        return files[0].read_text(encoding="utf-8")
+
+    def test_renders_declared_skill_with_its_path_and_read_item(self):
+        self.add_skill("astro-framework")
+        text = self.spec.read_text(encoding="utf-8").replace(
+            "- Target Files: [MODIFY] src/sandbox.py\n- Depends On: None\n",
+            "- Target Files: [MODIFY] src/sandbox.py\n"
+            "- Depends On: None\n"
+            "- Skills: astro-framework\n",
+        )
+        self.spec.write_text(text, encoding="utf-8")
+        promote_spec.compile_spec(self.spec, self.root)
+        rendered = self.task_text(1)
+        self.assertIn(
+            "- astro-framework (.agents/skills/astro-framework/SKILL.md)", rendered
+        )
+        self.assertIn('- [ ] read every skill under "Skills to use"', rendered)
+        # the old hardcoded spec-builder skill is gone
+        self.assertNotIn("spec-builder", rendered)
+        self.assertNotIn("## Upstream interfaces", rendered)
+        # Task 2 declares no skills -> no Skills section, no read item
+        other = self.task_text(2)
+        self.assertNotIn("## Skills to use", other)
+        self.assertNotIn("read every skill", other)
+
+    def test_area_skills_are_inherited(self):
+        self.add_skill("astro-framework")
+        (self.root / "AGENTS.md").write_text(
+            "## Commands\n\n"
+            "### astro-site\n"
+            "- Build: npm run build\n"
+            "- Test: npm test\n"
+            "- Skills: astro-framework\n\n"
+            "### python-scripts\n"
+            "- Build: python -m compileall .\n"
+            "- Test: python -m unittest\n",
+            encoding="utf-8",
+        )
+        text = (
+            self.spec.read_text(encoding="utf-8")
+            .replace(
+                "- Target Files: [MODIFY] src/sandbox.py\n- Depends On: None\n",
+                "- Target Files: [MODIFY] src/sandbox.py\n"
+                "- Depends On: None\n"
+                "- Area: astro-site\n",
+            )
+            .replace(
+                "- Target Files: [NEW] src/app.py\n- Depends On: Task 1\n",
+                "- Target Files: [NEW] src/app.py\n"
+                "- Depends On: Task 1\n"
+                "- Area: python-scripts\n",
+            )
+        )
+        self.spec.write_text(text, encoding="utf-8")
+        promote_spec.compile_spec(self.spec, self.root)
+        self.assertIn(
+            "astro-framework (.agents/skills/astro-framework/SKILL.md)",
+            self.task_text(1),
+        )
+        self.assertNotIn("## Skills to use", self.task_text(2))
+
+    def test_compile_refuses_an_unresolvable_skill(self):
+        text = self.spec.read_text(encoding="utf-8").replace(
+            "- Target Files: [MODIFY] src/sandbox.py\n- Depends On: None\n",
+            "- Target Files: [MODIFY] src/sandbox.py\n"
+            "- Depends On: None\n"
+            "- Skills: missing-skill\n",
+        )
+        self.spec.write_text(text, encoding="utf-8")
+        buf = StringIO()
+        with redirect_stdout(buf), self.assertRaises(SystemExit):
+            promote_spec.compile_spec(self.spec, self.root)
+        self.assertIn("missing-skill", buf.getvalue())
+        self.assertFalse(list((self.root / "specs").glob("009-TASK-*")))
+
+
+class TaskLintTest(unittest.TestCase):
+    """Area and contract-closure lints fail the check gate."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory(prefix="task-lint-")
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        self.spec = make_group_sandbox(self.root)
+        (self.root / "AGENTS.md").write_text(
+            "## Commands\n\n"
+            "### astro-site\n- Build: npm run build\n- Test: npm test\n\n"
+            "### python-scripts\n- Build: python -m compileall .\n"
+            "- Test: python -m unittest\n",
+            encoding="utf-8",
+        )
+
+    def test_multi_area_project_requires_area_per_task(self):
+        passed, _, violations = promote_spec.check_draft(self.spec, "A", self.root)
+        self.assertFalse(passed)
+        self.assertTrue(any("missing 'Area:'" in v for v in violations), violations)
+
+    def test_unknown_area_is_rejected(self):
+        text = self.spec.read_text(encoding="utf-8").replace(
+            "- Target Files: [MODIFY] src/sandbox.py\n- Depends On: None\n",
+            "- Target Files: [MODIFY] src/sandbox.py\n"
+            "- Depends On: None\n"
+            "- Area: nowhere\n",
+        )
+        self.spec.write_text(text, encoding="utf-8")
+        _, _, violations = promote_spec.check_draft(self.spec, "A", self.root)
+        self.assertTrue(
+            any("unknown 'Area:' 'nowhere'" in v for v in violations), violations
+        )
+
+    def test_contract_change_requires_every_caller_owned(self):
+        text = (
+            self.spec.read_text(encoding="utf-8")
+            .replace(
+                "- Target Files: [MODIFY] src/sandbox.py\n- Depends On: None\n",
+                "- Target Files: [MODIFY] src/sandbox.py\n"
+                "- Depends On: None\n"
+                "- Area: python-scripts\n"
+                "- Contract Changes: src/sandbox.py\n"
+                "- Callers: src/app.py\n",
+            )
+            .replace(
+                "- Target Files: [NEW] src/app.py\n- Depends On: Task 1\n",
+                "- Target Files: [NEW] src/app.py\n"
+                "- Depends On: Task 1\n"
+                "- Area: python-scripts\n",
+            )
+        )
+        self.spec.write_text(text, encoding="utf-8")
+        _, _, violations = promote_spec.check_draft(self.spec, "A", self.root)
+        self.assertTrue(
+            any(
+                "caller 'src/app.py' is not in this task's Target Files" in v
+                for v in violations
+            ),
+            violations,
+        )
+
+    def test_shim_compatibility_waives_caller_closure(self):
+        text = (
+            self.spec.read_text(encoding="utf-8")
+            .replace(
+                "- Target Files: [MODIFY] src/sandbox.py\n- Depends On: None\n",
+                "- Target Files: [MODIFY] src/sandbox.py\n"
+                "- Depends On: None\n"
+                "- Area: python-scripts\n"
+                "- Contract Changes: src/sandbox.py\n"
+                "- Compatibility: shim\n",
+            )
+            .replace(
+                "- Target Files: [NEW] src/app.py\n- Depends On: Task 1\n",
+                "- Target Files: [NEW] src/app.py\n"
+                "- Depends On: Task 1\n"
+                "- Area: python-scripts\n",
+            )
+        )
+        self.spec.write_text(text, encoding="utf-8")
+        passed, _, violations = promote_spec.check_draft(self.spec, "A", self.root)
+        self.assertTrue(passed, violations)
+
+
+class SpecsIndexFilterTest(unittest.TestCase):
+    """specs/README.md indexes groups only (SPEC/REPORT/ESCALATION)."""
+
+    def test_task_files_and_approvals_are_not_indexed(self):
+        with tempfile.TemporaryDirectory(prefix="toc-filter-") as tmp:
+            root = Path(tmp)
+            specs = root / "specs"
+            specs.mkdir()
+            (root / "AGENTS.md").write_text("# a\n", encoding="utf-8")
+            for name in (
+                "001-SPEC-alpha.md",
+                "001-TASK-01-alpha.md",
+                "001-APPROVALS-alpha.json",
+                "001-REPORT-alpha.md",
+                "001-ESCALATION-alpha.md",
+                "002-A01.md",
+                "002-SPEC-beta.md",
+            ):
+                (specs / name).write_text(
+                    "# " + name + "\n\nStatus: DRAFTED\n", encoding="utf-8"
+                )
+            promote_spec.sync_specs_readme(root)
+            readme = (specs / "README.md").read_text(encoding="utf-8")
+            self.assertIn("001-SPEC-alpha.md", readme)
+            self.assertIn("001-REPORT-alpha.md", readme)
+            self.assertIn("001-ESCALATION-alpha.md", readme)
+            self.assertIn("002-A01.md", readme)
+            self.assertIn("002-SPEC-beta.md", readme)
+            self.assertNotIn("001-TASK-01-alpha.md", readme)
+            self.assertNotIn("001-APPROVALS-alpha.json", readme)
+            # within one NNN: SPEC -> REPORT -> ESCALATION
+            spec_pos = readme.index("001-SPEC-alpha.md")
+            report_pos = readme.index("001-REPORT-alpha.md")
+            escal_pos = readme.index("001-ESCALATION-alpha.md")
+            self.assertLess(spec_pos, report_pos)
+            self.assertLess(report_pos, escal_pos)
+            # a sub-ID sorts before its parent NNN's named companions
+            self.assertLess(
+                readme.index("002-A01.md"), readme.index("002-SPEC-beta.md")
+            )
 
 
 if __name__ == "__main__":

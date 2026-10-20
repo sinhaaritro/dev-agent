@@ -163,8 +163,74 @@ class ParseFrontMatterTest(MapBase):
         self.assertEqual(fields["description"], "does things")
         self.assertEqual(fields["tags"], ["one", "two"])
 
+    def test_nested_block_does_not_leak_its_last_line(self):
+        fields = gen.parse_front_matter(
+            "---\n"
+            "name: alpha\n"
+            "metadata:\n"
+            "  version: 1.0.0\n"
+            "  tags: astro, islands\n"
+            "scope: always\n"
+            "---\n# x\n"
+        )
+        self.assertEqual(fields["metadata"]["tags"], "astro, islands")
+        # the nested line must not reappear as a top-level key
+        self.assertNotIn("tags", fields)
+        self.assertEqual(fields["scope"], "always")
+
     def test_sanitize_ascii_maps_punctuation(self):
         self.assertEqual(gen.sanitize_ascii("a \u2014 b \u2192 c"), "a - b -> c")
+
+
+class TagNormalizationTest(MapBase):
+    """The single normalizer accepts every shape a third-party skill may ship."""
+
+    def add_raw_skill(self, name, frontmatter: str):
+        d = self.root / ".agents" / "skills" / name
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "SKILL.md").write_text(
+            "---\nname: " + name + "\ndescription: d\n" + frontmatter + "---\n\n# S\n",
+            encoding="utf-8",
+        )
+        return d / "SKILL.md"
+
+    def test_every_accepted_shape_normalizes_to_the_same_tags(self):
+        cases = {
+            "dash-list": "tags:\n  - astro\n  - islands\n",
+            "inline-list": "tags: [astro, islands]\n",
+            "comma-string": "tags: astro, islands\n",
+            "nested-metadata": "metadata:\n  tags: astro, islands\n",
+            "trigger-tags": "trigger_tags: astro, islands\n",
+            "keywords-list": "keywords:\n  - astro\n  - islands\n",
+        }
+        for name, fm in cases.items():
+            self.add_raw_skill(name, fm)
+        self.run_main()
+        text = self.map_text()
+        for name in cases:
+            line = next(ln for ln in text.splitlines() if f"**{name}**" in ln)
+            self.assertIn("Use when: `astro`, `islands`", line, name)
+
+    def test_skill_without_tags_stays_on_demand(self):
+        self.add_raw_skill("plain", "scope: on-demand\n")
+        self.run_main()
+        line = next(ln for ln in self.map_text().splitlines() if "**plain**" in ln)
+        self.assertIn("*On-demand*", line)
+
+    def test_every_shipped_skill_normalizes_via_top_level_tags(self):
+        sys.path.insert(0, str(RUNTIME))
+        from common.frontmatter import parse_front_matter
+        from common.skillmeta import normalize_tags
+
+        skills = sorted((REPO / "skills").glob("*/SKILL.md"))
+        self.assertTrue(skills, "no shipped skills found")
+        for path in skills:
+            fields = parse_front_matter(path.read_text(encoding="utf-8"))
+            tags = normalize_tags(fields)
+            self.assertTrue(tags, f"{path} has no normalizable tags")
+            self.assertIsInstance(
+                fields.get("tags"), list, f"{path} must use top-level tags list"
+            )
 
 
 if __name__ == "__main__":

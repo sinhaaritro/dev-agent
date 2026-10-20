@@ -12,7 +12,15 @@ A **task file** is the coder's own working file for exactly one task: `NNN-TASK-
 
 ### Shape
 
-Each task file carries: a **Role & rules** block (implement exactly this task, obey the given signatures, never commit / never plan / never expand scope / never touch files not Owned); a **Project overview** (1-2 lines; the global task list is *not* copied here); **Owns** (the files this task may write); **Reads / Context** (read-only context); and a **`### Progress`** subtask checklist. The **evidence block** (written by the runtime's `verify` command on a green verify) is appended to the task file.
+Each task file carries: a **Role & rules** block (implement exactly this task, obey the given signatures, never commit / never plan / never expand scope / never touch files not Owned, read every listed skill first); a **Project overview** (1-2 lines; the global task list is *not* copied here); **Owns** (the files this task may write); **Reads / Context** (read-only context); an optional **Skills to use** (one line per skill: `- <name> (.agents/skills/<name>/SKILL.md)`, rendered from the task's `Skills:` or its `Area:`'s skills); an optional **Contract changes** block (the changed interface, `breaking` vs `shim`, and the owned callers); and a **`### Progress`** subtask checklist whose first item is `read every skill under "Skills to use"` when skills are listed. The **evidence block** (written by the runtime's `verify` command on a green verify) is appended to the task file.
+
+### Skills are rendered, not hardcoded
+
+Compile resolves each declared/inherited skill to an existing `.agents/skills/<name>/SKILL.md`; an unresolvable name is a **fatal** compile error, never a dangling name. `## Role & rules` and `building.md` both require the coder to read every listed skill before implementing. The engine does not hard-gate that read: `verify status` prints a `skills-unread` warning and `verify report` marks the task line `[skills-unread]` when the Progress item is unticked, so a skipped read is visible in the audit instead of passing silently (TASK-FILES-D03).
+
+### Contract changes and the hazard checklist
+
+A section-5 task that changes an exported signature/behavior declares `Contract Changes:` and lists every `Callers:`; the engine fails the plan unless each caller is in that task's `Target Files` (or `Compatibility: shim` is declared). This is one instance of the broader authoring hazard checklist (caller closure, shared mutable state, schema/migration atomicity, generated artifacts, cross-file renames, new-dependency lockfile ownership, build-tree collisions, duplicated sources of truth, shared fixtures, name-keyed registries) that planners walk in `implementation-plan-template.md` and critics walk in `vetting.md`. Mechanical checks stay in the engine; the hazard judgment stays with the author and the vetting critic.
 
 ### Ownership: one task file = one coder = one writer
 
@@ -35,3 +43,7 @@ A long build can be interrupted mid-way (a crash, a context limit, a human stepp
 ### TASK-FILES-D02 - Subtasks are the coder's own checklist, not a gate
 - **Date:** 2026-09-27
 - **Why:** The task's task-level `Verify` decides pass/fail; subtasks are just the internal step breakdown the coder ticks off because it owns the file. This avoids a second, redundant verification gate and keeps the task sized for a 32k context.
+
+### TASK-FILES-D03 - Skills are resolved at compile and the read is audited, not hard-gated
+- **Date:** 2026-10-20
+- **Why:** The old hardcoded `## Skills to use` → `spec-builder` named the one skill that must not run during build. Compile now renders the task's declared `Skills:` (else its `Area:`'s skills) with the installed `SKILL.md` path and refuses an unresolvable name, so the briefing is actionable. The mandatory read item is enforced by visibility (`skills-unread` in status/report) rather than a hard gate, because a build gate that blocks on a checkbox would be trivially gamed and would fail closed on a coder that read the skill but forgot to tick; the audit line keeps the omission truthful.
