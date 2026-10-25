@@ -81,7 +81,7 @@ Modes:
               Exit 0 (or 2 when --spec cannot be resolved).
 
     doctor   devagent verify doctor --spec <ref> [--root <dir>]
-              Run the 10 ordered per-spec preconditions:
+              Run the 11 ordered per-spec preconditions:
               repo root resolved; engine scripts importable; state files
               parseable; the spec is Status: COMPILED/BUILDING (canonical);
               a task file
@@ -92,7 +92,8 @@ Modes:
               command); a branch can be created
               off the default branch
               (main/master); when docs/ exists, the generated docs/_topics.md
-              is fresh (`map sync-docs --check`). <ref> is a spec number ('003' / '3'), a file name,
+              is fresh (`map sync-docs --check`); no durable file references a
+              framework spec/decision ID (`spec specs-lint`). <ref> is a spec number ('003' / '3'), a file name,
               a relative path, or an absolute path. Prints PRECONDITIONS
               OK on success, else a named list of gaps + exit 1.
 
@@ -102,7 +103,8 @@ Modes:
               status (derived from each task file's evidence block), the R#
               outcome observations (one line each; a missing observation fails
               review), and the Review re-run result. A green report (every task
-              MET and every R# observed) advances BUILDING/BUILT to REVIEWED
+              MET, every R# observed, no dangling framework ref) advances
+              BUILDING/BUILT to REVIEWED
               (review owner) and refreshes specs/README.md + docs/_topics.md;
               a task whose skills were not read is marked [skills-unread].
               Exit 0; exit 1 when review fails (a task is not
@@ -973,7 +975,7 @@ def _branch_possible(root: Path) -> tuple[bool, str]:
 
 
 def doctor(spec: Path) -> list[str]:
-    """The 10 ordered per-spec preconditions.
+    """The 11 ordered per-spec preconditions.
 
     Returns the named list of gaps (empty when all preconditions hold);
     ``PRECONDITIONS OK`` is the caller's success output.
@@ -1022,7 +1024,33 @@ def doctor(spec: Path) -> list[str]:
     ok, detail = _docs_index_fresh(root)
     if not ok:
         gaps.append("10: " + detail)
+    ok, detail = _no_dangling_refs(root)
+    if not ok:
+        gaps.append("11: " + detail)
     return gaps
+
+
+def _dangling_refs(root: Path) -> list[tuple[str, int, str]]:
+    """Durable files that reference a framework spec/decision ID (specs-lint)."""
+    from specs import dangling_refs_for
+
+    return dangling_refs_for(root)
+
+
+def _no_dangling_refs(root: Path) -> tuple[bool, str]:
+    """Precondition 11: no durable file references a framework spec/decision ID."""
+    hits = _dangling_refs(root)
+    if not hits:
+        return True, ""
+    first_rel, first_line, _ = hits[0]
+    return (
+        False,
+        (
+            f"{len(hits)} dangling framework reference(s) "
+            f"(e.g. {first_rel}:{first_line})"
+            " - run `devagent spec specs-lint`"
+        ),
+    )
 
 
 def _docs_index_fresh(root: Path) -> tuple[bool, str]:
@@ -1139,11 +1167,16 @@ def report(spec: Path) -> Path:
     ]
     lines.extend(_rerun_verify(root, num, text))
     missing = [rid for rid, observed, _ in observations if not observed]
+    dangling = _dangling_refs(root)
     reasons = []
     if missing:
         reasons.append("missing " + ", ".join(missing))
     if not_met:
         reasons.append("not MET: " + ", ".join(not_met))
+    if dangling:
+        reasons.append(
+            f"{len(dangling)} dangling framework ref(s) - run `devagent spec specs-lint`"
+        )
     lines += [
         "",
         "Review: " + ("PASS" if not reasons else "FAIL (" + "; ".join(reasons) + ")"),
@@ -1429,7 +1462,8 @@ def cmd_report(args: argparse.Namespace) -> int:
         if not observed
     ]
     all_met = _all_tasks_met(root, spec)
-    if all_met and not missing:
+    dangling = _dangling_refs(root)
+    if all_met and not missing and not dangling:
         token = _status_token(spec)
         if token in ("BUILDING", "BUILT"):
             _set_spec_status(spec, "REVIEWED")
@@ -1461,6 +1495,13 @@ def cmd_report(args: argparse.Namespace) -> int:
         return 1
     if not all_met:
         print("review FAILED: not every task is MET")
+        return 1
+    if dangling:
+        first_rel, first_line, _ = dangling[0]
+        print(
+            f"review FAILED: {len(dangling)} dangling framework reference(s) "
+            f"(e.g. {first_rel}:{first_line}) - run `devagent spec specs-lint`"
+        )
         return 1
     return 0
 
@@ -1559,7 +1600,7 @@ def main() -> int:
     detect_p.set_defaults(func=cmd_detect)
 
     doctor_p = sub.add_parser(
-        "doctor", help="run the 10 ordered per-spec preconditions"
+        "doctor", help="run the 11 ordered per-spec preconditions"
     )
     doctor_p.add_argument(
         "--spec",

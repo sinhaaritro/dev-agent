@@ -318,6 +318,48 @@ def _managed_block(framework: str) -> str:
     return BLOCK_BEGIN + "\n" + framework.strip("\n") + "\n" + BLOCK_END
 
 
+def _plan_block(existing: str | None, template: str) -> tuple[str, str]:
+    """Return ``(status, full_text)`` for the ``AGENTS.md`` managed block.
+
+    An existing block is **never replaced wholesale**: only the framework
+    contract (from ``FRAMEWORK_HEADING`` down) is refreshed, so a project
+    scaffold that was filled in inside the markers survives a re-run. A block
+    that holds project content but no contract heading is left untouched.
+    """
+    scaffold, framework = _split_template(template)
+    contract = framework.strip("\n")
+    block = _managed_block(framework)
+    if existing is None:
+        body = scaffold.rstrip("\n")
+        text = (body + "\n\n" if body else "") + block + "\n"
+        return "new", text
+    span = _managed_block_span(existing)
+    if span is not None:
+        start, end = span
+        if existing[start:end] == block:
+            return "ok", existing
+        inner = existing[start + len(BLOCK_BEGIN) : end - len(BLOCK_END)]
+        if contract and contract in inner:
+            at = inner.index(contract)
+            new_inner = inner[:at] + contract + inner[at + len(contract) :]
+        else:
+            at = inner.find(FRAMEWORK_HEADING)
+            if at == -1:
+                # Project-owned block (no contract): never overwrite it.
+                return "ok", existing
+            new_inner = inner[:at] + contract
+        new_block = BLOCK_BEGIN + new_inner + BLOCK_END
+        if new_block == existing[start:end]:
+            return "ok", existing
+        return "update", existing[:start] + new_block + existing[end:]
+    if contract and contract in existing:
+        # Legacy unmarked contract: adopt the same text in place.
+        at = existing.index(contract)
+        return "update", existing[:at] + block + existing[at + len(contract) :]
+    body = existing.rstrip("\n")
+    return "append", (body + "\n\n" if body else "") + block + "\n"
+
+
 def plan_seeds(skill_root: Path, target: Path) -> list:
     results = []  # (seed_rel, dest_rel, status)
     for seed_rel, dest_rel in SEED_FILES:
@@ -343,42 +385,19 @@ def plan_seeds(skill_root: Path, target: Path) -> list:
 def _block_status(src: Path, dst: Path) -> str:
     """Decide how the framework contract relates to the file already on disk."""
     existing = dst.read_text(encoding="utf-8")
-    _scaffold, framework = _split_template(src.read_text(encoding="utf-8"))
-    block = _managed_block(framework)
-    span = _managed_block_span(existing)
-    if span is not None:
-        start, end = span
-        return "ok" if existing[start:end] == block else "update"
-    if framework.strip("\n") and framework.strip("\n") in existing:
-        # A repo seeded before markers existed: adopt the same text in place.
-        return "update"
-    return "append"
+    return _plan_block(existing, src.read_text(encoding="utf-8"))[0]
 
 
 def _write_managed_block(dst: Path, template: str) -> None:
-    """Write only the framework contract, appending or replacing in place.
+    """Write the framework contract, preserving anything else in the file.
 
     A new file gets the full template (project scaffold + contract). An existing
     file keeps its content untouched: a legacy unmarked contract is wrapped where
-    it already sits, and anything else gets the contract appended once.
+    it already sits, an existing managed block keeps its project content and
+    refreshes only the contract, and anything else gets the contract appended once.
     """
-    scaffold, framework = _split_template(template)
-    block = _managed_block(framework)
-    marker = framework.strip("\n")
-    existing = dst.read_text(encoding="utf-8") if dst.exists() else ""
-    span = _managed_block_span(existing)
-    if span is not None:
-        start, end = span
-        text = existing[:start] + block + existing[end:]
-    elif not dst.exists():
-        body = scaffold.rstrip("\n")
-        text = (body + "\n\n" if body else "") + block + "\n"
-    elif marker and marker in existing:
-        at = existing.index(marker)
-        text = existing[:at] + block + existing[at + len(marker) :]
-    else:
-        body = existing.rstrip("\n")
-        text = (body + "\n\n" if body else "") + block + "\n"
+    existing = dst.read_text(encoding="utf-8") if dst.exists() else None
+    _status, text = _plan_block(existing, template)
     dst.write_text(text, encoding="utf-8")
 
 

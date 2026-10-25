@@ -252,6 +252,22 @@ DANGLING_REF_RE = re.compile(r"\b(?:spec\s+00\d|ADR-\d+)\b", re.IGNORECASE)
 # the one-way rule still skips it because those are shipped workflow docs.
 DANGLING_SKIP_DIRS = SPECS_LINT_SKIP_DIRS - {".agents"}
 
+# Compiled task files copy the spec's section 1 into '## Project overview'. That
+# section may name sibling specs by number, and a coder mirrors the briefing's
+# wording into durable files, where those IDs are dangling. Scrub the copy; the
+# spec itself may keep referencing other specs (it lives under specs/).
+OVERVIEW_SPECS_PATH_RE = re.compile(r"(?<![\w.-])specs/\S+")
+OVERVIEW_SPEC_ID_RE = re.compile(r"\bspecs?\s+00\d\b", re.IGNORECASE)
+OVERVIEW_DECISION_ID_RE = re.compile(r"\bADR-\d+\b", re.IGNORECASE)
+
+
+def scrub_spec_references(text: str) -> str:
+    """Neutralize spec IDs and ``specs/`` paths in prose copied out of ``specs/``."""
+    text = OVERVIEW_SPECS_PATH_RE.sub("the spec workspace", text)
+    text = OVERVIEW_SPEC_ID_RE.sub("an earlier spec", text)
+    text = OVERVIEW_DECISION_ID_RE.sub("an earlier decision", text)
+    return text
+
 
 def _unfailable_expect(verify: str, expect: str) -> str:
     """A static hint that a Verify/Expect oracle is trivially satisfied.
@@ -683,8 +699,12 @@ def _render_task_file(
 ) -> str:
     """Render one task file in the canonical shape (task-file-format.md)."""
     title = task["title"] or f"Task {task['num']}"
-    # Project overview: the spec's section 1 body (trimmed), or a fallback.
-    overview = section_body(spec_text, 1).strip() or "_(project overview)_"
+    # Project overview: the spec's section 1 body (trimmed), scrubbed of spec
+    # IDs and specs/ paths a coder could carry into durable files, or a fallback.
+    overview = (
+        scrub_spec_references(section_body(spec_text, 1).strip())
+        or "_(project overview)_"
+    )
     # Owns: this task's own section-5 'Target Files' (one file = one task = one
     # writer; the spec-level section 4 inventory is not copied into task files).
     owns_lines = [
@@ -2009,6 +2029,17 @@ def scan_dangling_refs(
     return hits
 
 
+def dangling_refs_for(root: Path) -> list[tuple[str, int, str]]:
+    """Framework-ref hits for this repo, product or consumer.
+
+    The product repo scans only the shipped ``skills/`` tree; a consumer scans
+    the whole repo (including the installed ``.agents/`` runtime and skills).
+    """
+    root = Path(root)
+    base = root / "skills" if is_framework_repo(root) else root
+    return scan_dangling_refs(base)
+
+
 def cmd_specs_lint(args: argparse.Namespace) -> int:
     root = args.root if args.root is not None else find_root()
     framework = is_framework_repo(root)
@@ -2017,10 +2048,9 @@ def cmd_specs_lint(args: argparse.Namespace) -> int:
             "specs-ref: skipped (framework repo - the product describes specs/ by design)"
         )
         spec_hits: list[tuple[str, int, str]] = []
-        dangling = scan_dangling_refs(root / "skills")
     else:
         spec_hits = scan_specs_references(root)
-        dangling = scan_dangling_refs(root)
+    dangling = dangling_refs_for(root)
 
     failed = False
     if not framework:

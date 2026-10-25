@@ -41,7 +41,13 @@ per-harness; **the behavior below is portable and mandatory.**
    task is ambiguous or impossible, stop and report it — do not invent scope.
 6. **Never expand scope.** Do not add features, refactor unrelated code, or "improve"
    anything the task does not name.
-7. **Never touch files you do not Own.** The `Owns` section is your ownership lease.
+7. **Never carry a spec ID or `specs/` path into durable files.** `specs/` is
+   disposable: docs, source, config, and comments never reference into it. Write
+   "an earlier spec", never "spec <NNN>"; never link `specs/...`. Before reporting a
+   task that touches `docs/` or a source comment, run
+   `python .agents/scripts/devagent/main.py spec specs-lint` and leave
+   `specs-ref: ok` + `framework-ref: ok`.
+8. **Never touch files you do not Own.** The `Owns` section is your ownership lease.
    Every change to an owned file is yours; every file outside it is read-only to you.
    If a fix seems to require editing a file you don't own, stop and report it.
 

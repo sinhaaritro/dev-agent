@@ -231,6 +231,20 @@ class DanglingFrameworkRefTest(SpecsLintBase):
         self.assertIn("framework-ref", proc.stdout)
 
 
+class ShippedProductTest(unittest.TestCase):
+    """The product must pass the gate it ships: no dangling refs under skills/."""
+
+    def test_shipped_skills_have_no_dangling_refs(self):
+        hits = promote_spec.scan_dangling_refs(REPO / "skills")
+        self.assertEqual(
+            hits,
+            [],
+            "shipped files reference framework spec/decision IDs:\n"
+            + "\n".join(f"{rel}:{lineno}: {line}" for rel, lineno, line in hits),
+        )
+        self.assertEqual(promote_spec.dangling_refs_for(REPO), [])
+
+
 class EncodingGuardTest(SpecsLintBase):
     def test_non_utf8_console_does_not_crash(self):
         write(

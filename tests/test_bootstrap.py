@@ -216,6 +216,43 @@ class AgentsMergeTest(BootstrapBase):
         self.assertNotIn("STALE EDIT", after)
         self.assertEqual(after.count("<!-- dev-agent:begin -->"), 1)
 
+    def test_project_scaffold_inside_the_block_survives_a_rerun(self):
+        self.setup_target()
+        agents = self.target / "AGENTS.md"
+        text = agents.read_text(encoding="utf-8")
+        # A project fills in its own scaffold inside the managed block.
+        filled = text.replace(
+            "<!-- dev-agent:begin -->\n# DEV AGENT",
+            "<!-- dev-agent:begin -->\n# Project - Zmaxing\n\nOur stack.\n\n# DEV AGENT",
+        )
+        self.assertNotEqual(filled, text)
+        agents.write_text(filled, encoding="utf-8")
+        proc = self.setup_target()
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        after = agents.read_text(encoding="utf-8")
+        self.assertIn("# Project - Zmaxing", after)
+        self.assertIn("Our stack.", after)
+        self.assertIn("Read `.agents/rules/dev-agent-framework.md`", after)
+        self.assertEqual(after.count("<!-- dev-agent:begin -->"), 1)
+        # The prefix is stable, so the next run is a clean no-op.
+        proc = self.setup_target()
+        self.assertIn("unchanged: AGENTS.md", proc.stdout)
+        self.assertEqual(agents.read_text(encoding="utf-8"), after)
+
+    def test_project_owned_block_is_never_wiped(self):
+        self.setup_target()
+        agents = self.target / "AGENTS.md"
+        project_only = (
+            "# Astro notes\n\n"
+            "<!-- dev-agent:begin -->\n# My project\n\nDo not lose me.\n"
+            "<!-- dev-agent:end -->\n"
+        )
+        agents.write_text(project_only, encoding="utf-8")
+        proc = self.setup_target()
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("unchanged: AGENTS.md", proc.stdout)
+        self.assertEqual(agents.read_text(encoding="utf-8"), project_only)
+
     def test_divergent_non_agents_seed_is_still_overwritten(self):
         (self.target / ".cursorrules").write_text("old rules\n", encoding="utf-8")
         proc = self.setup_target()

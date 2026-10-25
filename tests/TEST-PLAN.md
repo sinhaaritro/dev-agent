@@ -107,7 +107,7 @@ Location: `tests/*.py` · Runner: `python -m unittest discover -s tests -v`
 - **U1.12** `test_specs_lint.py`
   - **Given** docs/source that may reference `specs/` or the framework's own spec/decision IDs
   - **When** `specs-lint` runs
-  - **Then** inbound `specs/` links fail, dangling framework refs fail, workflow paths/outbound links pass, ignored/vendored trees are skipped, and the framework repo scans only its shipped `skills/`
+  - **Then** inbound `specs/` links and spec IDs in prose fail, dangling framework refs fail, workflow paths/outbound links pass, ignored/vendored trees are skipped, the framework repo scans only its shipped `skills/` (and they stay clean), and `verify doctor` / `verify report` refuse a repo with a dangling ref
 - **U1.13** `test_gate_labels.py`
   - **Given** a lane-A plan's section 6
   - **When** `check` lints it

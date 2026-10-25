@@ -34,6 +34,7 @@ Load when the compiled spec + task files exist (Step 1 complete; drafted.md sect
 - [ ] No unresolved blocking gate; fail-closed respected in non-interactive `supervised` sessions
 - [ ] Any NEW architectural decision surfaced during build recorded as a topic log entry only when the human asks; otherwise update the topic's Current State without a log entry (spec-builder instruction 5)
 - [ ] Any `docs/` edit was followed by `map sync-docs` (the generated `docs/_topics.md` must be fresh; `verify doctor` refuses a stale index)
+- [ ] No durable file references a spec ID or `specs/…` path: `spec specs-lint` reports `specs-ref: ok` and `framework-ref: ok` (doctor precondition 11; a red lint blocks REVIEWED)
 - [ ] If any task is `FAILED` or unmet, the response halts for hand-back — never reports "done"
 
 Proceed to `references/reviewed.md`.

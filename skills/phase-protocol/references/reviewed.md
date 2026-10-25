@@ -6,7 +6,8 @@ Load when the build is `BUILT` (all tasks `MET`). **Read-only - no more edits; r
 
 1. Review the full diff against the plan: no drift, no dead code, no debug leftovers.
 2. Re-check the affected surface: no protected files touched (`.env*`, credentials, lockfiles, `specs/*`), no unannounced schema/API/auth changes.
-3. Report audit: immediately before reporting, re-measure every completion claim and number — a fresh re-run of every task's `Verify` (old evidence is not re-execution) plus the canonical AGENTS.md Build/Test/Lint commands, confirm no task is unmet or `ABANDON`ed, and that no owner decision is still pending. A "done" report is never composed while any of those is open.
+3. Run `python .agents/scripts/devagent/main.py spec specs-lint`: `specs-ref: ok` and `framework-ref: ok`. A dangling spec ID or `specs/…` path in docs/source fails the review (`verify report` records it and refuses REVIEWED). Fix it by describing the decision, not the spec that made it.
+4. Report audit: immediately before reporting, re-measure every completion claim and number — a fresh re-run of every task's `Verify` (old evidence is not re-execution) plus the canonical AGENTS.md Build/Test/Lint commands, confirm no task is unmet or `ABANDON`ed, and that no owner decision is still pending. A "done" report is never composed while any of those is open.
 
 ## 2. Security & risk pass (Lane A mandatory, others advisable)
 

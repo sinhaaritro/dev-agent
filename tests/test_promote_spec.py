@@ -418,6 +418,23 @@ class TestCompilePurgeSyncAccept(unittest.TestCase):
         text = self.spec.read_text(encoding="utf-8")
         self.assertEqual(promote_spec.status_value(text), "COMPILED")
 
+    def test_compile_scrubs_spec_refs_from_task_overview(self):
+        text = self.spec.read_text(encoding="utf-8").replace(
+            "Sandbox group for the compile/purge/sync/accept subcommands.",
+            "Builds on spec 004 and the specs/004-SPEC-sandbox.md contract, see ADR-001.",
+        )
+        self.spec.write_text(text, encoding="utf-8")
+        promote_spec.compile_spec(self.spec, self.root)
+        task = next((self.root / "specs").glob("009-TASK-01-*.md"))
+        body = task.read_text(encoding="utf-8")
+        self.assertIn("an earlier spec", body)
+        self.assertIn("an earlier decision", body)
+        self.assertIn("the spec workspace", body)
+        self.assertNotRegex(body, promote_spec.DANGLING_REF_RE.pattern)
+        self.assertNotRegex(body, promote_spec.SPECS_REF_RE.pattern)
+        # the spec itself keeps its own wording (it lives under specs/)
+        self.assertIn("spec 004", self.spec.read_text(encoding="utf-8"))
+
     def test_compile_idempotent_compiled_stamp(self):
         promote_spec.compile_spec(self.spec, self.root)
         text_after_first = self.spec.read_text(encoding="utf-8")

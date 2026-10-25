@@ -17,7 +17,12 @@ is not written. It also writes pre-approvals for every task's verify command int
 `NNN-APPROVALS-<slug>.json` (committed with the group) and stamps `Status: COMPILED` on the spec.
 
 A task file is a **self-contained briefing** (copied, not referenced, so the coder never
-needs the full spec). Everything the coder might need is copied in.
+needs the full spec). Everything the coder might need is copied in. The `## Project
+overview` copy is **scrubbed**: spec numbers (`spec <NNN>`) become "an earlier spec",
+`ADR-<n>` becomes "an earlier decision", and `specs/...` paths become "the spec
+workspace" — a coder mirrors its briefing into durable files, where those IDs would be
+dangling. Write the spec's section 1 in prose the coder can reuse; never rely on it to
+carry a spec reference.
 
 ## Required headings (in order)
 
@@ -84,7 +89,7 @@ fast with a named list of gaps. Area: python-engine. Depends On: None.
 ## Verification
 Area: python-engine
 ```bash
-python .agents/scripts/devagent/main.py verify doctor --spec 003
+python .agents/scripts/devagent/main.py verify doctor --spec <NNN>-SPEC-<slug>.md
 ```
 **Expect:** `PRECONDITIONS OK`
 ````
