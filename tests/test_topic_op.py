@@ -1,10 +1,11 @@
 """Regression suite for the engine's Topic-Based ADR `topic` operation.
 
-Pins the topic contract: one doc per subsystem directly under docs/ with a
-'## Current State' + '## Decision Log' (ID subheadings), topic-global
-<TOPIC>-D<nn> IDs scanned across all folder sub-files, revision by
-supersede (never delete+recreate, never reuse an ID, Current State updated
-in place), and cross-topic revisions linked by Affects (primary) + Ref
+Pins the topic contract: one doc per subsystem directly under docs/, a normal
+document whose `##` body sections end in a `## Decision Log` (ID
+subheadings), topic-global <TOPIC>-D<nn> IDs scanned across all folder
+sub-files, revision by supersede (never delete+recreate, never reuse an ID,
+body replaced only through an explicit --body), legacy `## Current State`
+migration, and cross-topic revisions linked by Affects (primary) + Ref
 (reciprocal) heading anchors.
 
 Each test builds a sandbox repo under ``tempfile.TemporaryDirectory`` (an
@@ -101,7 +102,7 @@ def make_sandbox(tmp: Path) -> Path:
 
 
 def seed_topic(path: Path, name: str, entries: list[tuple[str, str]]) -> None:
-    """Write a minimal topic doc: frontmatter, state, log with the given entries.
+    """Write a minimal topic doc: frontmatter, body sections, log entries.
 
     ``entries`` is a list of (decision_id, title) pairs already carrying a
     Why/Date body so the file is contract-complete.
@@ -114,7 +115,7 @@ def seed_topic(path: Path, name: str, entries: list[tuple[str, str]]) -> None:
         "",
         f"# {name.capitalize()}",
         "",
-        "## Current State",
+        "## Overview",
         "",
         "Seeded state.",
         "",
@@ -195,8 +196,9 @@ class TopicOpTests(unittest.TestCase):
             self.assertTrue((docs / "auth.md").is_file())
             text = (docs / "auth.md").read_text(encoding="utf-8")
             self.assertIn("tags: [auth, session]", text)
-            self.assertIn("## Current State", text)
+            self.assertNotIn("## Current State", text)
             self.assertIn("## Decision Log", text)
+            self.assertIn("_(to be described)_", text)
             self.assertIn("### AUTH-D01 - Session cookies over JWT", text)
             self.assertIn("- **Why:** Cookies beat JWT for our session model", text)
 
@@ -220,7 +222,7 @@ class TopicOpTests(unittest.TestCase):
                     "Flat layout",
                     "--supersedes",
                     "FILE-D02",
-                    "--state",
+                    "--body",
                     "Flat layout, no nesting.",
                     "--docs-dir",
                     str(docs),
@@ -236,9 +238,10 @@ class TopicOpTests(unittest.TestCase):
             # the reversed entry stays, marked - never deleted
             self.assertIn("### FILE-D02 - Nested (superseded)", text)
             self.assertIn("### FILE-D01 - Initial layout", text)
-            # the Current State was updated in place
+            # the body was replaced wholesale
             self.assertIn("Flat layout, no nesting.", text)
             self.assertNotIn("Seeded state.", text)
+            self.assertNotIn("## Overview", text)
 
     def test_cross_topic_revision_writes_affects_and_ref(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -377,6 +380,143 @@ class TopicOpTests(unittest.TestCase):
                 "### SANDBOX-TOPIC-D01",
                 (docs / "sandbox-topic.md").read_text(encoding="utf-8"),
             )
+
+    def test_body_replaces_all_sections_but_keeps_log(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_sandbox(Path(tmp))
+            docs = root / "docs"
+            seed_topic(
+                docs / "file.md",
+                "file",
+                [("FILE-D01", "Initial layout"), ("FILE-D02", "Nested")],
+            )
+            path = docs / "file.md"
+            text = path.read_text(encoding="utf-8")
+            text = text.replace(
+                "## Overview\n\nSeeded state.",
+                "## Overview\n\nSeeded state.\n\n## Details\n\nMore prose.",
+            )
+            path.write_text(text, encoding="utf-8")
+
+            result = run(
+                [
+                    "topic",
+                    "file",
+                    "--why",
+                    "Rewrite the body",
+                    "--title",
+                    "New shape",
+                    "--body",
+                    "## New Shape\n\nFresh body.",
+                    "--docs-dir",
+                    str(docs),
+                ],
+                root,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+            after = path.read_text(encoding="utf-8")
+            self.assertIn("## New Shape", after)
+            self.assertIn("Fresh body.", after)
+            # --body is a wholesale replacement of every section
+            self.assertNotIn("## Overview", after)
+            self.assertNotIn("## Details", after)
+            self.assertNotIn("Seeded state.", after)
+            # the log is never part of the replaced region
+            self.assertIn("### FILE-D01 - Initial layout", after)
+            self.assertIn("### FILE-D02 - Nested", after)
+            self.assertIn("### FILE-D03 - New shape", after)
+            tail = after.split("## Decision Log", 1)[1]
+            self.assertIn("### FILE-D03 - New shape", tail)
+            self.assertFalse(
+                any(line.startswith("## ") for line in tail.splitlines()),
+                "the Decision Log must remain the last section",
+            )
+
+    def test_legacy_current_state_is_migrated(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_sandbox(Path(tmp))
+            docs = root / "docs"
+            docs.mkdir()
+            (docs / "auth.md").write_text(
+                "---\ntags: [auth]\n---\n\n"
+                "# Auth\n\n"
+                "## Current State\n\n"
+                "Intro paragraph.\n\n"
+                "### Mechanism\n\n"
+                "Cookies.\n\n"
+                "#### Detail\n\n"
+                "Opaque and server-side.\n\n"
+                "```text\n"
+                "## Current State\n\n"
+                "### Not a real section\n"
+                "```\n\n"
+                "## Decision Log\n\n"
+                "### AUTH-D01 - Cookies\n"
+                "- **Date:** 2026-01-01\n"
+                "- **Why:** Session fixation.\n",
+                encoding="utf-8",
+            )
+
+            result = run(
+                [
+                    "topic",
+                    "auth",
+                    "--why",
+                    "Keep cookies",
+                    "--title",
+                    "Cookies stay",
+                    "--docs-dir",
+                    str(docs),
+                ],
+                root,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+            text = (docs / "auth.md").read_text(encoding="utf-8")
+            # the wrapper is gone and its headings moved up one level
+            self.assertTrue(
+                text.startswith("---\ntags: [auth]\n---\n\n# Auth\n\nIntro paragraph.")
+            )
+            # the only surviving mention is inside the fenced example
+            self.assertEqual(text.count("## Current State"), 1)
+            self.assertIn("## Mechanism", text)
+            self.assertIn("### Detail", text)
+            self.assertNotIn("#### Detail", text)
+            # fenced code is not structure and is never rewritten
+            self.assertIn(
+                "```text\n## Current State\n\n### Not a real section\n```", text
+            )
+            # history survives and the new entry is appended
+            self.assertIn("### AUTH-D01 - Cookies", text)
+            self.assertIn("### AUTH-D02 - Cookies stay", text)
+
+    def test_content_after_decision_log_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_sandbox(Path(tmp))
+            docs = root / "docs"
+            seed_topic(docs / "file.md", "file", [("FILE-D01", "Initial layout")])
+            path = docs / "file.md"
+            path.write_text(
+                path.read_text(encoding="utf-8") + "\n## Appendix\n\nTrailing text.\n",
+                encoding="utf-8",
+            )
+            before = path.read_text(encoding="utf-8")
+
+            result = run(
+                [
+                    "topic",
+                    "file",
+                    "--why",
+                    "Should fail",
+                    "--docs-dir",
+                    str(docs),
+                ],
+                root,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("must be the last section", result.stdout + result.stderr)
+            self.assertEqual(path.read_text(encoding="utf-8"), before)
 
 
 if __name__ == "__main__":

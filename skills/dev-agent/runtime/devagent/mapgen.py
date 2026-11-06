@@ -140,24 +140,35 @@ def persona_entry(path: Path) -> tuple[str, str, str, str]:
 
 RESERVED_TOPIC_HEADINGS = ("Current State", "Decision Log")
 DECISION_HEADING_RE = re.compile(r"^[A-Z0-9-]+-D\d{2}\b")
+_FENCE_RE = re.compile(r"^\s*(```|~~~)")
 
 
 def _topic_headings(path: Path) -> list[str]:
     """H2 headings of one topic file, with the H3 decision-log fallback.
 
-    ``Current State`` and ``Decision Log`` are the contract sections, not
-    routing topics, so they are skipped. When a file carries no other ``##``
-    heading the deeper ``###`` headings are used instead - but the decision-log
-    entries themselves (``AUTH-D01`` style IDs) are never sections.
+    ``Decision Log`` is the contract section, not a routing topic, so it is
+    skipped. ``Current State`` is a legacy-only wrapper: new topic docs have
+    no such section, but skipping it keeps an un-migrated doc's index sane
+    (its content H3s still fall through). Fenced code blocks are ignored - a
+    ``## heading`` inside an example snippet is not a section. When a file
+    carries no other ``##`` heading the deeper ``###`` headings are used
+    instead - but the decision-log entries themselves (``AUTH-D01`` style
+    IDs) are never sections.
     """
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return []
     in_fm = 0
+    in_fence = False
     h2: list[str] = []
     h3: list[str] = []
     for line in text.splitlines():
+        if _FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
         if line.strip() == "---":
             in_fm = 1 - in_fm
             continue

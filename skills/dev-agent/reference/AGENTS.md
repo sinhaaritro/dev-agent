@@ -13,7 +13,7 @@
 - `src/` - application source code
 - `tests/` - test suite
 - `specs/` - what to build: approved specs with a single `Status:` lifecycle (`DRAFTED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED`) + `specs/temp/` (gitignored scratchpad)
-- `docs/` - what is + why we chose: topic docs, one per subsystem (decision log per topic; generated AI index at `_topics.md`); human landing page at `docs/README.md`. `README.md`, `_topics.md`, and underscore-prefixed names are reserved, not topics.
+- `docs/` - what is + why we chose: topic docs, one per subsystem (body sections plus a `Decision Log`; generated AI index at `_topics.md`); human landing page at `docs/README.md`. `README.md`, `_topics.md`, and underscore-prefixed names are reserved, not topics.
 - `.agents/` - machine space: `MAP.md` (generated skill index), `rules/`, `skills/`, `scripts/`
 
 ## Commands

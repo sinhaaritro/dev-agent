@@ -98,7 +98,13 @@
   path: docs/skill-discovery.md
   covers: discovery, indexing, map, skills, recall
   sections:
-    - Skills & Instructions
+    - The index: `.agents/MAP.md`
+    - Skill metadata: one extensible normalizer
+    - Freshness: snapshot hash, not timestamps
+    - Why MAP.md gates everything
+    - Recall stage 1: the `route` command
+    - Recall stage 2: judgment (agent)
+    - Adding a new skill (dynamic discovery)
 
 ## task-files.md
 

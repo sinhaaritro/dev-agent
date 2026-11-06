@@ -50,19 +50,15 @@ class SyncDocsTests(unittest.TestCase):
                 "\n"
                 "# Auth\n"
                 "\n"
-                "## Current State\n"
+                "## Session Flow\n"
                 "\n"
-                "State text.\n"
+                "Flow text.\n"
                 "\n"
                 "## Decision Log\n"
                 "\n"
                 "### AUTH-D01\n"
                 "\n"
-                "A decision.\n"
-                "\n"
-                "## Session Flow\n"
-                "\n"
-                "Flow text.\n",
+                "A decision.\n",
                 encoding="utf-8",
             )
             result = run(["sync-docs", "--root", str(root)], root)
@@ -86,7 +82,6 @@ class SyncDocsTests(unittest.TestCase):
             (docs / "auth.md").write_text(
                 "---\ntags: [auth]\n---\n\n"
                 "# Auth\n\n"
-                "## Current State\n\n"
                 "### Session Flow\n\n"
                 "Text.\n\n"
                 "## Decision Log\n\n"
@@ -98,6 +93,35 @@ class SyncDocsTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             out = (docs / "_topics.md").read_text(encoding="utf-8")
             self.assertIn("    - Session Flow", out)
+            self.assertNotIn("AUTH-D01", out)
+
+    def test_fenced_headings_are_not_sections(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            docs = root / "docs"
+            docs.mkdir()
+            (docs / "auth.md").write_text(
+                "---\ntags: [auth]\n---\n\n"
+                "# Auth\n\n"
+                "## Overview\n\n"
+                "Real section.\n\n"
+                "```text\n"
+                "## Skills & Instructions\n\n"
+                "### Example\n"
+                "```\n\n"
+                "## Decision Log\n\n"
+                "### AUTH-D01\n\n"
+                "A decision.\n",
+                encoding="utf-8",
+            )
+            result = run(["sync-docs", "--root", str(root)], root)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            out = (docs / "_topics.md").read_text(encoding="utf-8")
+            self.assertIn("    - Overview", out)
+            # a heading inside a fenced example is not a routing section
+            self.assertNotIn("Skills & Instructions", out)
+            self.assertNotIn("Example", out)
+            self.assertNotIn("Decision Log", out)
             self.assertNotIn("AUTH-D01", out)
 
     def test_topic_folder_lists_subfiles_with_covers_and_sections(self):

@@ -6,13 +6,11 @@ tags: [verification, verify, evidence, fingerprint, doctor, report, circuit-brea
 
 The verification authority during build: how verification commands are resolved, how per-task content-hash evidence makes completion **derived rather than asserted**, how a task is run to exhaustion (3 attempts), and how a consolidated escalation report produces a human hand-back. A failed spec parks `ESCALATED` (visible and resumable) — never a silent pass, never `ABORTED`.
 
-## Current State
-
 **Picture:** [flow.md](flow.md) — diagram 2, *Build run flow*.
 
 Verification runs through the shared dev-agent runtime — `python .agents/scripts/devagent/main.py verify` — with subcommands `run`, `approve`, `doctor`, `status`, `report`, and `escalate`. The core idea is that **completion is derived, not asserted**: a task is "done" only when the evidence on disk still matches reality.
 
-### Command source (resolution order)
+## Command source (resolution order)
 
 1. The task's **`Verify`** command (the spec's section 5 Tasks & Outcomes) is primary, with its `Expect` marker.
 2. If absent, the plan's **section 7 Verification Commands** for the task's `Area:`, then that area's commands in `AGENTS.md` (the canonical Build/Test/Lint). In a single-stack repo this is one implicit `default` area.
@@ -22,11 +20,11 @@ Never run another area's commands: `verify run --suggest` prints the canonical c
 
 When a project uses a non-default environment activator (venv, conda, `nvm use`), the project declares a `Run Prefix` line in `AGENTS.md`; detected canonical commands are prefixed with it. No prefix declared and no obvious global toolchain → ask.
 
-### Run from the repo root
+## Run from the repo root
 
 The runtime resolves the project root by walking up from the **current working directory** first (then the script location), using the nearest `AGENTS.md` as the marker. Commands run with `cwd = repo root`, so relative paths and the canonical AGENTS.md Build/Test/Lint commands resolve the same way a human runs them. This lets a self-contained sandbox (its own `AGENTS.md`) resolve to itself, not to a parent repo (VERIFY-D01). The runtime *install* it uses is discovered separately, by walking up from the CWD for `.agents/.devagent.json` — which is what lets a globally installed skill operate on the project it is run in.
 
-### Running through the engine (never bare)
+## Running through the engine (never bare)
 
 ```text
 python .agents/scripts/devagent/main.py verify run \
@@ -47,7 +45,7 @@ Exit codes: **0** green (evidence written, counter reset), **1** failed (retry r
 
 Optional at run time: `--hypothesis "<text>"` and `--options "<A (Recommended): ...; B: ...>"` — if the fix plan is ready, the escalation report is complete immediately.
 
-### Command approval (separate from plan approval)
+## Command approval (separate from plan approval)
 
 A `Verify` command is shell code written by the AI; approving the spec does not approve its commands.
 
@@ -57,11 +55,11 @@ A `Verify` command is shell code written by the AI; approving the spec does not 
 - Lanes C/D (or no `--lane`) are exempt.
 - Approvals travel with the spec group (committed as the group's companion), not per-session scratch.
 
-### Per-task evidence (content-hash based)
+## Per-task evidence (content-hash based)
 
 On a green `run` (exit 0 **and** the `Expect` marker present in the combined output), the engine writes an **evidence block** into the task file: `{command, exit, expect, matched, at, output_sha256}` plus the `sha256` of **every owned file**. This is the record that later lets a task's completion be *derived* rather than trusted (VERIFY-D03).
 
-### Derived status
+## Derived status
 
 `python .agents/scripts/devagent/main.py verify status --task <id>` reads the evidence block and reports:
 
@@ -74,7 +72,7 @@ On a green `run` (exit 0 **and** the `Expect` marker present in the combined out
 
 `<id>` is a task id (`007-Task 1`, `007-01`), a bare file name, a relative path, or an absolute path; a bare id that is ambiguous across specs is rejected with the candidate list, and `--spec <ref>` disambiguates it. Without a resolvable task file, `status` falls back to the retry ledger (`attempts`, `green`/`escalated`).
 
-### The per-task retry ledger (engine-owned counter)
+## The per-task retry ledger (engine-owned counter)
 
 The per-task attempt counter is engine state — **never hand-tracked, never hand-edited**. The durable completion record is the task file's evidence block.
 
@@ -84,11 +82,11 @@ The per-task attempt counter is engine state — **never hand-tracked, never han
 - The per-task ledger is ephemeral session state; the durable record (evidence block + the escalation record) is committed with the spec group.
 - `--state-dir` is for tests/evals only — sandbox runs must never point at the real state file.
 
-### The doctor (pre-flight)
+## The doctor (pre-flight)
 
 `python .agents/scripts/devagent/main.py verify doctor --spec <ref>` runs eleven ordered preconditions, in order: (1) repo root resolved; (2) engine scripts parseable; (3) state files parseable; (4) the spec is `Status: COMPILED` or `BUILDING`; (5) a task file exists for every task in section 5; (6) `Depends On` forms a valid DAG; (7) every task's verify command is pre-approved; (8) the canonical AGENTS.md commands resolve (every declared area has at least one Build/Test/Lint command); (9) a branch can be created off `main`/`master`; (10) when `docs/` exists, the generated `docs/_topics.md` is fresh (`map sync-docs --check`); (11) no durable file references a framework spec or legacy decision ID (`spec specs-lint`). Output: `PRECONDITIONS OK` on success, else a **named list of gaps** + non-zero exit (VERIFY-D04). These preconditions are enforced for **unattended** runs; an interactive run asks the human at the moment instead of halting. `<ref>` is a spec id (`003`), a file name, a relative path, or an absolute path — the same forms `report --spec <ref>` accepts.
 
-### Fixing like a doctor, not a gambler
+## Fixing like a doctor, not a gambler
 
 On each failure:
 
@@ -98,7 +96,7 @@ On each failure:
 
 This is what makes run-to-exhaustion meaningful: the count is real, the logs are verbatim, and the report is reviewable.
 
-### Escalation & the report
+## Escalation & the report
 
 When a task exhausts its 3 attempts and no unblocked task remains:
 
@@ -108,7 +106,7 @@ When a task exhausts its 3 attempts and no unblocked task remains:
 
 `python .agents/scripts/devagent/main.py verify report --spec <ref>` writes the per-spec `NNN-REPORT-<slug>.md` (the same spec-reference forms as `doctor`): the per-task derived status + evidence, the `R#` outcome observations (one line each — a missing observation **fails** review), and the review summary. An `R#` is observed only when every task whose `Outcomes:` line names it is `MET` (an outcome delivered by no task is never observed). Reports are **per spec only**; there is no combined batch file (VERIFY-D05). The report is **mandatory at review**, not optional: `spec accept` refuses a `REVIEWED` spec without a green report (VERIFY-D09). A task that lists skills but left `read every skill` unticked is marked `[skills-unread]` on its report line (and `verify status` prints the same warning) — visible, never a hard gate. A green report (every task `MET` **and** every declared `R#` observed) refreshes `specs/README.md` + `docs/_topics.md`, advances the spec `BUILDING`/`BUILT` → `REVIEWED`, and exits **0**; a task that is not `MET` or an unobserved `R#` leaves the status unchanged and exits **1** (an unresolvable `<ref>` exits **2**); a Sign-off block parks it `REVIEW_REVISION_REQUIRED`.
 
-### Guardrails context
+## Guardrails context
 
 Verification never overrides the global guardrails (see `overview.md`): running an "approved dependency command" is the one sanctioned exception to the lockfile rule; everything else — `.env*`, credentials, `specs/*` — stays protected regardless of what a verification command would touch.
 

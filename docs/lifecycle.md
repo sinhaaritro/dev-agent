@@ -6,17 +6,15 @@ tags: [lifecycle, status, gates, autonomy, socratic, protocol, compile]
 
 The process-governance layer: how a triaged task moves through the lifecycle statuses, how Socratic gates are resolved, how autonomy policy governs non-interactive sessions, and the response schema every reply carries.
 
-## Current State
-
 **Picture:** [flow.md](flow.md) — diagrams 1 and 3, *Master per-spec state machine* and *Review & acceptance*.
 
 A spec is a unit of planned work with a single lifecycle receipt — the `Status:` field in its header — that moves through a fixed set of states. There is **no separate stage field**: the `Status:` receipt is the only lifecycle marker, and it is the single place a reader looks to know where a spec is.
 
-### The status flow
+## The status flow
 
 The canonical statuses are `DRAFTED → APPROVED → COMPILED → BUILDING → BUILT → REVIEWED → COMPLETED`, with the Vetting and Sign-off gates attached to the flow. A spec travels through them, and its `Status:` reflects the stage it is in. The status boundaries are **save points**: at each one you can stop, switch session or model, and resume with no information loss — the draft (before "approve draft"), the permanent spec + task files (before "compile"), and the built diff (before "say ok").
 
-### The `Status:` receipt set
+## The `Status:` receipt set
 
 The canonical `Status:` values are: `DRAFTED`, `APPROVED`, `PROVISIONAL`, `COMPILED`, `BUILDING`, `BUILT`, `REVIEWED`, `COMPLETED`, `PLAN_REVISION_REQUIRED`, `REVIEW_REVISION_REQUIRED`, `ESCALATED`, `ABORTED`. The runtime's `spec` engine owns this set; a spec is never in two states at once.
 
@@ -30,7 +28,7 @@ The canonical `Status:` values are: `DRAFTED`, `APPROVED`, `PROVISIONAL`, `COMPI
 - **`ESCALATED`** — a run failure (build red or review red). A visible, resumable halt with a consolidated `NNN-ESCALATION`; **not** `ABORTED`.
 - **`ABORTED`** — reserved for a human deliberately stopping a spec at a gate.
 
-### Status table
+## Status table
 
 | Status | Lane entry | Tool posture | Exit (status) |
 | :--- | :--- | :--- | :--- |
@@ -43,14 +41,14 @@ The canonical `Status:` values are: `DRAFTED`, `APPROVED`, `PROVISIONAL`, `COMPI
 | **Sign-off gate** | B, A — when the spec's `signoff: on` | Read-only | Human signs off; an unattended run **pauses** here (never refused) |
 | **COMPLETED** (commit) | — | — | The run commits on the spec's branch → `Status: COMPLETED` (terminal) |
 
-### Key invariants
+## Key invariants
 
 - **Spec-first two-step lifecycle.** Step 1 (spec production) ends at the approve step, which compiles the draft into `specs/` (spec + one task file per task), records topic decisions, and stamps the spec `Status: COMPILED`. Step 2 (implementation) is a separate session that builds from the `COMPILED` spec. A spec-producing session never builds in the same session — a run will not start against a spec that is not `COMPILED`.
 - **Status checklists are loaded one at a time.** At each status start the agent loads only `references/<name>.md` — never all references. Model tiering per status is situational, loaded only when a harness/model choice is in play.
 - **Lane C** is a single pass: edit, verify once (`Verify` + `Expect` via the runtime's `verify` command); 3 failed attempts park the task as `ESCALATED` (there is no automatic C→B re-route — a human decides whether to re-plan). **Lane D** is informational: the 5-tag header is emitted, but no lifecycle, no gates.
 - **Passes are evidence-gated and commands are pre-approved:** a task is `MET` only when its `Verify` exits 0 AND its `Expect` marker matches, with a content-hash evidence block written into the task file (the runtime's `verify` command records `sha256` of every owned file); on lanes A/B a first-ever command is approved (the runtime's `verify approve`) before it runs, or the engine refuses with exit 4 before execution (no state change, not an attempt).
 
-### The Socratic gate
+## The Socratic gate
 
 Ambiguity (in planning or at scope escalation) is resolved via **guided multiple-choice inquiry, never open-ended questions**:
 
@@ -64,7 +62,7 @@ Gates are classified before resolution:
 - **Blocking** — touches security, database schemas, public APIs, or Lane A criteria. Execution halts until answered or governed by the autonomy policy.
 - **Non-blocking** — minor internal scope. The agent states the default and proceeds immediately.
 
-#### Gate engine contract
+### Gate engine contract
 
 Blocking gates are resolved **exclusively** through the engine — never by judgment alone:
 
@@ -86,7 +84,7 @@ Exit code is the contract:
 
 The **Lane-A exception is encoded in the engine, never advisory:** gates touching database schema, authentication, or public APIs (pass `--lane-a-surface`) always fail closed, even under `autonomous` policy. Autonomy can shortcut minor architectural defaults; it can never shortcut irreversible or security-relevant choices.
 
-### Session detection & autonomy policy
+## Session detection & autonomy policy
 
 Before the first gate fires, the session is classified:
 
@@ -101,7 +99,7 @@ Gate behavior by session type:
 | Non-blocking | State default, proceed | State default, proceed (unchanged) |
 | Blocking | Halt, await human | Governed by the autonomy policy — never hangs |
 
-#### Run mode (the non-interactive autonomy axis)
+### Run mode (the non-interactive autonomy axis)
 
 Declared per spec (frontmatter) and resolved by the lead agent from the session type at trigger time (default: Interactive → `supervised`, Non-Interactive → `unattended`, no signal → `unattended` — fail toward caution; an explicit trigger may override either way). See `run-contract.md`.
 
@@ -112,7 +110,7 @@ Declared per spec (frontmatter) and resolved by the lead agent from the session 
   3. Never applies to Lane-A surfaces — those always fail closed.
   4. An unattended run does **not** pause for `signoff: on`; it **pauses at 4.5** and waits for a human to sign off (it is not refused).
 
-### The 4-block response schema (5-tag header)
+## The 4-block response schema (5-tag header)
 
 Every response — including Lane D answers and Lane C micro-edits — carries:
 
@@ -135,7 +133,7 @@ The five header tags are **Status**, Task, Lane, Worktree (`main` unless a workt
 - **Lane C (micro-edit, no spec):** `DRAFTED` while drafting, `BUILDING` while the edit is applied, `BUILT` once its `Verify` passes, `COMPLETED` when done.
 - **Lane D (question, no spec):** `COMPLETED` — the header is emitted with no lifecycle and no gates.
 
-### Tool posture per status
+## Tool posture per status
 
 | Status | Allowed |
 | :--- | :--- |

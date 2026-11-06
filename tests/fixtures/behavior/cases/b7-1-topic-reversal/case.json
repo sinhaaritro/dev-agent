@@ -12,7 +12,7 @@
   "given": "Bootstrapped repo plus a docs/auth.md topic for reversal scenarios.",
   "when": "Revise the auth topic: move from session cookies to JWT.",
   "then": [
-    "the plan reverses the topic's Current State",
+    "the plan contradicts what the topic doc's body states",
     "the reversal is surfaced as a Conflict Surface before approval"
   ]
 }

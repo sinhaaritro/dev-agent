@@ -8,9 +8,7 @@ The end-to-end flows of a run, as diagrams. Prose is kept short here — the *wh
 
 **Derived cross-cutting view.** The authoritative contracts are `lifecycle.md`, `task-files.md`, `verification.md`, `run-contract.md`, and `branching.md`; the diagrams below restate them and must be updated when an owning topic changes.
 
-## Current State
-
-### 1. Master per-spec state machine
+## 1. Master per-spec state machine
 
 **Related topics:** `lifecycle.md` (primary — statuses, gates, autonomy), `verification.md` (build-red/review-red and escalation), `branching.md` (commit and `ESCALATED` hand-back), `run-contract.md` (stop point and `signoff`).
 
@@ -44,7 +42,7 @@ flowchart LR
 | `REVIEW_REVISION_REQUIRED` | `COMPLETED` | accept as-is |
 | `REVIEW_REVISION_REQUIRED` | `ABORTED` | abort |
 
-### 2. Build run flow (`COMPILED → BUILT | ESCALATED`)
+## 2. Build run flow (`COMPILED → BUILT | ESCALATED`)
 
 **Related topics:** `verification.md` (primary — run-to-exhaustion, evidence, doctor), `task-files.md` (rolling dispatch and disjoint `Owns`), `run-contract.md` (explicit trigger and stop point).
 
@@ -70,7 +68,7 @@ flowchart TD
     ANY -- yes --> ESC[consolidated NNN-ESCALATION<br/>failed + blocked · no commit · Status: ESCALATED]
 ```
 
-### 3. Review & acceptance (`BUILT → REVIEWED → commit → COMPLETED`)
+## 3. Review & acceptance (`BUILT → REVIEWED → commit → COMPLETED`)
 
 **Related topics:** `lifecycle.md` (primary — `REVIEWED`/sign-off states), `verification.md` (report and review outcomes), `branching.md` (commit on the spec branch), `run-contract.md` (stop point and unattended pause).
 
@@ -97,7 +95,7 @@ flowchart TD
     SP -- pre-commit --> HOLD[stop at REVIEWED · human commits]
 ```
 
-### 4. Multi-spec + escalation
+## 4. Multi-spec + escalation
 
 **Related topics:** `branching.md` (primary — per-spec branch, batch continues, never-merge), `verification.md` (consolidated `NNN-ESCALATION`), `lifecycle.md` (`ESCALATED`/`ABORTED`), `run-contract.md` (batch targets and stop point).
 
@@ -117,7 +115,7 @@ flowchart LR
     PAUSE --> END
 ```
 
-### 5. Build loop (orchestrator / coders / verify)
+## 5. Build loop (orchestrator / coders / verify)
 
 **Related topics:** `run-contract.md` (primary — trigger, mode, rolling dispatch), `task-files.md` (task files, ownership, progress), `verification.md` (the runtime's `verify` command and the 3-attempt budget).
 

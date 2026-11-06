@@ -40,25 +40,30 @@ Modes:
              specs/ is never touched by verification).
 
     topic    devagent spec topic <name> --why <text> [--title <text>]
-                  [--file <sub>] [--tags a,b] [--state <text>]
+                  [--file <sub>] [--tags a,b] [--body <text>]
                   [--supersedes <ID>] [--affects <target>]
                   [--reciprocal <topic>] [--reciprocal-file <sub>]
-                  [--reciprocal-why <text>] [--reciprocal-state <text>]
+                  [--reciprocal-why <text>] [--reciprocal-body <text>]
                   [--reciprocal-title <text>] [--date YYYY-MM-DD]
                   [--docs-dir <dir>] [--dry-run]
               The topic-doc path: create a topic doc
               (docs/<name>.md or docs/<name>/<sub>.md) or revise an existing
-              one. A revision allocates the next <TOPIC>-D<nn> by scanning
-              every file of the topic (IDs are topic-global, never reused),
-              updates the Current State in place when --state is given, marks
-              a --supersedes entry "(superseded)" (never deleted), appends the
-              Decision Log entry (Date / Why / Supersedes / Affects / Ref),
-              and, when --reciprocal is given, writes a terse Ref entry in the
-              affected topic pointing back at the primary decision (the
-              primary records the one-way Affects pointer). Links are plain
-              heading anchors. --docs-dir overrides the target (tests and
-              evals use a sandbox; the real docs/ is never touched by
-              verification).
+              one. A topic doc is one normal document (H1, then `##` sections)
+              ending in a `## Decision Log`. A revision allocates the next
+              <TOPIC>-D<nn> by scanning every file of the topic (IDs are
+              topic-global, never reused), replaces the whole document body
+              (everything between the H1 and the log) when --body is given,
+              marks a --supersedes entry "(superseded)" (never deleted),
+              appends the Decision Log entry (Date / Why / Supersedes /
+              Affects / Ref), and, when --reciprocal is given, writes a terse
+              Ref entry in the affected topic pointing back at the primary
+              decision (the primary records the one-way Affects pointer).
+              Links are plain heading anchors. A legacy doc carrying a
+              `## Current State` wrapper is migrated in place first (the
+              heading is removed and its headings are promoted one level);
+              `## Current State` is not a supported section. --docs-dir
+              overrides the target (tests and evals use a sandbox; the real
+              docs/ is never touched by verification).
 
       toc      devagent spec toc [--root <dir>] [--dry-run]
                 Regenerate the deterministic "## Index" marker block in the
@@ -1716,32 +1721,146 @@ def _log_entry(
     return "\n".join(lines) + "\n"
 
 
-def _topic_scaffold(display: str, tags: list[str], state: str) -> str:
+_FENCE_RE = re.compile(r"^\s*(```|~~~)")
+
+
+def _fence_mask(lines: list[str]) -> list[bool]:
+    """True for every line inside a fenced code block (including the fences)."""
+    mask: list[bool] = []
+    in_fence = False
+    for line in lines:
+        if _FENCE_RE.match(line):
+            mask.append(True)
+            in_fence = not in_fence
+            continue
+        mask.append(in_fence)
+    return mask
+
+
+def _ignored_mask(lines: list[str]) -> list[bool]:
+    """True for frontmatter/fenced lines - headings there are not sections."""
+    mask = _fence_mask(lines)
+    if lines and lines[0].strip() == "---":
+        for i in range(len(lines)):
+            mask[i] = True
+            if i > 0 and lines[i].strip() == "---":
+                break
+    return mask
+
+
+def _heading_index(lines: list[str], mask: list[bool], title: str) -> int | None:
+    """Index of an exact, non-fenced heading line (``## <title>``)."""
+    for i, line in enumerate(lines):
+        if not mask[i] and line.strip() == title:
+            return i
+    return None
+
+
+def _migrate_current_state(text: str) -> tuple[str, int]:
+    """Remove a legacy ``## Current State`` wrapper and promote its headings.
+
+    One format only: the doc body is normal ``##`` sections followed by the
+    Decision Log. Every heading inside the old wrapper shifts up one level
+    (H3 -> H2, H4 -> H3, ...); H1/H2 stay put and fenced code is untouched.
+    Idempotent: no wrapper means no change.
+    """
+    lines = text.splitlines()
+    mask = _ignored_mask(lines)
+    start = _heading_index(lines, mask, "## Current State")
+    if start is None:
+        return text, 0
+    end = len(lines)
+    for j in range(start + 1, len(lines)):
+        if not mask[j] and lines[j].strip() == "## Decision Log":
+            end = j
+            break
+    promoted = 0
+    shifted: list[str] = []
+    for offset, line in enumerate(lines[start + 1 : end], start=start + 1):
+        if not mask[offset]:
+            match = re.match(r"^(#{3,6})(\s+\S.*)$", line)
+            if match:
+                line = match.group(1)[1:] + match.group(2)
+                promoted += 1
+        shifted.append(line)
+    if shifted and not shifted[0].strip():
+        shifted = shifted[1:]
+    new_lines = lines[:start] + shifted + lines[end:]
+    result = "\n".join(new_lines)
+    if text.endswith("\n"):
+        result += "\n"
+    return result, promoted
+
+
+def _ensure_decision_log(text: str) -> str:
+    """Create the ``## Decision Log`` end section when it is missing."""
+    lines = text.splitlines()
+    mask = _ignored_mask(lines)
+    if _heading_index(lines, mask, "## Decision Log") is not None:
+        return text
+    return text.rstrip("\n") + "\n\n## Decision Log\n"
+
+
+def _log_is_last(text: str) -> bool:
+    """True when no real ``##`` section follows the Decision Log."""
+    lines = text.splitlines()
+    mask = _ignored_mask(lines)
+    start = _heading_index(lines, mask, "## Decision Log")
+    if start is None:
+        return True
+    for j in range(start + 1, len(lines)):
+        if not mask[j] and re.match(r"^##\s+\S", lines[j]):
+            return False
+    return True
+
+
+def _replace_body(text: str, body: str) -> str:
+    """Replace the whole doc body: after the H1, before ``## Decision Log``.
+
+    Explicit, wholesale replacement - the log and its entries are never part
+    of the region, so history survives.
+    """
+    lines = text.splitlines()
+    mask = _ignored_mask(lines)
+    h1 = None
+    for i, line in enumerate(lines):
+        if not mask[i] and re.match(r"^#\s+\S", line):
+            h1 = i
+            break
+    if h1 is not None:
+        start = h1 + 1
+    else:
+        start = 0
+        if lines and lines[0].strip() == "---":
+            for i in range(1, len(lines)):
+                if lines[i].strip() == "---":
+                    start = i + 1
+                    break
+    end = _heading_index(lines, mask, "## Decision Log")
+    if end is None:
+        end = len(lines)
+    prefix = lines[:start]
+    while prefix and not prefix[-1].strip():
+        prefix.pop()
+    body_lines = (
+        body.strip("\n").splitlines() if body.strip("\n") else ["_(to be described)_"]
+    )
+    new_lines = prefix + [""] + body_lines + [""] + lines[end:]
+    result = "\n".join(new_lines)
+    if text.endswith("\n"):
+        result += "\n"
+    return result
+
+
+def _topic_scaffold(display: str, tags: list[str], body: str) -> str:
     """A new topic doc matching references/topic-template.md (format-of-truth)."""
-    body = state.strip("\n") if state.strip() else "_(to be described)_"
+    text = body.strip("\n") if body and body.strip() else "_(to be described)_"
     return (
         "---\n"
         "tags: [" + ", ".join(tags) + "]\n"
         "---\n\n"
-        f"# {display}\n\n"
-        "## Current State\n\n" + body + "\n\n## Decision Log\n"
+        f"# {display}\n\n" + text + "\n\n## Decision Log\n"
     )
-
-
-def _ensure_sections(text: str) -> str:
-    """Guarantee both contract sections exist (Current State before the Log)."""
-    if "## Current State" not in text:
-        if "## Decision Log" in text:
-            text = text.replace(
-                "## Decision Log",
-                "## Current State\n\n_(to be described)_\n\n## Decision Log",
-                1,
-            )
-        else:
-            text = text.rstrip("\n") + "\n\n## Current State\n\n_(to be described)_\n"
-    if "## Decision Log" not in text:
-        text = text.rstrip("\n") + "\n\n## Decision Log\n"
-    return text
 
 
 def _mark_superseded(text: str, decision_id: str) -> str:
@@ -1755,25 +1874,6 @@ def _mark_superseded(text: str, decision_id: str) -> str:
     return text
 
 
-def _replace_state(text: str, state: str) -> str:
-    """Replace the '## Current State' body in place (up to the next '## ')."""
-    lines = text.splitlines()
-    start = None
-    for i, line in enumerate(lines):
-        if line.strip() == "## Current State":
-            start = i + 1
-            break
-    if start is None:
-        return text
-    end = len(lines)
-    for j in range(start, len(lines)):
-        if lines[j].startswith("## "):
-            end = j
-            break
-    lines[start:end] = state.strip("\n").splitlines()
-    return "\n".join(lines) + ("\n" if text.endswith("\n") else "")
-
-
 def _append_log_entry(text: str, entry: str) -> str:
     """Append one entry at the end of the '## Decision Log' section (file end)."""
     return text.rstrip("\n") + "\n\n" + entry
@@ -1785,28 +1885,35 @@ def _revise_topic(
     tags: list[str],
     entry: str,
     supersedes: str | None,
-    state: str | None,
+    body: str | None,
 ) -> None:
     """Apply one revision to a topic file (create from the template if missing).
 
-    Never deletes or recreates: a superseded entry stays in the log (marked),
-    the Current State is updated in place, and the new entry takes the next
-    ID - one decision, one reason, one approval.
+    Never deletes or recreates history: a superseded entry stays in the log
+    (marked), a wholesale body rewrite happens only through an explicit
+    --body, and the new entry takes the next ID - one decision, one reason,
+    one approval. A legacy `## Current State` doc is migrated in place first.
     """
     if path.is_file():
-        text = _ensure_sections(read_text(path))
+        text, _ = _migrate_current_state(read_text(path))
+        text = _ensure_decision_log(text)
     else:
         path.parent.mkdir(parents=True, exist_ok=True)
-        text = _topic_scaffold(display, tags, state or "")
+        text = _topic_scaffold(display, tags, body or "")
     if supersedes:
         text = _mark_superseded(text, supersedes)
-    if state is not None:
-        text = _replace_state(text, state)
+    if body is not None:
+        text = _replace_body(text, body)
+    if not _log_is_last(text):
+        raise SystemExit(
+            f"error: {path}: content after '## Decision Log' - "
+            "the log must be the last section"
+        )
     path.write_text(_append_log_entry(text, entry), encoding="utf-8")
 
 
 def cmd_topic(args: argparse.Namespace) -> int:
-    """Create or revise a topic doc (Current State + Decision Log)."""
+    """Create or revise a topic doc (body sections + Decision Log)."""
     name = args.name
     if not (2 <= len(name) <= 30) or not TOPIC_NAME_RE.match(name):
         print(f"error: topic name '{name}' must be lowercase-kebab (2-30 chars)")
@@ -1885,7 +1992,7 @@ def cmd_topic(args: argparse.Namespace) -> int:
         tags,
         entry,
         args.supersedes,
-        args.state,
+        args.body,
     )
     print(f"topic: {target}")
     print(f"decision: {decision_id}")
@@ -1898,7 +2005,7 @@ def cmd_topic(args: argparse.Namespace) -> int:
             [rname],
             rentry,
             None,
-            args.reciprocal_state,
+            args.reciprocal_body,
         )
         print(f"reciprocal: {rtarget} ({rid})")
     _sync_topics_index(docs.parent)
@@ -2344,9 +2451,9 @@ def main() -> int:
         help="comma-separated frontmatter tags (default: the topic name)",
     )
     topic_p.add_argument(
-        "--state",
+        "--body",
         default=None,
-        help="replace the Current State section body (revision)",
+        help="replace the whole document body before '## Decision Log' (revision)",
     )
     topic_p.add_argument(
         "--supersedes",
@@ -2372,9 +2479,9 @@ def main() -> int:
         "--reciprocal-why", default=None, help="rationale for the reciprocal entry"
     )
     topic_p.add_argument(
-        "--reciprocal-state",
+        "--reciprocal-body",
         default=None,
-        help="replace the reciprocal topic's Current State body",
+        help="replace the reciprocal topic's whole document body",
     )
     topic_p.add_argument(
         "--reciprocal-title", default=None, help="display title of the reciprocal entry"

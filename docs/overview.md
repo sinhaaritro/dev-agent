@@ -6,16 +6,14 @@ tags: [framework, overview, architecture, orchestration]
 
 Dev Agent is a drop-in configuration framework for AI coding assistants. It turns a repository into a structured workspace where humans and AI agents work the same codebase as equals: every task is triaged into a scope lane, planned behind Socratic gates, built against a compiled spec, verified with content-hash evidence, and handed back with a compiled spec so any human or agent can resume mid-flight.
 
-## Current State
-
-### What it is
+## What it is
 
 - **Harness-agnostic.** No harness-specific skill mechanism. The agent reads files off disk (`AGENTS.md`, `.agents/rules/dev-agent-framework.md`, each `.agents/skills/<name>/SKILL.md`) guided by explicit paths — the same files work in Cursor, Windsurf, Claude Code, OpenCode, Aider, Gemini CLI, Roo Code, Antigravity, and others.
 - **Model-agnostic.** Per-status model tiering (SOTA for planning/review, local or SOTA for building) is an optimization only; it never changes the contract.
 - **Spec-driven.** Code is built from a `COMPILED`, committed spec — never from an ephemeral draft, and never in the same session that produced the spec.
 - **Engine-driven.** Every mechanical contract (index freshness, skill recall, gate resolution, spec compile, verification counting, scratchpad purging) runs through a shared stdlib-only Python runtime at `.agents/scripts/devagent/`. The agent supplies judgment (what to run, what the ambiguity is); the engine supplies the mechanics and the audit record.
 
-### Directory map
+## Directory map
 
 ```text
 <repository-root>/
@@ -30,7 +28,7 @@ Dev Agent is a drop-in configuration framework for AI coding assistants. It turn
 ├── docs/                        # HUMAN + AI SHARED SPACE (committed)
 │   ├── README.md                # Start here — the guided reading path
 │   ├── <name>.md or <name>/     # Topic docs: one per subsystem, each
-│   │                            #   ## Current State + ## Decision Log
+│   │                            #   body sections + ## Decision Log
 │   └── _topics.md               # Generated AI routing index (sync-docs)
 │
 └── .agents/                     # MACHINE SPACE (AI internals)
@@ -43,7 +41,7 @@ Dev Agent is a drop-in configuration framework for AI coding assistants. It turn
 
 Note: `.agents/MAP.md` is generated on demand by the runtime's `map` command at session start and is not part of the committed tree; it is listed here because every other doc references it.
 
-### Memory architecture
+## Memory architecture
 
 Memory is strictly split:
 
@@ -54,7 +52,7 @@ Memory is strictly split:
 
 There is no preserved append-only gate log in the scratchpad: gate decisions are recorded in the spec's own `Gates:` section, and the per-spec `NNN-ESCALATION-<slug>.md` is the durable failure audit record.
 
-### The six core skills (+ the installer)
+## The six core skills (+ the installer)
 
 | Skill | Role | Engine |
 | :--- | :--- | :--- |
@@ -68,7 +66,7 @@ There is no preserved append-only gate log in the scratchpad: gate decisions are
 
 The six behavioral skills are thin wrappers: a `SKILL.md` (what/when/instructions) plus optional `references/` checklists, calling the shared stdlib-only runtime at `.agents/scripts/devagent/` by subcommand (`python .agents/scripts/devagent/main.py <command>`). Only `dev-agent` carries the runtime and the installer; it also ships the seed rulebook and coder contract. Skills with `scope: always` in frontmatter (auto-router, phase-protocol) load at session start; all others load on demand when their tags or context match. See `skill-discovery.md`.
 
-### Boot chain (what happens on every request)
+## Boot chain (what happens on every request)
 
 Defined in `.agents/rules/dev-agent-framework.md`, in order:
 
@@ -78,7 +76,7 @@ Defined in `.agents/rules/dev-agent-framework.md`, in order:
 4. **Load matching on-demand skills** and obey their engines (spec-builder for plans, verification-runner for verification, task-cleaner for cleanup).
 5. **No matching skill** → baseline: plan in `specs/temp/draft-plan.md`, build, verify, promote only on human acceptance.
 
-### Guardrails (non-negotiable, regardless of loaded skills)
+## Guardrails (non-negotiable, regardless of loaded skills)
 
 - Never modify or delete `.env*` files, credentials/keys/certificates, or lockfiles (unless executing approved dependency commands).
 - Never modify `specs/*` without explicit human confirmation.
@@ -87,7 +85,7 @@ Defined in `.agents/rules/dev-agent-framework.md`, in order:
 - Gate decisions are recorded in the spec's `Gates:` section; a failure's audit trail is the spec's `NNN-ESCALATION-<slug>.md` — never hand-written.
 - Blocking gates are never resolved by judgment alone — the gate engine is the single decision path.
 
-### Where to go next
+## Where to go next
 
 `README.md` lays out a guided reading path. In short: this doc for the mental model, then `routing.md` → `lifecycle.md` → `decision-records.md` → `task-files.md` → `verification.md` → `branching.md` → `run-contract.md`, with `flow.md` as the picture book and `skill-discovery.md` as the skill-loading backdrop.
 

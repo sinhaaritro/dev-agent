@@ -331,7 +331,7 @@ Cases: `tests/fixtures/behavior/cases/`. Each case below mirrors its
   - **Given** Bootstrapped repo plus a docs/auth.md topic for reversal scenarios.
   - **When** Revise the auth topic: move from session cookies to JWT.
   - **Then**
-    - the plan reverses the topic's Current State
+    - the plan contradicts what the topic doc's body states
     - the reversal is surfaced as a Conflict Surface before approval
 - **B7.2** Pattern break escalates.
   - **Given** Framework installed: gateway rulebook + auto-router + phase-protocol.

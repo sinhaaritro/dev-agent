@@ -6,9 +6,7 @@ tags: [triage, lanes, escalation, routing, session]
 
 The intent-triage layer: every incoming request is classified into exactly one Execution Lane before any other work happens, the session type is detected, candidate skills are recalled, and scope escalation is monitored throughout.
 
-## Current State
-
-### The four lanes
+## The four lanes
 
 Single source of truth: `.agents/skills/auto-router/references/lane-matrix.md`.
 
@@ -21,14 +19,14 @@ Single source of truth: `.agents/skills/auto-router/references/lane-matrix.md`.
 
 **Surface triggers outrank file count.** File count is a heuristic: a single-file edit that touches an auth middleware is Lane A; a wide but surface-free refactor may be Lane B.
 
-#### Classification order (top-down, first fit wins)
+### Classification order (top-down, first fit wins)
 
 1. Non-mutating (no file changes implied)? → **D**
 2. Single file, diff under ~30 lines, no Lane-A surface? → **C**
 3. 2–5 files, no Lane-A surface? → **B**
 4. Otherwise → **A**
 
-### Session detection
+## Session detection
 
 - **Interactive** — a human can plausibly respond within the current turn.
 - **Non-Interactive** — headless, no human in the loop (CI, batch, daemon).
@@ -39,7 +37,7 @@ The session type feeds two consumers — triage detects it, the rest consume it:
 - **Gate behavior** (see `lifecycle.md`, "Session detection & autonomy"): Interactive blocking gates halt for a human; Non-Interactive ones are governed by the autonomy policy.
 - **Run mode** (see `lifecycle.md` and `run-contract.md`): the run contract's `mode` defaults from the session type — **Interactive → `supervised`**, **Non-Interactive → `unattended`**, **no signal → `unattended`** (fail toward caution). An explicit trigger may override either way (`wait for me at 4.5` forces `supervised`; `run it overnight` forces `unattended`).
 
-### Escalation rules
+## Escalation rules
 
 1. **Upward escalation is automatic and announce-only.** A higher-lane criterion revealed mid-execution (e.g., a Lane C edit touches auth middleware) → reclassify now, halt, announce to the human, then continue under the new lane's contract. The router never asks permission to escalate — it only announces.
 2. **Downward escalation requires explicit human confirmation.** A task never quietly downgrades (that would skip planning artifacts already assumed to exist).
@@ -47,7 +45,7 @@ The session type feeds two consumers — triage detects it, the rest consume it:
 4. **Lane D never auto-escalates.** "Explain this function, then fix the bug" splits: answer in D (read-only), then re-triage the fix separately.
 5. **Run failures park `ESCALATED`, not `ABORTED`.** When a task exhausts its 3 verify attempts and no unblocked task remains, the spec is stamped **`ESCALATED`** with a consolidated `NNN-ESCALATION-<slug>.md` (every failed task with its attempts + last output, every blocked task, the dirty edits left in the tree). The run stops **that spec's branch** and the batch **continues** to the next spec — a bad spec cannot cascade. `ABORTED` is reserved for a human deliberately stopping a spec at a gate. See `branching.md` and `run-contract.md`.
 
-### Worked examples
+## Worked examples
 
 Canonical:
 
@@ -62,7 +60,7 @@ Ambiguous:
 - "Explain, then fix" → D for the answer, separate re-triage for the fix.
 - Mid-flight C → B (a second file must change for the build to pass) → reclassify, announce, continue under B's contract (abbreviated plan, task verify). No asking permission, no silent continuation as C.
 
-### The routing verdict
+## The routing verdict
 
 auto-router's output contract is exactly:
 
@@ -73,7 +71,7 @@ auto-router's output contract is exactly:
 
 phase-protocol consumes the verdict into the `[STATUS: ...]` header and drives the status lifecycle, gates, autonomy, and the 4-block schema (see `lifecycle.md`). The division is strict: auto-router owns triage and holds **no gate authority**; phase-protocol owns gates and **never re-triages the lane**. auto-router never drafts plans, writes specs, or executes the task — it routes it.
 
-### Recall stage 2 (judgment)
+## Recall stage 2 (judgment)
 
 Stage 1 is the runtime's `route` command (see `skill-discovery.md`). Stage 2 is judgment: engine output is candidates only and can never exclude a skill. Thin or zero candidates → re-read the full `MAP.md` and match by semantic relation; a skill with zero literal hits can still apply. Absence from the engine's list is never proof a skill does not apply.
 

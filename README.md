@@ -108,7 +108,7 @@ dev-agent/
 │   └── skills/                 #   repo-only tooling (author-skill) + vendored skill-creator (internal)
 ├── specs/                      # What to build — spec groups with a lifecycle (NNN-SPEC + NNN-TASK + approvals + report)
 │   └── temp/                   #   ephemeral draft-stage scratchpad (gitignored)
-└── docs/                       # What is + why we chose — topic docs (Current State + Decision Log), README guide, generated index
+└── docs/                       # What is + why we chose — topic docs (body sections + Decision Log), README guide, generated index
 ```
 
 Only the `dev-agent` skill carries code: it bundles the shared stdlib-only runtime and the installer. The other six are thin wrappers — a `SKILL.md` (what it does, when to use it) plus optional `references/` — that invoke the runtime at `.agents/scripts/devagent/main.py`. Only `skills/` ships. This repo does **not** run the framework on itself: there is no dogfood mirror, no in-repo runtime, and no gateway rulebook, so `.agents/skills/` holds only repo-only tooling (`author-skill`, vendored `skill-creator`), each stamped `metadata.internal: true` to stay hidden from users.
